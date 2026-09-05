@@ -1,0 +1,9 @@
+{
+  "extends": "@motion-canvas/2d/tsconfig.project.json",
+  "include": ["src"],
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",   // 支持 package.json exports/imports，且不强制写 .js 后缀
+    "target": "ES2020"               // es5 在 6.0 同样已弃用，顺手一起改
+  }
+}
