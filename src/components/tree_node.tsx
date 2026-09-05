@@ -3,6 +3,7 @@ import { SignalValue } from "@motion-canvas/core";
 
 export interface TreeNodeProps extends CircleProps {
   title?: SignalValue<string>;
+  size?: SignalValue<number>;
 }
 
 export class TreeNode extends Circle {
@@ -11,7 +12,7 @@ export class TreeNode extends Circle {
       layout: true,
       justifyContent: "center",
       alignItems: "center",
-      size: 120,
+      size: props?.size ?? 120,
       fill: props?.fill ?? "#1D293B",
       stroke: props?.stroke ?? "#5C79A3",
       lineWidth: 4,

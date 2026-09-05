@@ -1,14 +1,14 @@
-import { createRef } from "@motion-canvas/core";
-import { TreeNode } from "../components/tree_node";
+import { createRef, waitFor } from "@motion-canvas/core";
 import { makeScene2D } from "@motion-canvas/2d";
+import { BTree } from "../components/b_tree";
 
 export default makeScene2D(function* (view) {
   view.fill("#121212");
 
-  const treeNodeRef = createRef<TreeNode>();
-
-  view.add(<TreeNode ref={treeNodeRef} y={-200} />);
+  const tree = createRef<BTree>();
+  view.add(<BTree ref={tree} L={3} />);
 
   // 动画控制
-  yield* treeNodeRef().y(0, 1);
+  yield* tree().create(0.6);
+  yield* waitFor(1);
 });
