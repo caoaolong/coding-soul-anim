@@ -1,7 +1,7 @@
 import { makeProject } from "@motion-canvas/core";
 
-import bTree from "./scenes/b_tree?scene";
+import nBytes from "./scenes/n_bytes?scene";
 
 export default makeProject({
-  scenes: [bTree],
+  scenes: [nBytes],
 });
