@@ -10,5 +10,8 @@ export default makeScene2D(function* (view) {
 
   // 动画控制
   yield* tree().create(0.6);
+  yield* tree().rowNumber(0.4);
+  yield* tree().rowCount(0.4);
+  yield* tree().highlight(0, true);
   yield* waitFor(1);
 });

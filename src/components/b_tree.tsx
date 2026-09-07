@@ -1,5 +1,10 @@
-import { Node, NodeProps, Ray } from "@motion-canvas/2d";
-import { all, createRefArray, ThreadGenerator } from "@motion-canvas/core";
+import { Latex, Node, NodeProps, Ray, Txt } from "@motion-canvas/2d";
+import {
+  all,
+  createRefArray,
+  sequence,
+  ThreadGenerator,
+} from "@motion-canvas/core";
 import { TreeNode } from "./tree_node";
 
 export interface BTreeProps extends NodeProps {
@@ -14,6 +19,8 @@ export interface BTreeProps extends NodeProps {
 export class BTree extends Node {
   public readonly nodes = createRefArray<TreeNode>();
   public readonly edges = createRefArray<Ray>();
+  public readonly rowNumbers = createRefArray<Txt>();
+  public readonly rowCounts = createRefArray<Latex>();
   private readonly levels: number;
 
   public constructor(props?: BTreeProps) {
@@ -28,13 +35,16 @@ export class BTree extends Node {
     const treeHeight = L * nodeSize + (L - 1) * spacing;
     const startY = -treeHeight / 2 + nodeSize / 2;
     const radius = nodeSize / 2;
+    const labelGap = 48;
 
     const positions: { x: number; y: number }[] = [];
+    const rowYs: number[] = [];
     for (let level = 0; level < L; level++) {
       // N代表当前行有多少个节点
       const N = Math.pow(2, level);
       const slotWidth = treeWidth / N;
       const y = startY + level * (nodeSize + spacing);
+      rowYs.push(y);
 
       for (let j = 0; j < N; j++) {
         positions.push({
@@ -75,6 +85,37 @@ export class BTree extends Node {
           size={nodeSize}
           x={x}
           y={y}
+        />,
+      );
+    }
+
+    // 行号（左侧）与节点数公式（右侧），初始隐藏，由动画唤出
+    for (let level = 0; level < L; level++) {
+      const y = rowYs[level];
+
+      this.add(
+        <Txt
+          ref={this.rowNumbers}
+          text={`${level}`}
+          fill={"#FFFFFF"}
+          fontSize={36}
+          fontWeight={700}
+          x={-treeWidth / 2 - labelGap}
+          y={y}
+          opacity={0}
+        />,
+      );
+
+      this.add(
+        <Latex
+          ref={this.rowCounts}
+          tex={`{${Math.pow(2, level)}=2^{${level}}}`}
+          fill={"#FFFFFF"}
+          fontSize={28}
+          x={treeWidth / 2 + labelGap}
+          y={y}
+          opacity={0}
+          offset={[-1, 0]}
         />,
       );
     }
@@ -129,6 +170,66 @@ export class BTree extends Node {
       }
 
       yield* all(...tasks);
+    }
+  }
+
+  /**
+   * 在每行左侧依次显示行号（从 0 开始）。
+   * @param duration 每一行出现的时长（秒）
+   */
+  public *rowNumber(duration = 0.4): ThreadGenerator {
+    yield* sequence(
+      duration * 0.35,
+      ...this.rowNumbers.map((label) => label.opacity(1, duration)),
+    );
+  }
+
+  /**
+   * 在每行右侧依次显示节点数公式，如 8=2^{3}。
+   * @param duration 每一行出现的时长（秒）
+   */
+  public *rowCount(duration = 0.4): ThreadGenerator {
+    yield* sequence(
+      duration * 0.35,
+      ...this.rowCounts.map((label) => label.opacity(1, duration)),
+    );
+  }
+
+  /**
+   * 高亮指定节点（nodes 数组下标，从 0 开始）。
+   * @param index 节点下标
+   * @param recovery 高亮完成后是否自动复原
+   * @param duration 高亮过渡时长（秒）
+   */
+  public *highlight(
+    index: number,
+    recovery = false,
+    duration = 0.4,
+  ): ThreadGenerator {
+    const node = this.nodes[index];
+    if (!node) {
+      return;
+    }
+
+    const prevFill = node.fill();
+    const prevStroke = node.stroke();
+    const prevLineWidth = node.lineWidth();
+    const prevScale = node.scale();
+
+    yield* all(
+      node.fill("#F59E0B", duration),
+      node.stroke("#FCD34D", duration),
+      node.lineWidth(8, duration),
+      node.scale(1.12, duration * 0.5).to(1, duration * 0.5),
+    );
+
+    if (recovery) {
+      yield* all(
+        node.fill(prevFill, duration),
+        node.stroke(prevStroke, duration),
+        node.lineWidth(prevLineWidth, duration),
+        node.scale(prevScale, duration),
+      );
     }
   }
 }
