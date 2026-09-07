@@ -1,6 +1,6 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
-import { Timeline } from "../components/timeline";
+import { Timeline } from "../components/timeline/timeline";
 
 export default makeScene2D(function* (view) {
   view.fill("#121212");

@@ -1,6 +1,6 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
-import { NBytes } from "../components/n_bytes";
+import { NBytes } from "../components/bytes/n_bytes";
 
 export default makeScene2D(function* (view) {
   view.fill("#121212");

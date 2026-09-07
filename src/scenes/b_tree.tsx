@@ -1,6 +1,6 @@
 import { createRef, waitFor } from "@motion-canvas/core";
 import { makeScene2D } from "@motion-canvas/2d";
-import { BTree } from "../components/b_tree";
+import { BTree } from "../components/tree/b_tree";
 
 export default makeScene2D(function* (view) {
   view.fill("#121212");

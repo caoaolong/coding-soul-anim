@@ -1,7 +1,7 @@
 import { makeProject } from "@motion-canvas/core";
 
-import nBytes from "./scenes/n_bytes?scene";
+import intro from "./scenes/intro?scene";
 
 export default makeProject({
-  scenes: [nBytes],
+  scenes: [intro],
 });
