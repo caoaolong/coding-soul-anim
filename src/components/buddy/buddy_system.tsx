@@ -50,11 +50,13 @@ const INTERNAL_TEXT = "#64748B";
 const ADDR_COLOR = "#CBD5E1";
 
 /**
- * 伙伴系统中的一块连续内存：横向内存条 + 起止十六进制地址。
+ * 伙伴系统中的一块连续内存：横向内存条 + 起止十六进制地址
+ * （结束地址为块内最后一字节，闭区间，如 0x0FFF）。
  */
 export class BuddySystem extends Node {
   public readonly start: number;
   public readonly size: number;
+  /** 块内最后一字节地址（闭区间） */
   public readonly end: number;
 
   public left: BuddySystem | null = null;
@@ -88,11 +90,15 @@ export class BuddySystem extends Node {
 
     this.start = start;
     this.size = size;
-    this.end = start + size;
+    this.end = start + size - 1;
     this.barHeight = barHeight;
     this.fontSize = fontSize;
 
-    const digits = Math.max(4, size.toString(16).length);
+    const digits = Math.max(
+      4,
+      start.toString(16).length,
+      this.end.toString(16).length,
+    );
 
     this.add(
       <Rect

@@ -1,8 +1,9 @@
 import { makeProject } from "@motion-canvas/core";
 
-import buddySystem from "./scenes/buddy_system?scene";
-import nBytes from "./scenes/n_bytes?scene";
+import complexityPlot from "./scenes/complexity_plot?scene";
+import dataTable from "./scenes/data_table?scene";
+import functionPlot from "./scenes/function_plot?scene";
 
 export default makeProject({
-  scenes: [buddySystem, nBytes],
+  scenes: [dataTable, complexityPlot, functionPlot],
 });
