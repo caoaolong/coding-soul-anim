@@ -20,7 +20,15 @@ export default makeScene2D(function* (view) {
 
   // 顶部显示 bit 下标 7…0
   yield* bytes().showHeader("index");
-  yield* waitFor(1);
+  yield* waitFor(0.6);
+
+  // 脉冲高亮 bit0、bit7、bit8（跨字节）
+  yield* bytes().highlight(0);
+  yield* waitFor(0.25);
+  yield* bytes().highlight(7);
+  yield* waitFor(0.25);
+  yield* bytes().highlight(8);
+  yield* waitFor(0.6);
 
   // 切换为 2^n + 十进制
   yield* bytes().showHeader("power");

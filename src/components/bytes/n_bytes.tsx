@@ -1,6 +1,5 @@
 import {
   Latex,
-  Layout,
   Node,
   NodeProps,
   Rect,
@@ -86,15 +85,24 @@ export class NBytes extends Node {
     const gridWidth =
       this.byteCount * byteWidth + (this.byteCount - 1) * byteGap;
     const gridHeight = cellSize;
-    const headerGap = 20;
-    const powerHeaderH = 56;
-    // 预留 power 表头高度，避免切换时整体跳动；index 垂直居中于该区域
-    const headerAreaH = powerHeaderH;
-    const totalH = headerAreaH + headerGap + gridHeight;
+    const headerGap = 16;
+    const footerGap = 16;
+    // 上方：index 编号或 2^n；下方：power 模式的十进制位权（预留高度避免切换跳动）
+    const headerAreaH = 40;
+    const footerAreaH = 32;
+    const totalH =
+      headerAreaH + headerGap + gridHeight + footerGap + footerAreaH;
 
     const topY = -totalH / 2;
     const headerCenterY = topY + headerAreaH / 2;
     const gridY = topY + headerAreaH + headerGap + cellSize / 2;
+    const footerCenterY =
+      topY +
+      headerAreaH +
+      headerGap +
+      gridHeight +
+      footerGap +
+      footerAreaH / 2;
 
     /** 高字节在左：visualSlot 0 对应最高字节 */
     const byteOriginX = (visualSlot: number) =>
@@ -124,7 +132,7 @@ export class NBytes extends Node {
       />,
     );
 
-    // index 表头：每个字节上方各一份 7…0
+    // index 表头：格子上方，每个字节各一份 7…0
     this.add(
       <Node ref={this.indexHeader} opacity={0}>
         <Txt
@@ -157,7 +165,7 @@ export class NBytes extends Node {
       </Node>,
     );
 
-    // power 表头：按整体位权（小端低字节在右）显示 2^n + 十进制
+    // power：2^n 在格子上方，十进制位权在格子下方
     this.add(
       <Node ref={this.powerHeader} opacity={0}>
         <Txt
@@ -177,28 +185,26 @@ export class NBytes extends Node {
             const bitIndex = 7 - col;
             const absBit = base + bitIndex;
             const power = Math.pow(2, absBit);
+            const x = cellX(byteIndex, col);
             return (
-              <Layout
-                layout
-                direction={"column"}
-                gap={4}
-                x={cellX(byteIndex, col)}
-                y={headerCenterY}
-                alignItems={"center"}
-              >
+              <Node>
                 <Latex
+                  x={x}
+                  y={headerCenterY}
                   tex={`{2^{${absBit}}}`}
                   fill={"#FFFFFF"}
                   fontSize={22}
                 />
                 <Txt
+                  x={x}
+                  y={footerCenterY}
                   text={`${power}`}
                   fill={"#FFFFFF"}
                   fontSize={20}
                   fontWeight={700}
                   textAlign={"center"}
                 />
-              </Layout>
+              </Node>
             );
           });
         }).flat()}
@@ -239,9 +245,9 @@ export class NBytes extends Node {
   }
 
   /**
-   * 在顶部显示每个格子对应的 bit 位（从右向左）。
-   * - `index`：每字节 0–7 编号
-   * - `power`：上行 2^n，下行十进制值（按整体位权）
+   * 显示每个格子对应的位权说明。
+   * - `index`：格子上方显示每字节 0–7 编号
+   * - `power`：格子上方 2^n，格子下方对应十进制值（按整体位权）
    */
   public *showHeader(
     type: "index" | "power",
@@ -289,6 +295,38 @@ export class NBytes extends Node {
   /** 读取当前整体小端十进制数值 */
   public getNumber(): number {
     return this.computeNumber();
+  }
+
+  /**
+   * 脉冲高亮某一个 bit 位（描边 + 缩放 + 文字变色）。
+   * @param index 整体位权下标：0 为最低位（最右侧），最大为 `N*8-1`
+   */
+  public *highlight(index: number, duration = 0.5): ThreadGenerator {
+    const total = this.byteCount * 8;
+    const bitPos = Math.max(0, Math.min(total - 1, Math.floor(index)));
+    const byteIndex = Math.floor(bitPos / 8);
+    const col = 7 - (bitPos % 8);
+    const idx = byteIndex * 8 + col;
+
+    const cell = this.cells[idx];
+    const txt = this.bitTexts[idx];
+    const up = duration * 0.32;
+    const down = duration * 0.68;
+
+    yield* all(
+      cell
+        .stroke("#FBBF24", up, easeInOutCubic)
+        .to("#5C79A3", down, easeInOutCubic),
+      cell.lineWidth(5, up, easeInOutCubic).to(3, down, easeInOutCubic),
+      cell.scale(1.14, up, easeInOutCubic).to(1, down, easeInOutCubic),
+      cell
+        .fill("#3B4F6B", up, easeInOutCubic)
+        .to("#1D293B", down, easeInOutCubic),
+      txt
+        .fill("#FBBF24", up, easeInOutCubic)
+        .to("#FFFFFF", down, easeInOutCubic),
+      txt.scale(1.2, up, easeInOutCubic).to(1, down, easeInOutCubic),
+    );
   }
 
   private computeNumber(): number {
