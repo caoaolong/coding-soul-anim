@@ -19,10 +19,11 @@ import {
   waitFor,
 } from "@motion-canvas/core";
 import forgeBg from "../../assets/bg.png";
+import { Highlight } from "../../theme/highlight";
 
-const AMBER = "#F59E0B";
-const AMBER_BRIGHT = "#FBBF24";
-const MUTED = "#94A3B8";
+const AMBER = Highlight.fill;
+const AMBER_BRIGHT = Highlight.accent;
+const MUTED = Highlight.muted;
 const SUB = "#CBD5E1";
 const CODE_CHARS = "01{}[]<>/;#$&*=+ABCDEF{}";
 

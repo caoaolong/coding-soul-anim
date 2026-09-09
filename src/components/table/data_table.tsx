@@ -1,5 +1,6 @@
 import { Layout, Node, NodeProps, Rect } from "@motion-canvas/2d";
 import { ThreadGenerator, createRef } from "@motion-canvas/core";
+import { Highlight } from "../../theme/highlight";
 import { Annotation, FocusBoxOptions } from "../annotation/annotation";
 import { DataTableCell, createHeaderCell } from "./data_table_cell";
 import {
@@ -114,9 +115,9 @@ export class DataTable extends Node {
       rowFillB = "#252D3A",
       groupFill = "#243044",
       groupFillAlt,
-      headerTextColor = "#FBBF24",
+      headerTextColor = Highlight.accent,
       textColor = "#E2E8F0",
-      groupTextColor = "#FBBF24",
+      groupTextColor = Highlight.accent,
       cellPaddingX = 16,
       stroke = "#334155",
       groupBorderColor = "#94A3B8",

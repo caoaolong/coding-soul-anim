@@ -17,6 +17,7 @@ import {
   ThreadGenerator,
   Vector2,
 } from "@motion-canvas/core";
+import { Highlight } from "../../theme/highlight";
 
 export interface TimelineNodeData {
   /** 轴上显示的时间文案，如 "2020.03" */
@@ -376,7 +377,7 @@ export class Timeline extends Node {
       ),
       ...this.dots.map((dot, i) =>
         all(
-          dot.fill(i === index ? "#F59E0B" : "#94A3B8", highlightDur),
+          dot.fill(i === index ? Highlight.fill : Highlight.muted, highlightDur),
           dot.size(i === index ? 22 : 16, highlightDur),
         ),
       ),

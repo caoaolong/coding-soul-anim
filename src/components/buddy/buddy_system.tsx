@@ -8,6 +8,7 @@ import {
   waitFor,
 } from "@motion-canvas/core";
 import type { BuddyRoot } from "./buddy_root";
+import { Highlight } from "../../theme/highlight";
 
 export interface BuddySystemProps extends NodeProps {
   /** 起始地址（字节） */
@@ -42,7 +43,7 @@ function formatKB(kb: number): string {
 const DEPTH_FILL = ["#1D293B", "#1E3A5F", "#0F766E", "#1E3A2F", "#3B4F6B"];
 const DEPTH_STROKE = ["#5C79A3", "#38BDF8", "#2DD4BF", "#86EFAC", "#94A3B8"];
 const ALLOC_FILL = "#9A3412";
-const ALLOC_STROKE = "#FBBF24";
+const ALLOC_STROKE = Highlight.accent;
 /** 已分裂的父块：非空闲内部节点 */
 const INTERNAL_FILL = "#0B1220";
 const INTERNAL_STROKE = "#334155";
@@ -316,14 +317,14 @@ export class BuddySystem extends Node {
 
     this.midTxt().text(text);
     yield* all(
-      this.midTxt().fill("#FBBF24", duration * 0.2, easeOutCubic),
+      this.midTxt().fill(Highlight.accent, duration * 0.2, easeOutCubic),
       this.midTxt().scale(1.12, duration * 0.25, easeOutCubic).to(
         1,
         duration * 0.35,
         easeInOutCubic,
       ),
       this.bar()
-        .stroke("#FBBF24", duration * 0.25, easeOutCubic)
+        .stroke(Highlight.accent, duration * 0.25, easeOutCubic)
         .to(stroke, duration * 0.5, easeInOutCubic),
       waitFor(duration * 0.55),
     );
@@ -364,7 +365,7 @@ export class BuddySystem extends Node {
   public *pulseHighlight(duration = 1.6): ThreadGenerator {
     const i = this.depth % DEPTH_STROKE.length;
     yield* this.bar()
-      .stroke("#FBBF24", duration * 0.4, easeOutCubic)
+      .stroke(Highlight.accent, duration * 0.4, easeOutCubic)
       .to(DEPTH_STROKE[i], duration * 0.6, easeInOutCubic);
   }
 

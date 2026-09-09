@@ -7,17 +7,18 @@ import {
   easeOutCubic,
   ThreadGenerator,
 } from "@motion-canvas/core";
+import { Highlight } from "../../theme/highlight";
 
 export interface FocusBoxOptions {
-  /** 包围盒相对物体外扩的边距，默认 16 */
+  /** 包围盒相对物体外扩的边距，默认 Highlight.focusBox.padding */
   padding?: number;
-  /** 高亮描边色，默认琥珀 */
+  /** 高亮描边色，默认 Highlight.focusBox.color */
   color?: string;
-  /** 描边宽度，默认 4 */
+  /** 描边宽度，默认 Highlight.focusBox.lineWidth */
   lineWidth?: number;
-  /** 圆角，默认 12 */
+  /** 圆角，默认 Highlight.focusBox.radius */
   radius?: number;
-  /** 闪烁总时长，默认 0.85 */
+  /** 闪烁总时长，默认 Highlight.focusBox.duration */
   duration?: number;
 }
 
@@ -48,11 +49,11 @@ export class Annotation extends Node {
     }
 
     const {
-      padding = 16,
-      color = "#FBBF24",
-      lineWidth = 4,
-      radius = 12,
-      duration = 0.85,
+      padding = Highlight.focusBox.padding,
+      color = Highlight.focusBox.color,
+      lineWidth = Highlight.focusBox.lineWidth,
+      radius = Highlight.focusBox.radius,
+      duration = Highlight.focusBox.duration,
     } = options;
 
     const worldBox = this.unionWorldBBox(list).expand(padding);

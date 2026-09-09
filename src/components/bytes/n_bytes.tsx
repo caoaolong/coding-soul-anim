@@ -12,6 +12,8 @@ import {
   easeInOutCubic,
   ThreadGenerator,
 } from "@motion-canvas/core";
+import { Highlight } from "../../theme/highlight";
+import { pulseShapes, pulseTxt } from "../../theme/highlight_anim";
 
 export interface NBytesProps extends NodeProps {
   /** 字节数，必须 1–2 */
@@ -310,22 +312,13 @@ export class NBytes extends Node {
 
     const cell = this.cells[idx];
     const txt = this.bitTexts[idx];
-    const up = duration * 0.32;
-    const down = duration * 0.68;
 
     yield* all(
-      cell
-        .stroke("#FBBF24", up, easeInOutCubic)
-        .to("#5C79A3", down, easeInOutCubic),
-      cell.lineWidth(5, up, easeInOutCubic).to(3, down, easeInOutCubic),
-      cell.scale(1.14, up, easeInOutCubic).to(1, down, easeInOutCubic),
-      cell
-        .fill("#3B4F6B", up, easeInOutCubic)
-        .to("#1D293B", down, easeInOutCubic),
-      txt
-        .fill("#FBBF24", up, easeInOutCubic)
-        .to("#FFFFFF", down, easeInOutCubic),
-      txt.scale(1.2, up, easeInOutCubic).to(1, down, easeInOutCubic),
+      pulseShapes(cell, {
+        duration,
+        scalePeak: 1.14,
+      }),
+      pulseTxt(txt, { duration, scalePeak: 1.2 }),
     );
   }
 
@@ -353,7 +346,7 @@ export class NBytes extends Node {
     label.opacity(1);
     yield* all(
       label
-        .fill("#FBBF24", duration * 0.3, easeInOutCubic)
+        .fill(Highlight.accent, duration * 0.3, easeInOutCubic)
         .to("#FFFFFF", duration * 0.7, easeInOutCubic),
       label
         .scale(1.22, duration * 0.3, easeInOutCubic)
@@ -384,7 +377,7 @@ export class NBytes extends Node {
         const idx = b * 8 + col;
         fadeOut.push(
           this.bitTexts[idx].opacity(0, half, easeInOutCubic),
-          this.cells[idx].stroke("#F59E0B", half, easeInOutCubic),
+          this.cells[idx].stroke(Highlight.fill, half, easeInOutCubic),
         );
       }
     }

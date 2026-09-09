@@ -7,6 +7,7 @@ import {
   createRefArray,
   easeInOutCubic,
 } from "@motion-canvas/core";
+import { Highlight } from "../../theme/highlight";
 
 export type PlotFn = (x: number) => number;
 
@@ -66,7 +67,7 @@ export class FunctionPlot extends Node {
       width = 800,
       height = 450,
       samples = 200,
-      stroke = "#FBBF24",
+      stroke = Highlight.accent,
       lineWidth = 3,
       axisColor = "#6B7280",
       yPadding = 0.08,

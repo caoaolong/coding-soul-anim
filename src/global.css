@@ -5,3 +5,11 @@
   font-style: normal;
   font-display: block;
 }
+
+@font-face {
+  font-family: "SimFang";
+  src: url("./assets/simfang.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}

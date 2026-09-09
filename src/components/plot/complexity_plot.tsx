@@ -9,6 +9,7 @@ import {
   easeInOutCubic,
   easeOutCubic,
 } from "@motion-canvas/core";
+import { Highlight } from "../../theme/highlight";
 
 /** 内置支持的时间复杂度标识 */
 export type ComplexityKind =
@@ -66,13 +67,13 @@ function factorial(n: number): number {
 }
 
 const COMPLEXITY_TABLE: Record<string, ComplexityMeta> = {
-  "O(1)": { label: "O(1)", color: "#94A3B8", fn: () => 1 },
+  "O(1)": { label: "O(1)", color: Highlight.muted, fn: () => 1 },
   "O(log n)": {
     label: "O(log n)",
     color: "#38BDF8",
     fn: (n) => Math.log2(Math.max(n, 1)),
   },
-  "O(n)": { label: "O(n)", color: "#FBBF24", fn: (n) => n },
+  "O(n)": { label: "O(n)", color: Highlight.accent, fn: (n) => n },
   "O(n log n)": {
     label: "O(n log n)",
     color: "#34D399",

@@ -9,6 +9,7 @@ import {
 } from "@motion-canvas/core";
 import { Annotation } from "../annotation/annotation";
 import { BuddySystem, BuddySystemProps } from "./buddy_system";
+import { Highlight } from "../../theme/highlight";
 
 export interface BuddyRootProps extends NodeProps {
   /**
@@ -509,7 +510,7 @@ export class BuddyRoot extends Node {
             <Txt
               ref={titleRef}
               text={`order=${ord}`}
-              fill={"#FBBF24"}
+              fill={Highlight.accent}
               fontSize={this.orderFontSize}
               fontWeight={700}
               fontFamily={"SF Mono, Consolas, monospace"}
@@ -517,7 +518,7 @@ export class BuddyRoot extends Node {
             <Latex
               ref={formulaRef}
               tex={`(2^{${ord}}\\ \\mathrm{Pages})`}
-              fill={"#FBBF24"}
+              fill={Highlight.accent}
               fontSize={this.orderFontSize}
             />
           </Layout>,

@@ -4,6 +4,7 @@ import {
   all,
   easeInOutCubic,
 } from "@motion-canvas/core";
+import { Highlight } from "../../theme/highlight";
 import {
   DataTableOpsContext,
   reindexGroups,
@@ -15,9 +16,9 @@ export interface DeleteRowOptions {
   duration?: number;
   /** 删除前是否先高亮，默认 false */
   highlight?: boolean;
-  /** 高亮闪烁时长，默认 0.7 */
+  /** 高亮闪烁时长，默认 Highlight.focusBox.duration 略短 */
   highlightDuration?: number;
-  /** 高亮颜色，默认琥珀 */
+  /** 高亮颜色，默认 Highlight.focusBox.color */
   highlightColor?: string;
 }
 
@@ -31,7 +32,7 @@ function* highlightBeforeDelete(
   if (list.length === 0) return;
   yield* ctx.annotation.focusBox(list, {
     padding: 6,
-    color: options.highlightColor ?? "#FBBF24",
+    color: options.highlightColor ?? Highlight.focusBox.color,
     lineWidth: 3,
     radius: 8,
     duration: options.highlightDuration ?? 0.7,
