@@ -1,0 +1,31 @@
+---
+description: 片头统一使用 CourseCover 组件
+globs: src/scenes/**/*.tsx
+alwaysApply: false
+---
+
+# 片头约定
+
+所有场景片头一律使用 `CourseCover`（`src/components/intro/course_cover.tsx`），不要用 `Intro`、`PoemIntro` 或手写片头动效。
+
+## 用法
+
+```tsx
+import { CourseCover } from "../components/intro/course_cover";
+import { Ink } from "../theme/ink";
+
+view.fill(Ink.bg);
+const cover = createRef<CourseCover>();
+view.add(
+  <CourseCover
+    ref={cover}
+    episodeTitle={"本集标题"}
+    bgHeight={view.height()}
+  />,
+);
+yield* cover().play();
+// 接下文时：yield* cover().hide();
+```
+
+- 系列名默认「重铸编程之魂」，一般不必传 `series`
+- 本集标题用完整中文名（如「大道至简：二进制」）

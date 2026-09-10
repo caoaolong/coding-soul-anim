@@ -4,7 +4,9 @@ import ffmpeg from '@motion-canvas/ffmpeg';
 
 export default defineConfig({
   plugins: [
-    motionCanvas(),
+    motionCanvas({
+      output: 'E:/Pixcall/视频',
+    }),
     ffmpeg(),
   ],
 });
