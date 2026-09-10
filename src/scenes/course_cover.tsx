@@ -1,5 +1,6 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { CourseCover } from "../components/intro/course_cover";
 
 /**
@@ -7,7 +8,7 @@ import { CourseCover } from "../components/intro/course_cover";
  * 每集只需改 episodeTitle
  */
 export default makeScene2D(function* (view) {
-  view.fill("#0A0A0C");
+  view.fill(Ink.bg);
 
   const cover = createRef<CourseCover>();
   view.add(

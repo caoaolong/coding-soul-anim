@@ -18,6 +18,7 @@ import {
   Vector2,
 } from "@motion-canvas/core";
 import { Highlight } from "../../theme/highlight";
+import { Ink } from "../../theme/ink";
 
 export interface TimelineNodeData {
   /** 轴上显示的时间文案，如 "2020.03" */
@@ -66,8 +67,8 @@ class MacOSWindow extends Rect {
       layout: true,
       direction: "column",
       radius: 12,
-      fill: "#1C1C1E",
-      stroke: "#3A3A3C",
+      fill: Ink.deep,
+      stroke: Ink.line,
       lineWidth: 1,
       shadowColor: "rgba(0,0,0,0.55)",
       shadowBlur: 28,
@@ -81,20 +82,20 @@ class MacOSWindow extends Rect {
         layout
         width={"100%"}
         height={32}
-        fill={"#2C2C2E"}
+        fill={Ink.veil}
         paddingLeft={12}
         paddingRight={12}
         alignItems={"center"}
         gap={8}
       >
         <Layout layout direction={"row"} gap={7} alignItems={"center"}>
-          <Circle size={10} fill={"#FF5F57"} stroke={"#E0443E"} lineWidth={1} />
-          <Circle size={10} fill={"#FEBC2E"} stroke={"#DFA123"} lineWidth={1} />
-          <Circle size={10} fill={"#28C840"} stroke={"#1AAB29"} lineWidth={1} />
+          <Circle size={10} fill={Ink.muted} stroke={Ink.line} lineWidth={1} />
+          <Circle size={10} fill={Ink.gold} stroke={Ink.goldSoft} lineWidth={1} />
+          <Circle size={10} fill={Ink.muted} stroke={Ink.line} lineWidth={1} />
         </Layout>
         <Txt
           text={title}
-          fill={"#E5E5EA"}
+          fill={Ink.paper}
           fontSize={14}
           fontFamily={"SF Pro Text, Segoe UI, sans-serif"}
           fontWeight={500}
@@ -108,7 +109,7 @@ class MacOSWindow extends Rect {
 
     const hasImage = Boolean(image);
     const hasText = Boolean(text);
-    const bodyTextColor = "#F5F5F7";
+    const bodyTextColor = Ink.paper;
 
     let body: Node;
     if (hasImage && hasText) {
@@ -266,7 +267,7 @@ export class Timeline extends Node {
                     [0, lastAnchor + axisExtend],
                   ]
             }
-            stroke={"#5C79A3"}
+            stroke={Ink.line}
             lineWidth={4}
             lineCap={"butt"}
             zIndex={0}
@@ -278,8 +279,8 @@ export class Timeline extends Node {
             ref={this.dots}
             position={this.anchorPositions[i]}
             size={16}
-            fill={"#94A3B8"}
-            stroke={"#E2E8F0"}
+            fill={Ink.muted}
+            stroke={Ink.paperSoft}
             lineWidth={3}
             zIndex={1}
           />
@@ -299,14 +300,14 @@ export class Timeline extends Node {
           >
             <Txt
               text={node.time ?? node.title ?? ""}
-              fill={"#F8FAFC"}
+              fill={Ink.paper}
               fontSize={22}
               fontWeight={700}
               fontFamily={"SF Pro Text, Segoe UI, sans-serif"}
             />
             <Txt
               text={node.text ?? ""}
-              fill={"#94A3B8"}
+              fill={Ink.paperSoft}
               fontSize={16}
               fontFamily={"SF Pro Text, Segoe UI, sans-serif"}
               textAlign={orientation === "horizontal" ? "center" : "left"}

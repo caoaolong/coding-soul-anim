@@ -7,6 +7,7 @@ import {
   easeInOutCubic,
   easeOutCubic,
 } from "@motion-canvas/core";
+import { Ink } from "../../theme/ink";
 
 export type FormulaMode = "stack" | "morph";
 
@@ -101,7 +102,7 @@ export class Formula extends Node {
       prefixGap = 16,
       prefixWidth = Math.round(fontSize * 1.35),
       lineHeight = Math.round(fontSize * 1.35),
-      fill = "#E8E0D0",
+      fill = Ink.paper,
       prefixFill,
       ...nodeProps
     } = props;

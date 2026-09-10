@@ -10,6 +10,7 @@ import {
 import { Annotation } from "../annotation/annotation";
 import { BuddySystem, BuddySystemProps } from "./buddy_system";
 import { Highlight } from "../../theme/highlight";
+import { Ink } from "../../theme/ink";
 
 export interface BuddyRootProps extends NodeProps {
   /**
@@ -280,10 +281,10 @@ export class BuddyRoot extends Node {
     // 聚焦即将合并的两个空闲 buddy
     yield* this.annotation.focusBox([left, right], {
       padding: 14,
-      color: "#38BDF8",
+      color: Ink.goldSoft,
       duration: Math.max(0.9, duration * 0.55),
-      radius: 10,
-      lineWidth: 4,
+      radius: Ink.radius,
+      lineWidth: Ink.lineWidth,
     });
 
     yield* all(

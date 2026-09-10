@@ -5,6 +5,7 @@ import {
   sequence,
   ThreadGenerator,
 } from "@motion-canvas/core";
+import { Ink } from "../../theme/ink";
 import { Highlight } from "../../theme/highlight";
 import { highlightShapes } from "../../theme/highlight_anim";
 import { TreeNode } from "./tree_node";
@@ -68,8 +69,8 @@ export class BTree extends Node {
           ref={this.edges}
           from={[parent.x, parent.y + radius]}
           to={[child.x, child.y - radius]}
-          stroke={"#5C79A3"}
-          lineWidth={4}
+          stroke={Ink.line}
+          lineWidth={Ink.lineWidth}
           endArrow
           arrowSize={12}
         />,
@@ -100,7 +101,7 @@ export class BTree extends Node {
         <Latex
           ref={this.rowNumbers}
           tex={`{h=${level + 1}}`}
-          fill={"#FFFFFF"}
+          fill={Ink.paper}
           fontSize={labelFontSize}
           x={-treeWidth / 2 - labelGap}
           y={y}
@@ -113,7 +114,7 @@ export class BTree extends Node {
         <Latex
           ref={this.rowCounts}
           tex={`{n_{${level}}=2^{${level}}}`}
-          fill={"#FFFFFF"}
+          fill={Ink.paper}
           fontSize={labelFontSize}
           x={treeWidth / 2 + labelGap}
           y={y}

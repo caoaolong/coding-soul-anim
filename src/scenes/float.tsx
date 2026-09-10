@@ -1,12 +1,13 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { Float } from "../components/float/float";
 
 /**
- * float32 位布局演示：分段着色 + setValue + 分段高亮
+ * float32 位布局演示：分段标注 + setValue + 分段高亮
  */
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const f = createRef<Float>();
   view.add(

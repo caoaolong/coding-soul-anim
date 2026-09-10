@@ -1,9 +1,10 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { Intro } from "../components/intro/intro";
 
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const intro = createRef<Intro>();
   view.add(

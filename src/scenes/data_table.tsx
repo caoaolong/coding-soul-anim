@@ -1,5 +1,6 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { DataTable } from "../components/table/data_table";
 
 function hex(addr: number, digits = 4): string {
@@ -18,7 +19,7 @@ type BuddyRow = {
 };
 
 /**
- * 与 buddy_system 场景一致：order=3, pageSize=0x1000, start=0x0000
+ * ? buddy_system ?????order=3, pageSize=0x1000, start=0x0000
  */
 function buddyBlocks(
   rootOrder = 3,
@@ -43,10 +44,10 @@ function buddyBlocks(
 }
 
 /**
- * 表格演示：删除 blockEnd → 添加 blockSize → 全部改为二进制
+ * ??????? blockEnd ? ?? blockSize ? ???????
  */
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const blocks = buddyBlocks();
   const hexRows = blocks.map((b) => [
@@ -55,7 +56,7 @@ export default makeScene2D(function* (view) {
     hex(b.end),
   ]);
   const blockSizesHex = blocks.map((b) => hex(b.size));
-  // remove + add 之后列顺序：order / blockStart / blockSize
+  // remove + add ??????order / blockStart / blockSize
   const binRows = blocks.map((b) => [
     String(b.order),
     bin(b.start),
@@ -94,7 +95,7 @@ export default makeScene2D(function* (view) {
   yield* table().deleteGroup(3, { highlight: true });
   yield* waitFor(0.5);
 
-  // stripeEvery=2：order=2 的两行同色 → 先标第一行 blockStart+blockSize，再标第二行 blockStart
+  // stripeEvery=2?order=2 ????? ? ????? blockStart+blockSize?????? blockStart
   yield* table().annotateCells([
     { row: 0, column: "blockStart" },
     { row: 0, column: "blockSize" },

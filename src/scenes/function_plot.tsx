@@ -1,12 +1,13 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { FunctionPlot } from "../components/plot/function_plot";
 
 /**
- * 第一象限函数图像演示：y = sin(x)，x ∈ [0, π]
+ * ???????????y = sin(x)?x ? [0, ?]
  */
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const plot = createRef<FunctionPlot>();
   view.add(

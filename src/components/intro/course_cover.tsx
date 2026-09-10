@@ -9,13 +9,8 @@ import {
   waitFor,
 } from "@motion-canvas/core";
 import taijiBg from "../../assets/bg.png";
-import { Highlight } from "../../theme/highlight";
-
-const INK = "#E8E0D0";
-const INK_SOFT = "#C4B8A8";
-const GOLD = Highlight.accent;
-const GOLD_SOFT = Highlight.stroke;
-const VEIL = "#0A0A0C";
+import { Ink } from "../../theme/ink";
+import { brushWidth, inkReveal } from "../../theme/ink_anim";
 
 export interface CourseCoverProps extends NodeProps {
   /** 本集标题（每集必改，视觉焦点） */
@@ -79,10 +74,10 @@ export class CourseCover extends Node {
         ref={this.breath}
         size={420}
         y={-160}
-        stroke={GOLD}
+        stroke={Ink.gold}
         lineWidth={1.5}
         opacity={0}
-        shadowColor={GOLD}
+        shadowColor={Ink.gold}
         shadowBlur={36}
       />,
     );
@@ -94,7 +89,7 @@ export class CourseCover extends Node {
         width={1920}
         height={460}
         y={340}
-        fill={VEIL}
+        fill={Ink.veil}
         opacity={0}
       />,
     );
@@ -111,7 +106,7 @@ export class CourseCover extends Node {
           '"Zhi Mang Xing", KaiTi, STKaiti, SF Pro Text, Microsoft YaHei, serif'
         }
         fontSize={36}
-        fill={INK_SOFT}
+        fill={Ink.paperSoft}
         y={seriesY}
         opacity={0}
         shadowColor={"#000000"}
@@ -129,14 +124,14 @@ export class CourseCover extends Node {
         alignItems={"center"}
         y={episodeY}
         opacity={0}
-        scale={0.88}
+        scale={0.92}
       >
         <Layout layout direction={"row"} gap={18} alignItems={"center"}>
           <Rect
             ref={this.episodeMark}
-            width={5}
+            width={4}
             height={52}
-            fill={GOLD}
+            fill={Ink.gold}
             radius={2}
             opacity={0}
           />
@@ -146,7 +141,7 @@ export class CourseCover extends Node {
             fontFamily={'"SimFang", FangSong, STFangsong, serif'}
             fontSize={56}
             fontWeight={400}
-            fill={INK}
+            fill={Ink.paper}
             shadowColor={"#000000"}
             shadowBlur={14}
           />
@@ -154,10 +149,10 @@ export class CourseCover extends Node {
         <Rect
           ref={this.underline}
           width={0}
-          height={3}
-          fill={GOLD}
-          radius={2}
-          shadowColor={GOLD}
+          height={2}
+          fill={Ink.gold}
+          radius={1}
+          shadowColor={Ink.gold}
           shadowBlur={12}
         />
       </Layout>,
@@ -166,7 +161,6 @@ export class CourseCover extends Node {
 
   /** 播放封面入场（约 5 秒），结束后定格 */
   public *play(): ThreadGenerator {
-    const seriesY = this.seriesTxt().y();
     const episodeY = this.episodeBlock().y();
 
     // —— 云开（背景显影 + 微缩放回落）——
@@ -176,39 +170,36 @@ export class CourseCover extends Node {
       this.veil().opacity(this.targetVeilOpacity, 1.2, easeOutCubic),
     );
 
-    // —— 系列名轻入（配角）——
-    this.seriesTxt().y(seriesY - 12);
+    // —— 系列名墨晕轻入（配角）——
     yield* all(
       this.breath().opacity(0.22, 0.4, easeOutCubic),
       this.breath().size(460, 1.0, easeInOutCubic),
-      this.seriesTxt().opacity(1, 0.5, easeOutCubic),
-      this.seriesTxt().y(seriesY, 0.55, easeOutCubic),
+      inkReveal(this.seriesTxt(), { fromY: 12, duration: 0.55 }),
     );
 
-    // —— 本集标题强调：放大回落 + 金标/底线展开 + 金色脉冲 ——
-    this.episodeBlock().y(episodeY - 16);
+    // —— 本集标题强调：轻提 + 金标/底线运笔 + 墨金脉冲 ——
+    this.episodeBlock().y(episodeY - 14);
     yield* all(
       this.breath().opacity(0.06, 0.6, easeInOutCubic),
-      this.episodeBlock().opacity(1, 0.35, easeOutCubic),
+      this.episodeBlock().opacity(1, 0.4, easeOutCubic),
       this.episodeBlock().y(episodeY, 0.55, easeOutCubic),
-      this.episodeBlock().scale(1.06, 0.45, easeOutCubic),
+      this.episodeBlock().scale(1.03, 0.45, easeOutCubic),
       this.episodeMark().opacity(1, 0.35, easeOutCubic),
     );
 
-    // 底线自中心向外「写」开；标题墨色 → 金 → 墨
     const titleWidth = Math.max(280, this.episodeTxt().width() + 40);
     yield* all(
       this.episodeBlock().scale(1, 0.35, easeInOutCubic),
-      this.underline().width(titleWidth, 0.55, easeOutCubic),
-      this.episodeTxt().fill(GOLD_SOFT, 0.28, easeOutCubic),
-      delay(0.28, this.episodeTxt().fill(INK, 0.45, easeInOutCubic)),
+      brushWidth(this.underline(), titleWidth),
+      this.episodeTxt().fill(Ink.goldSoft, 0.28, easeOutCubic),
+      delay(0.28, this.episodeTxt().fill(Ink.paper, 0.45, easeInOutCubic)),
       this.breath().opacity(0, 0.5, easeOutCubic),
     );
 
     // 短促金息余韵
     yield* all(
       this.underline().shadowBlur(22, 0.2, easeOutCubic).to(12, 0.35),
-      this.episodeMark().fill(GOLD_SOFT, 0.2).to(GOLD, 0.35),
+      this.episodeMark().fill(Ink.goldSoft, 0.2).to(Ink.gold, 0.35),
     );
 
     yield* waitFor(0.5);

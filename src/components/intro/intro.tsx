@@ -20,11 +20,12 @@ import {
 } from "@motion-canvas/core";
 import forgeBg from "../../assets/bg.png";
 import { Highlight } from "../../theme/highlight";
+import { Ink } from "../../theme/ink";
 
 const AMBER = Highlight.fill;
 const AMBER_BRIGHT = Highlight.accent;
 const MUTED = Highlight.muted;
-const SUB = "#CBD5E1";
+const SUB = Ink.paperSoft;
 const CODE_CHARS = "01{}[]<>/;#$&*=+ABCDEF{}";
 
 export interface IntroProps extends NodeProps {
@@ -110,7 +111,7 @@ export class Intro extends Node {
         fontFamily={"SF Mono, Consolas, monospace"}
         fontSize={92}
         fontWeight={700}
-        fill={"#22D3EE"}
+        fill={Ink.goldBright}
         opacity={0}
         x={-10}
         y={brandY}
@@ -123,7 +124,7 @@ export class Intro extends Node {
         fontFamily={"SF Mono, Consolas, monospace"}
         fontSize={92}
         fontWeight={700}
-        fill={"#F43F5E"}
+        fill={Ink.paperSoft}
         opacity={0}
         x={10}
         y={brandY}
@@ -136,7 +137,7 @@ export class Intro extends Node {
         fontFamily={"SF Mono, Consolas, monospace"}
         fontSize={92}
         fontWeight={700}
-        fill={"#FFFFFF"}
+        fill={Ink.paper}
         opacity={0}
         scale={0.35}
         y={brandY}
@@ -176,7 +177,7 @@ export class Intro extends Node {
           }
           fontSize={34}
           fontWeight={700}
-          fill={"#FFFFFF"}
+          fill={Ink.paper}
         />
       </Layout>,
     );

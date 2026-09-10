@@ -1,9 +1,10 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { NBytes } from "../components/bytes/n_bytes";
 
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const bytes = createRef<NBytes>();
 
@@ -30,7 +31,7 @@ export default makeScene2D(function* (view) {
   yield* bytes().highlight(8);
   yield* waitFor(0.6);
 
-  // 切换为 2^n + 十进制
+  // 切换到 2^n + 十进制
   yield* bytes().showHeader("power");
   yield* waitFor(1.2);
 

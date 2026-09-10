@@ -1,12 +1,13 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { ComplexityPlot } from "../components/plot/complexity_plot";
 
 /**
- * 算法时间复杂度对比：轴 + 图注 → 多曲线同时描线
+ * 算法时间复杂度对比：轴 + 图注 → 多曲线同时描画
  */
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const plot = createRef<ComplexityPlot>();
   view.add(

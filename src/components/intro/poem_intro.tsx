@@ -6,6 +6,7 @@ import {
   easeOutCubic,
   waitFor,
 } from "@motion-canvas/core";
+import { Ink } from "../../theme/ink";
 
 export interface PoemIntroProps extends NodeProps {
   /** 诗句全文，用 \n 分行（一句一列） */
@@ -66,8 +67,8 @@ export class PoemIntro extends Node {
       height,
       fontFamily = '"Zhi Mang Xing", KaiTi, STKaiti, serif',
       fontSize = 56,
-      fill = "#E8E0D0",
-      background = "#121212",
+      fill = Ink.paper,
+      background = Ink.bg,
       columnDurations,
       charDelay = 0.38,
       columnGap = 72,

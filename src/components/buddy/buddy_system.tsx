@@ -9,6 +9,7 @@ import {
 } from "@motion-canvas/core";
 import type { BuddyRoot } from "./buddy_root";
 import { Highlight } from "../../theme/highlight";
+import { Ink } from "../../theme/ink";
 
 export interface BuddySystemProps extends NodeProps {
   /** 起始地址（字节） */
@@ -40,15 +41,15 @@ function formatKB(kb: number): string {
   return `${t}KB`;
 }
 
-const DEPTH_FILL = ["#1D293B", "#1E3A5F", "#0F766E", "#1E3A2F", "#3B4F6B"];
-const DEPTH_STROKE = ["#5C79A3", "#38BDF8", "#2DD4BF", "#86EFAC", "#94A3B8"];
-const ALLOC_FILL = "#9A3412";
+const DEPTH_FILL = [Ink.deep, Ink.deepAlt, "#1A1E1C", "#1E1C1A", "#201E1C"];
+const DEPTH_STROKE = [Ink.line, Ink.muted, "#6B7F6A", "#9A8B6E", Ink.goldSoft];
+const ALLOC_FILL = Ink.warnDeep;
 const ALLOC_STROKE = Highlight.accent;
 /** 已分裂的父块：非空闲内部节点 */
-const INTERNAL_FILL = "#0B1220";
-const INTERNAL_STROKE = "#334155";
-const INTERNAL_TEXT = "#64748B";
-const ADDR_COLOR = "#CBD5E1";
+const INTERNAL_FILL = Ink.deep;
+const INTERNAL_STROKE = Ink.line;
+const INTERNAL_TEXT = Ink.muted;
+const ADDR_COLOR = Ink.paperSoft;
 
 /**
  * 伙伴系统中的一块连续内存：横向内存条 + 起止十六进制地址
@@ -106,17 +107,17 @@ export class BuddySystem extends Node {
         ref={this.bar}
         width={200}
         height={barHeight}
-        radius={8}
+        radius={Ink.radius}
         fill={DEPTH_FILL[0]}
         stroke={DEPTH_STROKE[0]}
-        lineWidth={3}
+        lineWidth={Ink.lineWidth}
       />,
     );
     this.add(
       <Txt
         ref={this.startTxt}
         text={formatHex(start, digits)}
-        fill={"#CBD5E1"}
+        fill={ADDR_COLOR}
         fontSize={fontSize}
         fontWeight={700}
         fontFamily={"SF Mono, Consolas, monospace"}
@@ -128,7 +129,7 @@ export class BuddySystem extends Node {
       <Txt
         ref={this.endTxt}
         text={formatHex(this.end, digits)}
-        fill={"#CBD5E1"}
+        fill={ADDR_COLOR}
         fontSize={fontSize}
         fontWeight={700}
         fontFamily={"SF Mono, Consolas, monospace"}
@@ -140,7 +141,7 @@ export class BuddySystem extends Node {
       <Txt
         ref={this.midTxt}
         text={sizeLabel(size)}
-        fill={"#FFFFFF"}
+        fill={Ink.paper}
         fontSize={fontSize * 0.95}
         fontWeight={700}
         fontFamily={"SF Mono, Consolas, monospace"}
@@ -258,7 +259,7 @@ export class BuddySystem extends Node {
     yield* all(
       this.bar().fill(INTERNAL_FILL, duration, easeInOutCubic),
       this.bar().stroke(INTERNAL_STROKE, duration, easeInOutCubic),
-      this.bar().lineWidth(2, duration * 0.5, easeOutCubic),
+      this.bar().lineWidth(Ink.lineWidth, duration * 0.5, easeOutCubic),
       this.midTxt().fill(INTERNAL_TEXT, duration, easeInOutCubic),
       this.startTxt().fill(INTERNAL_TEXT, duration, easeInOutCubic),
       this.endTxt().fill(INTERNAL_TEXT, duration, easeInOutCubic),
@@ -347,7 +348,7 @@ export class BuddySystem extends Node {
       yield* all(
         this.bar().fill(ALLOC_FILL, duration, easeInOutCubic),
         this.bar().stroke(ALLOC_STROKE, duration, easeInOutCubic),
-        this.bar().lineWidth(4, duration * 0.5, easeOutCubic),
+        this.bar().lineWidth(Ink.lineWidth + 1, duration * 0.5, easeOutCubic),
         this.midTxt().fill(ALLOC_STROKE, duration, easeInOutCubic),
       );
     } else {
@@ -355,8 +356,8 @@ export class BuddySystem extends Node {
       yield* all(
         this.bar().fill(DEPTH_FILL[i], duration, easeInOutCubic),
         this.bar().stroke(DEPTH_STROKE[i], duration, easeInOutCubic),
-        this.bar().lineWidth(3, duration * 0.5, easeOutCubic),
-        this.midTxt().fill("#FFFFFF", duration, easeInOutCubic),
+        this.bar().lineWidth(Ink.lineWidth, duration * 0.5, easeOutCubic),
+        this.midTxt().fill(Ink.paper, duration, easeInOutCubic),
       );
     }
   }
@@ -373,8 +374,8 @@ export class BuddySystem extends Node {
   public restoreDepthStyle(): void {
     this.allocated = false;
     this.applyDepthStyle(this.depth);
-    this.bar().lineWidth(3);
-    this.midTxt().fill("#FFFFFF");
+    this.bar().lineWidth(Ink.lineWidth);
+    this.midTxt().fill(Ink.paper);
     this.startTxt().fill(ADDR_COLOR);
     this.endTxt().fill(ADDR_COLOR);
   }

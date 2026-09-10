@@ -10,6 +10,7 @@ import {
   easeOutCubic,
 } from "@motion-canvas/core";
 import { Highlight } from "../../theme/highlight";
+import { Ink } from "../../theme/ink";
 
 /** 内置支持的时间复杂度标识 */
 export type ComplexityKind =
@@ -67,37 +68,37 @@ function factorial(n: number): number {
 }
 
 const COMPLEXITY_TABLE: Record<string, ComplexityMeta> = {
-  "O(1)": { label: "O(1)", color: Highlight.muted, fn: () => 1 },
+  "O(1)": { label: "O(1)", color: Ink.muted, fn: () => 1 },
   "O(log n)": {
     label: "O(log n)",
-    color: "#38BDF8",
+    color: "#6B7F6A",
     fn: (n) => Math.log2(Math.max(n, 1)),
   },
   "O(n)": { label: "O(n)", color: Highlight.accent, fn: (n) => n },
   "O(n log n)": {
     label: "O(n log n)",
-    color: "#34D399",
+    color: "#9A8B6E",
     fn: (n) => n * Math.log2(Math.max(n, 1)),
   },
-  "O(n²)": { label: "O(n²)", color: "#F97316", fn: (n) => n * n },
-  "O(n^2)": { label: "O(n²)", color: "#F97316", fn: (n) => n * n },
-  "O(n³)": { label: "O(n³)", color: "#FB7185", fn: (n) => n * n * n },
-  "O(n^3)": { label: "O(n³)", color: "#FB7185", fn: (n) => n * n * n },
+  "O(n²)": { label: "O(n²)", color: Ink.goldSoft, fn: (n) => n * n },
+  "O(n^2)": { label: "O(n²)", color: Ink.goldSoft, fn: (n) => n * n },
+  "O(n³)": { label: "O(n³)", color: "#8B6B5C", fn: (n) => n * n * n },
+  "O(n^3)": { label: "O(n³)", color: "#8B6B5C", fn: (n) => n * n * n },
   "O(2ⁿ)": {
     label: "O(2ⁿ)",
-    color: "#EF4444",
+    color: Ink.warn,
     fn: (n) => Math.pow(2, n),
     explosive: true,
   },
   "O(2^n)": {
     label: "O(2ⁿ)",
-    color: "#EF4444",
+    color: Ink.warn,
     fn: (n) => Math.pow(2, n),
     explosive: true,
   },
   "O(n!)": {
     label: "O(n!)",
-    color: "#D97706",
+    color: Ink.warnDeep,
     fn: (n) => factorial(n),
     explosive: true,
   },
@@ -137,9 +138,9 @@ export class ComplexityPlot extends Node {
       width = 720,
       height = 480,
       samples = 160,
-      lineWidth = 3,
-      axisColor = "#6B7280",
-      gridColor = "#2D2D2D",
+      lineWidth = Ink.lineWidth,
+      axisColor = Ink.muted,
+      gridColor = Ink.line,
       gridX = 4,
       gridY = 4,
       legendWidth = 168,
@@ -243,20 +244,20 @@ export class ComplexityPlot extends Node {
         <Line
           points={[origin, xAxisEnd]}
           stroke={axisColor}
-          lineWidth={2}
+          lineWidth={Ink.lineWidth}
           endArrow
           arrowSize={10}
         />
         <Line
           points={[origin, yAxisEnd]}
           stroke={axisColor}
-          lineWidth={2}
+          lineWidth={Ink.lineWidth}
           endArrow
           arrowSize={10}
         />
         <Txt
           text="n"
-          fill="#9CA3AF"
+          fill={Ink.paperSoft}
           fontSize={22}
           fontFamily="JetBrains Mono, Consolas, monospace"
           x={xAxisEnd.x + 18}
@@ -264,7 +265,7 @@ export class ComplexityPlot extends Node {
         />
         <Txt
           text="T"
-          fill="#9CA3AF"
+          fill={Ink.paperSoft}
           fontSize={22}
           fontFamily="JetBrains Mono, Consolas, monospace"
           x={yAxisEnd.x}
@@ -272,7 +273,7 @@ export class ComplexityPlot extends Node {
         />
         <Txt
           text="0"
-          fill="#9CA3AF"
+          fill={Ink.paperSoft}
           fontSize={20}
           fontFamily="JetBrains Mono, Consolas, monospace"
           x={origin.x - 14}
@@ -280,7 +281,7 @@ export class ComplexityPlot extends Node {
         />
         <Txt
           text={formatTick(nMax)}
-          fill="#9CA3AF"
+          fill={Ink.paperSoft}
           fontSize={20}
           fontFamily="JetBrains Mono, Consolas, monospace"
           x={xAxisEnd.x}
@@ -288,7 +289,7 @@ export class ComplexityPlot extends Node {
         />
         <Txt
           text={formatTick(dataYMax)}
-          fill="#9CA3AF"
+          fill={Ink.paperSoft}
           fontSize={20}
           fontFamily="JetBrains Mono, Consolas, monospace"
           x={yAxisEnd.x - 14}

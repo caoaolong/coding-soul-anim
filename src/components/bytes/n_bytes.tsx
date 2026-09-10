@@ -12,6 +12,7 @@ import {
   easeInOutCubic,
   ThreadGenerator,
 } from "@motion-canvas/core";
+import { Ink } from "../../theme/ink";
 import { Highlight } from "../../theme/highlight";
 import { pulseShapes, pulseTxt } from "../../theme/highlight_anim";
 
@@ -126,7 +127,7 @@ export class NBytes extends Node {
         x={labelX}
         y={gridY}
         offset={[1, 0]}
-        fill={"#FFFFFF"}
+        fill={Ink.paper}
         fontSize={cellSize * 0.42}
         fontWeight={700}
         fontFamily={"SF Mono, Consolas, monospace"}
@@ -142,7 +143,7 @@ export class NBytes extends Node {
           x={labelX}
           y={headerCenterY}
           offset={[1, 0]}
-          fill={"#FFFFFF"}
+          fill={Ink.paperSoft}
           fontSize={26}
           fontWeight={700}
           fontFamily={"SF Pro Text, Segoe UI, sans-serif"}
@@ -156,7 +157,7 @@ export class NBytes extends Node {
                 x={cellX(byteIndex, col)}
                 y={headerCenterY}
                 text={`${bitIndex}`}
-                fill={"#FFFFFF"}
+                fill={Ink.paper}
                 fontSize={28}
                 fontWeight={700}
                 textAlign={"center"}
@@ -175,7 +176,7 @@ export class NBytes extends Node {
           x={labelX}
           y={headerCenterY}
           offset={[1, 0]}
-          fill={"#FFFFFF"}
+          fill={Ink.paperSoft}
           fontSize={26}
           fontWeight={700}
           fontFamily={"SF Pro Text, Segoe UI, sans-serif"}
@@ -194,14 +195,14 @@ export class NBytes extends Node {
                   x={x}
                   y={headerCenterY}
                   tex={`{2^{${absBit}}}`}
-                  fill={"#FFFFFF"}
+                  fill={Ink.paper}
                   fontSize={22}
                 />
                 <Txt
                   x={x}
                   y={footerCenterY}
                   text={`${power}`}
-                  fill={"#FFFFFF"}
+                  fill={Ink.muted}
                   fontSize={20}
                   fontWeight={700}
                   textAlign={"center"}
@@ -224,10 +225,10 @@ export class NBytes extends Node {
             y={gridY}
             width={cellSize}
             height={cellSize}
-            radius={8}
-            fill={"#1D293B"}
-            stroke={"#5C79A3"}
-            lineWidth={3}
+            radius={Ink.radius}
+            fill={Ink.deep}
+            stroke={Ink.line}
+            lineWidth={Ink.lineWidth}
             layout
             justifyContent={"center"}
             alignItems={"center"}
@@ -235,7 +236,7 @@ export class NBytes extends Node {
             <Txt
               ref={this.bitTexts}
               text={`${bit}`}
-              fill={"#FFFFFF"}
+              fill={Ink.paper}
               fontSize={cellSize * 0.45}
               fontWeight={700}
               fontFamily={"SF Mono, Consolas, monospace"}
@@ -347,7 +348,7 @@ export class NBytes extends Node {
     yield* all(
       label
         .fill(Highlight.accent, duration * 0.3, easeInOutCubic)
-        .to("#FFFFFF", duration * 0.7, easeInOutCubic),
+        .to(Ink.paper, duration * 0.7, easeInOutCubic),
       label
         .scale(1.22, duration * 0.3, easeInOutCubic)
         .to(1, duration * 0.7, easeInOutCubic),
@@ -396,7 +397,7 @@ export class NBytes extends Node {
         const idx = b * 8 + col;
         fadeIn.push(
           this.bitTexts[idx].opacity(1, half, easeInOutCubic),
-          this.cells[idx].stroke("#5C79A3", half, easeInOutCubic),
+          this.cells[idx].stroke(Ink.line, half, easeInOutCubic),
         );
       }
     }
@@ -457,7 +458,7 @@ export class NBytes extends Node {
           text={`${values[i]}`}
           x={positions[i].x}
           y={positions[i].y}
-          fill={"#FFFFFF"}
+          fill={Ink.paper}
           fontSize={fontSize}
           fontWeight={700}
           fontFamily={"SF Mono, Consolas, monospace"}
@@ -479,7 +480,7 @@ export class NBytes extends Node {
         text={`${incoming}`}
         x={inStartX}
         y={positions[0].y}
-        fill={"#FFFFFF"}
+        fill={Ink.paper}
         fontSize={fontSize}
         fontWeight={700}
         fontFamily={"SF Mono, Consolas, monospace"}
@@ -499,7 +500,7 @@ export class NBytes extends Node {
         text={`${outgoing}`}
         x={outStart.x}
         y={outStart.y}
-        fill={"#FFFFFF"}
+        fill={Ink.paper}
         fontSize={fontSize}
         fontWeight={700}
         fontFamily={"SF Mono, Consolas, monospace"}

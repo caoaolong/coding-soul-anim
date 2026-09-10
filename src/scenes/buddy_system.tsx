@@ -1,15 +1,16 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { BuddyRoot } from "../components/buddy/buddy_root";
 
-/** 整体放慢约 4 倍，便于看清分裂 / 分配 / 回收 */
+/** 整体放慢约 2 倍，便于看清分裂 / 分配 / 回收 */
 const T = 2;
 
 /**
  * Linux 伙伴系统演示：alloc 分配 → free 回收合并
  */
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const buddy = createRef<BuddyRoot>();
   view.add(

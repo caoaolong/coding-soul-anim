@@ -170,9 +170,9 @@ export function* pulseTxt(
 
   const {
     color = Highlight.accent,
-    restore = "#FFFFFF",
+    restore = "#E8E0D0",
     duration = Highlight.duration,
-    scalePeak = 1.2,
+    scalePeak = 1.06,
   } = options;
 
   const up = duration * 0.35;

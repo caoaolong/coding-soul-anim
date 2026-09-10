@@ -5,6 +5,7 @@ import {
   createRef,
   easeOutCubic,
 } from "@motion-canvas/core";
+import { Ink } from "../../theme/ink";
 
 export interface TreeNodeProps extends CircleProps {
   title?: SignalValue<string>;
@@ -25,9 +26,9 @@ export class TreeNode extends Circle {
       justifyContent: "center",
       alignItems: "center",
       size,
-      fill: props?.fill ?? "#1D293B",
-      stroke: props?.stroke ?? "#5C79A3",
-      lineWidth: Math.max(2, Math.round(sizeNum * 0.035)),
+      fill: props?.fill ?? Ink.deep,
+      stroke: props?.stroke ?? Ink.line,
+      lineWidth: Ink.lineWidth,
       ...props, // 透传底层 Circle 的属性
     });
 
@@ -39,7 +40,7 @@ export class TreeNode extends Circle {
         <Txt
           ref={this.label}
           text={props?.title ?? "Node"}
-          fill={"#FFFFFF"}
+          fill={Ink.paper}
           fontSize={baseFontSize}
           fontWeight={700}
         />

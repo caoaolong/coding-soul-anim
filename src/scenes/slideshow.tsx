@@ -1,5 +1,6 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { any, createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { Slideshow } from "../components/slideshow/slideshow";
 import bg from "../assets/bg.png";
 
@@ -14,10 +15,10 @@ function solidSvg(color: string, label: string): string {
 }
 
 /**
- * 幻灯片演示：无限循环 + 随机切换；约 12 秒后由 any 打断
+ * 幻灯片演示：无限循环 + 随机切换；约 12 秒后用 any 打断
  */
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const slideshow = createRef<Slideshow>();
   view.add(

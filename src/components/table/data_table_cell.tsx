@@ -5,6 +5,7 @@ import {
   createRef,
   easeInOutCubic,
 } from "@motion-canvas/core";
+import { Ink } from "../../theme/ink";
 
 export interface DataTableCellProps extends RectProps {
   text?: string;
@@ -25,7 +26,7 @@ export class DataTableCell extends Rect {
   public constructor(props: DataTableCellProps = {}) {
     const {
       text = "",
-      textFill = "#E2E8F0",
+      textFill = Ink.paper,
       fontSize = 24,
       fontFamily = "JetBrains Mono, Consolas, monospace",
       fontWeight = 400,

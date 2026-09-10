@@ -1,6 +1,7 @@
 import { Layout, Node, NodeProps, Rect } from "@motion-canvas/2d";
 import { ThreadGenerator, createRef } from "@motion-canvas/core";
 import { Highlight } from "../../theme/highlight";
+import { Ink } from "../../theme/ink";
 import { Annotation, FocusBoxOptions } from "../annotation/annotation";
 import { DataTableCell, createHeaderCell } from "./data_table_cell";
 import {
@@ -110,18 +111,18 @@ export class DataTable extends Node {
       defaultColumnWidth = 200,
       rowHeight = 52,
       fontSize = 24,
-      headerFill = "#1E293B",
-      rowFillA = "#161B22",
-      rowFillB = "#252D3A",
-      groupFill = "#243044",
+      headerFill = Ink.deep,
+      rowFillA = Ink.deep,
+      rowFillB = Ink.deepAlt,
+      groupFill = Ink.deepAlt,
       groupFillAlt,
       headerTextColor = Highlight.accent,
-      textColor = "#E2E8F0",
+      textColor = Ink.paper,
       groupTextColor = Highlight.accent,
       cellPaddingX = 16,
-      stroke = "#334155",
-      groupBorderColor = "#94A3B8",
-      groupBorderWidth = 3,
+      stroke = Ink.line,
+      groupBorderColor = Ink.line,
+      groupBorderWidth = Ink.lineWidth,
       ...nodeProps
     } = props;
 
@@ -145,7 +146,7 @@ export class DataTable extends Node {
     this.rowFillA = rowFillA;
     this.rowFillB = rowFillB;
     this.groupFill = groupFill;
-    this.altGroupFill = groupFillAlt ?? "#1B2838";
+    this.altGroupFill = groupFillAlt ?? Ink.deep;
     this.headerTextColor = headerTextColor;
     this.textColor = textColor;
     this.groupTextColor = groupTextColor;

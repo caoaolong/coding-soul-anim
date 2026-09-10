@@ -1,9 +1,10 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { Timeline } from "../components/timeline/timeline";
 
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const timeline = createRef<Timeline>();
   const size = view.size();

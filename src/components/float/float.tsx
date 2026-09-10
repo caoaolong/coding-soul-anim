@@ -9,6 +9,7 @@ import {
   sequence,
 } from "@motion-canvas/core";
 import { Brace } from "../annotation/brace";
+import { Ink } from "../../theme/ink";
 import { Highlight } from "../../theme/highlight";
 import { highlightShapes } from "../../theme/highlight_anim";
 
@@ -29,9 +30,9 @@ const SECTION_STYLE: Record<
   FloatSection,
   { fill: string; stroke: string; label: string }
 > = {
-  sign: { fill: "#3F1D2E", stroke: "#FB7185", label: "Sign" },
-  exponent: { fill: "#0C2A3D", stroke: "#38BDF8", label: "Exponent" },
-  mantissa: { fill: "#0F2E24", stroke: "#34D399", label: "Mantissa" },
+  sign: { fill: Ink.deep, stroke: Ink.goldSoft, label: "Sign" },
+  exponent: { fill: Ink.deep, stroke: Ink.warn, label: "Exponent" },
+  mantissa: { fill: Ink.deep, stroke: "#6E7D6E", label: "Mantissa" },
 };
 
 const SECTIONS: FloatSection[] = ["sign", "exponent", "mantissa"];
@@ -119,7 +120,7 @@ export class Float extends Node {
         x={labelX}
         y={gridY}
         offset={[1, 0]}
-        fill={"#FFFFFF"}
+        fill={Ink.paper}
         fontSize={cellSize * 0.42}
         fontWeight={700}
         fontFamily={"SF Mono, Consolas, monospace"}
@@ -136,10 +137,10 @@ export class Float extends Node {
           y={gridY}
           width={cellSize}
           height={cellSize}
-          radius={6}
+          radius={Ink.radius}
           fill={style.fill}
           stroke={style.stroke}
-          lineWidth={3}
+          lineWidth={Ink.lineWidth}
           layout
           justifyContent={"center"}
           alignItems={"center"}
@@ -147,7 +148,7 @@ export class Float extends Node {
           <Txt
             ref={this.bitTexts}
             text={`${this.bits[i]}`}
-            fill={"#FFFFFF"}
+            fill={Ink.paper}
             fontSize={cellSize * 0.45}
             fontWeight={700}
             fontFamily={"SF Mono, Consolas, monospace"}
@@ -174,7 +175,7 @@ export class Float extends Node {
           label={style.label}
           stroke={style.stroke}
           labelFill={style.stroke}
-          lineWidth={3}
+          lineWidth={Ink.lineWidth}
           fontSize={Math.max(18, Math.round(cellSize * 0.55))}
           zIndex={5}
         />,
@@ -186,7 +187,7 @@ export class Float extends Node {
       <Latex
         ref={this.formula}
         tex={DECODE_FORMULA}
-        fill={"#E8E0D0"}
+        fill={Ink.paper}
         fontSize={Math.max(26, Math.round(cellSize * 0.72))}
         y={cellSize / 2 + Math.max(36, Math.round(cellSize * 1.1))}
         opacity={0}

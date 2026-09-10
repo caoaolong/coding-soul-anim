@@ -1,5 +1,6 @@
 import { makeScene2D } from "@motion-canvas/2d";
 import { createRef, waitFor } from "@motion-canvas/core";
+import { Ink } from "../theme";
 import { Formula } from "../components/formula/formula";
 
 /** stack：普通字符串即可 */
@@ -47,7 +48,7 @@ const MORPH_STEPS = [
  * 上：stack 多行淡入；下：morph 官方 Latex.tex 变形
  */
 export default makeScene2D(function* (view) {
-  view.fill("#121212");
+  view.fill(Ink.bg);
 
   const stack = createRef<Formula>();
   const morph = createRef<Formula>();

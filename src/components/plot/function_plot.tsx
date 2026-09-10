@@ -8,6 +8,7 @@ import {
   easeInOutCubic,
 } from "@motion-canvas/core";
 import { Highlight } from "../../theme/highlight";
+import { Ink } from "../../theme/ink";
 
 export type PlotFn = (x: number) => number;
 
@@ -68,8 +69,8 @@ export class FunctionPlot extends Node {
       height = 450,
       samples = 200,
       stroke = Highlight.accent,
-      lineWidth = 3,
-      axisColor = "#6B7280",
+      lineWidth = Ink.lineWidth,
+      axisColor = Ink.muted,
       yPadding = 0.08,
       ...nodeProps
     } = props;
@@ -129,7 +130,7 @@ export class FunctionPlot extends Node {
       <Line
         points={[xAxisStart, xAxisEnd]}
         stroke={axisColor}
-        lineWidth={2}
+        lineWidth={Ink.lineWidth}
         endArrow
         arrowSize={10}
       />,
@@ -138,13 +139,13 @@ export class FunctionPlot extends Node {
       <Line
         points={[yAxisStart, yAxisEnd]}
         stroke={axisColor}
-        lineWidth={2}
+        lineWidth={Ink.lineWidth}
         endArrow
         arrowSize={10}
       />,
     );
 
-    const labelColor = "#9CA3AF";
+    const labelColor = Ink.paperSoft;
     const labelSize = 22;
     const labelGap = 18;
 

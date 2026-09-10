@@ -10,6 +10,7 @@ import {
   easeOutCubic,
 } from "@motion-canvas/core";
 import { Highlight } from "../../theme/highlight";
+import { Ink } from "../../theme/ink";
 
 export type BraceSide = "top" | "bottom" | "left" | "right";
 
@@ -56,7 +57,7 @@ export class Brace extends Node {
       labelGap = 10,
       stroke = Highlight.muted,
       lineWidth = 3,
-      labelFill = "#E2E8F0",
+      labelFill = Ink.paperSoft,
       fontSize = 24,
       ...nodeProps
     } = props;
