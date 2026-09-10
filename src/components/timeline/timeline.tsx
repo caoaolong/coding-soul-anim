@@ -13,21 +13,30 @@ import {
   all,
   createRef,
   createRefArray,
+  easeInCubic,
   easeInOutCubic,
+  easeOutCubic,
   ThreadGenerator,
   Vector2,
 } from "@motion-canvas/core";
 import { Highlight } from "../../theme/highlight";
 import { Ink } from "../../theme/ink";
 
+const TITLE_FONT =
+  '"SimFang", FangSong, STFangsong, KaiTi, STKaiti, serif';
+const BODY_FONT =
+  '"SimFang", FangSong, STFangsong, SF Pro Text, Microsoft YaHei, serif';
+
 export interface TimelineNodeData {
   /** 轴上显示的时间文案，如 "2020.03" */
   time?: string;
-  /** macOS 标题栏文字（聚焦详情窗） */
+  /** 详情笺标题 */
   title?: string;
-  /** 轴上摘要 / 详情正文 */
+  /** 轴上摘要；若未提供 detail，详情正文也用它 */
   text?: string;
-  /** 详情窗图片（仅聚焦时显示） */
+  /** 详情正文（有图时显示在图旁）；优先于 text */
+  detail?: string;
+  /** 详情图片（仅聚焦时显示） */
   image?: string;
 }
 
@@ -37,7 +46,7 @@ export interface TimelineProps extends NodeProps {
   orientation?: "horizontal" | "vertical";
   /** 节点间距 */
   spacing?: number;
-  /** 中央详情窗尺寸 */
+  /** 中央详情笺尺寸，默认 1400×780 */
   expandedSize?: Vector2;
   /** 画布宽（用于贴边布局，默认 1920） */
   canvasWidth?: number;
@@ -45,8 +54,8 @@ export interface TimelineProps extends NodeProps {
   canvasHeight?: number;
 }
 
-/** macOS 深色风格详情窗口：可选左图右文 */
-class MacOSWindow extends Rect {
+/** 水墨笺纸详情面板：可选左图右文 */
+class InkPanel extends Rect {
   public constructor(
     props: RectProps & {
       title?: string;
@@ -59,57 +68,51 @@ class MacOSWindow extends Rect {
       title = "",
       text,
       image,
-      contentPadding = 12,
+      contentPadding = 28,
       ...rectProps
     } = props;
 
     super({
       layout: true,
       direction: "column",
-      radius: 12,
+      radius: Ink.radius,
       fill: Ink.deep,
-      stroke: Ink.line,
-      lineWidth: 1,
-      shadowColor: "rgba(0,0,0,0.55)",
-      shadowBlur: 28,
-      shadowOffsetY: 12,
+      stroke: Ink.gold,
+      lineWidth: 1.5,
+      shadowColor: "rgba(0,0,0,0.35)",
+      shadowBlur: 18,
+      shadowOffsetY: 8,
       clip: true,
       ...rectProps,
     });
 
+    // 顶栏：仿宋标题 + 底金线（无红绿灯）
     const titleBar = (
-      <Rect
+      <Layout
         layout
         width={"100%"}
-        height={32}
-        fill={Ink.veil}
-        paddingLeft={12}
-        paddingRight={12}
-        alignItems={"center"}
-        gap={8}
+        direction={"column"}
+        gap={10}
+        paddingTop={20}
+        paddingBottom={4}
+        paddingLeft={contentPadding}
+        paddingRight={contentPadding}
       >
-        <Layout layout direction={"row"} gap={7} alignItems={"center"}>
-          <Circle size={10} fill={Ink.muted} stroke={Ink.line} lineWidth={1} />
-          <Circle size={10} fill={Ink.gold} stroke={Ink.goldSoft} lineWidth={1} />
-          <Circle size={10} fill={Ink.muted} stroke={Ink.line} lineWidth={1} />
-        </Layout>
         <Txt
           text={title}
           fill={Ink.paper}
-          fontSize={14}
-          fontFamily={"SF Pro Text, Segoe UI, sans-serif"}
-          fontWeight={500}
-          grow={1}
-          textAlign={"center"}
+          fontSize={32}
+          fontFamily={TITLE_FONT}
+          fontWeight={400}
+          width={"100%"}
+          textAlign={"left"}
         />
-        {/* 右侧占位，让标题视觉居中 */}
-        <Layout width={44} height={10} />
-      </Rect>
+        <Rect width={"100%"} height={2} fill={Ink.gold} radius={1} />
+      </Layout>
     );
 
     const hasImage = Boolean(image);
     const hasText = Boolean(text);
-    const bodyTextColor = Ink.paper;
 
     let body: Node;
     if (hasImage && hasText) {
@@ -120,16 +123,24 @@ class MacOSWindow extends Rect {
           height={"100%"}
           grow={1}
           direction={"row"}
-          gap={12}
+          gap={28}
           padding={contentPadding}
           alignItems={"center"}
         >
-          <Img src={image!} radius={6} width={160} height={160} />
+          <Img
+            src={image!}
+            radius={Ink.radius}
+            width={440}
+            height={440}
+            stroke={Ink.line}
+            lineWidth={1}
+          />
           <Txt
             text={text!}
-            fill={bodyTextColor}
-            fontSize={22}
-            fontFamily={"SF Pro Text, Segoe UI, sans-serif"}
+            fill={Ink.paper}
+            fontSize={28}
+            fontFamily={BODY_FONT}
+            lineHeight={44}
             textWrap
             grow={1}
             textAlign={"left"}
@@ -147,7 +158,14 @@ class MacOSWindow extends Rect {
           justifyContent={"center"}
           alignItems={"center"}
         >
-          <Img src={image!} radius={6} width={"100%"} height={"100%"} />
+          <Img
+            src={image!}
+            radius={Ink.radius}
+            width={"100%"}
+            height={"100%"}
+            stroke={Ink.line}
+            lineWidth={1}
+          />
         </Layout>
       );
     } else {
@@ -163,9 +181,10 @@ class MacOSWindow extends Rect {
         >
           <Txt
             text={text ?? ""}
-            fill={bodyTextColor}
-            fontSize={22}
-            fontFamily={"SF Pro Text, Segoe UI, sans-serif"}
+            fill={Ink.paper}
+            fontSize={26}
+            fontFamily={BODY_FONT}
+            lineHeight={40}
             textWrap
             width={"100%"}
             textAlign={"left"}
@@ -180,10 +199,10 @@ class MacOSWindow extends Rect {
 }
 
 /**
- * 时间轴：轴无限延伸；非焦点仅显示时间+文本；聚焦时弹出 macOS 详情窗。
+ * 时间轴：轴无限延伸；非焦点仅显示时间+文本；聚焦时弹出水墨笺纸详情。
  */
 export class Timeline extends Node {
-  public readonly windows = createRefArray<MacOSWindow>();
+  public readonly windows = createRefArray<InkPanel>();
   public readonly dots = createRefArray<Circle>();
   public readonly labels = createRefArray<Layout>();
 
@@ -215,12 +234,13 @@ export class Timeline extends Node {
     super(nodeProps);
 
     this.orientation = orientation;
-    this.expandedSize = expandedSize ?? new Vector2(720, 400);
+    this.expandedSize = expandedSize ?? new Vector2(1400, 780);
     this.labelGap = 20;
     this.spacing = spacing ?? (orientation === "horizontal" ? 320 : 220);
 
     const edgePad = 48;
-    const axisY = canvasHeight / 2 - edgePad;
+    // 横向贴顶：避开底部字幕；纵向仍贴左
+    const axisY = -canvasHeight / 2 + edgePad;
     const axisX = -canvasWidth / 2 + edgePad;
 
     // 焦点锚点对齐屏幕中轴：横向 x=0，纵向 y=0
@@ -229,15 +249,16 @@ export class Timeline extends Node {
         ? new Vector2(0, axisY)
         : new Vector2(axisX, 0);
 
+    // 横向：标签挂在轴下方（轴在顶边，避免裁切）
     this.slotOffset =
-      orientation === "horizontal" ? new Vector2(0, 1) : new Vector2(-1, 0);
+      orientation === "horizontal" ? new Vector2(0, -1) : new Vector2(-1, 0);
 
     const count = nodes.length;
 
     for (let i = 0; i < count; i++) {
       if (orientation === "horizontal") {
         this.anchorPositions.push(new Vector2(i * this.spacing, 0));
-        this.slotPositions.push(new Vector2(i * this.spacing, -this.labelGap));
+        this.slotPositions.push(new Vector2(i * this.spacing, this.labelGap));
       } else {
         this.anchorPositions.push(new Vector2(0, i * this.spacing));
         this.slotPositions.push(new Vector2(this.labelGap, i * this.spacing));
@@ -317,9 +338,9 @@ export class Timeline extends Node {
           </Layout>
         ))}
 
-        {/* 详情窗：初始隐藏，聚焦时再弹出 */}
+        {/* 详情笺：初始隐藏，聚焦时再弹出 */}
         {nodes.map((node, i) => (
-          <MacOSWindow
+          <InkPanel
             ref={this.windows}
             offset={this.slotOffset}
             position={this.slotPositions[i]}
@@ -328,7 +349,7 @@ export class Timeline extends Node {
             scale={0}
             opacity={0}
             title={node.title ?? node.time ?? ""}
-            text={node.text}
+            text={node.detail ?? node.text}
             image={node.image}
             zIndex={3}
           />
@@ -338,9 +359,10 @@ export class Timeline extends Node {
   }
 
   /**
-   * 滚动到下一个时间节点，并将其详情窗展开到屏幕中央。
+   * 滚动到下一个时间节点，并将其详情笺展开到屏幕中央。
+   * 展开：先快后慢（easeOut）；收起：先慢后快（easeIn）。
    */
-  public *next(duration = 0.8): ThreadGenerator {
+  public *next(duration = 1.6): ThreadGenerator {
     const count = this.windows.length;
     if (count === 0) {
       return;
@@ -391,9 +413,10 @@ export class Timeline extends Node {
     const view = this.view();
 
     // 挂到 view：本地坐标原点 = 画布正中心
+    // 横向轴在顶边，笺纸从轴下方飞入中心
     const start =
       this.orientation === "horizontal"
-        ? new Vector2(0, this.focusPoint.y - 100)
+        ? new Vector2(0, this.focusPoint.y + 100)
         : new Vector2(this.focusPoint.x + 100, 0);
 
     win.reparent(view);
@@ -402,11 +425,12 @@ export class Timeline extends Node {
     win.scale(0.4);
     win.size(this.expandedSize);
 
+    // 弹出：先快后慢
     yield* all(
-      label.opacity(0, duration * 0.35, easeInOutCubic),
-      win.opacity(1, duration * 0.3, easeInOutCubic),
-      win.scale(1, duration, easeInOutCubic),
-      win.position([0, 0], duration, easeInOutCubic),
+      label.opacity(0, duration * 0.35, easeOutCubic),
+      win.opacity(1, duration * 0.3, easeOutCubic),
+      win.scale(1, duration, easeOutCubic),
+      win.position([0, 0], duration, easeOutCubic),
     );
   }
 
@@ -418,14 +442,15 @@ export class Timeline extends Node {
 
     const end =
       this.orientation === "horizontal"
-        ? new Vector2(0, this.focusPoint.y - 100)
+        ? new Vector2(0, this.focusPoint.y + 100)
         : new Vector2(this.focusPoint.x + 100, 0);
 
+    // 缩小：先慢后快
     yield* all(
-      win.position(end, duration, easeInOutCubic),
-      win.scale(0.4, duration, easeInOutCubic),
-      win.opacity(0, duration * 0.75, easeInOutCubic),
-      label.opacity(1, duration, easeInOutCubic),
+      win.position(end, duration, easeInCubic),
+      win.scale(0.4, duration, easeInCubic),
+      win.opacity(0, duration * 0.75, easeInCubic),
+      label.opacity(1, duration, easeInCubic),
     );
 
     win.reparent(this.track());

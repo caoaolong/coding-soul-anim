@@ -8,6 +8,7 @@ import {
   createRefArray,
   easeInOutCubic,
   easeOutCubic,
+  waitFor,
 } from "@motion-canvas/core";
 import { Highlight } from "../../theme/highlight";
 import { Ink } from "../../theme/ink";
@@ -49,6 +50,11 @@ export interface ComplexityPlotProps extends NodeProps {
   gridY?: number;
   /** 图注区域宽度，默认 160 */
   legendWidth?: number;
+  /**
+   * 右侧图注文案，与 complexities 一一对应；
+   * 未传或某项缺省时回退到复杂度自身标签（如 O(n)）。
+   */
+  legendLabels?: string[];
 }
 
 type ComplexityMeta = {
@@ -68,13 +74,13 @@ function factorial(n: number): number {
 }
 
 const COMPLEXITY_TABLE: Record<string, ComplexityMeta> = {
-  "O(1)": { label: "O(1)", color: Ink.muted, fn: () => 1 },
+  "O(1)": { label: "O(1)", color: Ink.paperSoft, fn: () => 1 },
   "O(log n)": {
     label: "O(log n)",
     color: "#6B7F6A",
     fn: (n) => Math.log2(Math.max(n, 1)),
   },
-  "O(n)": { label: "O(n)", color: Highlight.accent, fn: (n) => n },
+  "O(n)": { label: "O(n)", color: Ink.gold, fn: (n) => n },
   "O(n log n)": {
     label: "O(n log n)",
     color: "#9A8B6E",
@@ -124,12 +130,16 @@ function formatTick(n: number): string {
 /**
  * 算法时间复杂度对比图（第一象限）：
  * 传入多个预设复杂度字符串，右侧图注；
- * showAxes 先出轴与图注，trace 同时描出全部曲线；play = 二者串联。
+ * play = 轴/图注 → 同时描线 → 依次高亮曲线与图注。
  */
 export class ComplexityPlot extends Node {
   private readonly curves = createRefArray<Line>();
+  private readonly legendLines = createRefArray<Line>();
+  private readonly legendTexts = createRefArray<Txt>();
   private readonly axesRoot = createRef<Node>();
   private readonly legendRoot = createRef<Node>();
+  private readonly curveColors: string[] = [];
+  private readonly baseLineWidth: number;
 
   public constructor(props: ComplexityPlotProps) {
     const {
@@ -144,10 +154,13 @@ export class ComplexityPlot extends Node {
       gridX = 4,
       gridY = 4,
       legendWidth = 168,
+      legendLabels,
       ...nodeProps
     } = props;
 
     super(nodeProps);
+
+    this.baseLineWidth = lineWidth;
 
     if (!complexities || complexities.length === 0) {
       throw new Error("ComplexityPlot: complexities 不能为空");
@@ -155,7 +168,11 @@ export class ComplexityPlot extends Node {
 
     const nMin = 1;
     const nMax = Math.max(nMin + 1e-6, rawNMax);
-    const metas = complexities.map(resolveComplexity);
+    const metas = complexities.map((key, i) => {
+      const meta = resolveComplexity(key);
+      const custom = legendLabels?.[i]?.trim();
+      return custom ? { ...meta, label: custom } : meta;
+    });
     const sampleCount = Math.max(2, Math.floor(samples));
 
     const xs: number[] = [];
@@ -308,6 +325,7 @@ export class ComplexityPlot extends Node {
         points.push(toLocal(xs[i], y));
       }
       if (points.length < 2) continue;
+      this.curveColors.push(metas[s].color);
       this.add(
         <Line
           ref={this.curves}
@@ -329,6 +347,7 @@ export class ComplexityPlot extends Node {
         {metas.map((meta, i) => (
           <Node y={-legendH / 2 + rowH / 2 + i * rowH}>
             <Line
+              ref={this.legendLines}
               points={[
                 [-legendWidth / 2 + 8, 0],
                 [-legendWidth / 2 + 40, 0],
@@ -338,6 +357,7 @@ export class ComplexityPlot extends Node {
               lineCap="round"
             />
             <Txt
+              ref={this.legendTexts}
               text={meta.label}
               fill={meta.color}
               fontSize={24}
@@ -367,9 +387,100 @@ export class ComplexityPlot extends Node {
     );
   }
 
-  /** 先轴/图注，再同时描线 */
-  public *play(axesDuration = 0.55, traceDuration = 1.4): ThreadGenerator {
+  /**
+   * 高亮第 index 条曲线及其图注（加粗 + 提亮），其余略淡；结束后复原。
+   * 各段 up/hold/down 固定等长，避免因曲线长短造成「亮得久/短」的观感偏差。
+   */
+  public *highlight(index: number, duration = 1.2): ThreadGenerator {
+    const count = this.curves.length;
+    if (count === 0) return;
+    const i = Math.max(0, Math.min(count - 1, Math.floor(index)));
+    // 固定三阶段，不按曲线长度变化
+    const up = 0.28;
+    const hold = Math.max(0.55, duration - up * 2);
+    const down = 0.28;
+    const peakW = this.baseLineWidth * 3.2;
+    const hi = Highlight.accent;
+
+    yield* all(
+      ...this.curves.map((curve, j) =>
+        j === i
+          ? all(
+              curve.lineWidth(peakW, up, easeOutCubic),
+              curve.stroke(hi, up, easeOutCubic),
+              curve.opacity(1, up, easeOutCubic),
+            )
+          : curve.opacity(0.22, up, easeOutCubic),
+      ),
+      ...this.legendLines.map((line, j) =>
+        j === i
+          ? all(
+              line.lineWidth(peakW, up, easeOutCubic),
+              line.stroke(hi, up, easeOutCubic),
+              line.opacity(1, up, easeOutCubic),
+            )
+          : line.opacity(0.22, up, easeOutCubic),
+      ),
+      ...this.legendTexts.map((txt, j) =>
+        j === i
+          ? all(
+              txt.fill(hi, up, easeOutCubic),
+              txt.scale(1.1, up, easeOutCubic),
+              txt.opacity(1, up, easeOutCubic),
+            )
+          : txt.opacity(0.22, up, easeOutCubic),
+      ),
+    );
+
+    yield* waitFor(hold);
+
+    yield* all(
+      ...this.curves.map((curve, j) =>
+        all(
+          curve.lineWidth(this.baseLineWidth, down, easeInOutCubic),
+          curve.stroke(this.curveColors[j], down, easeInOutCubic),
+          curve.opacity(1, down, easeInOutCubic),
+        ),
+      ),
+      ...this.legendLines.map((line, j) =>
+        all(
+          line.lineWidth(this.baseLineWidth, down, easeInOutCubic),
+          line.stroke(this.curveColors[j], down, easeInOutCubic),
+          line.opacity(1, down, easeInOutCubic),
+        ),
+      ),
+      ...this.legendTexts.map((txt, j) =>
+        all(
+          txt.fill(this.curveColors[j], down, easeInOutCubic),
+          txt.scale(1, down, easeInOutCubic),
+          txt.opacity(1, down, easeInOutCubic),
+        ),
+      ),
+    );
+  }
+
+  /** 按图注顺序依次高亮每条曲线（每条同等时长） */
+  public *highlightSequence(
+    duration = 1.2,
+    gap = 0.3,
+  ): ThreadGenerator {
+    for (let i = 0; i < this.curves.length; i++) {
+      yield* this.highlight(i, duration);
+      if (i < this.curves.length - 1 && gap > 0) {
+        yield* waitFor(gap);
+      }
+    }
+  }
+
+  /** 先轴/图注，再同时描线，再依次高亮 */
+  public *play(
+    axesDuration = 0.55,
+    traceDuration = 1.4,
+    highlightDuration = 1.2,
+  ): ThreadGenerator {
     yield* this.showAxes(axesDuration);
     yield* this.trace(traceDuration);
+    yield* waitFor(0.35);
+    yield* this.highlightSequence(highlightDuration);
   }
 }

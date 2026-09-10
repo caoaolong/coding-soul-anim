@@ -35,6 +35,8 @@ export interface BraceProps extends NodeProps {
   lineWidth?: number;
   labelFill?: string;
   fontSize?: number;
+  /** 标注字体；英文/数字默认无衬线，中文标注可显式传仿宋 */
+  fontFamily?: string;
 }
 
 /**
@@ -59,6 +61,7 @@ export class Brace extends Node {
       lineWidth = 3,
       labelFill = Ink.paperSoft,
       fontSize = 24,
+      fontFamily = "SF Pro Text, Segoe UI, Microsoft YaHei, sans-serif",
       ...nodeProps
     } = props;
 
@@ -101,7 +104,7 @@ export class Brace extends Node {
           fill={labelFill}
           fontSize={fontSize}
           fontWeight={700}
-          fontFamily={"SF Pro Text, Segoe UI, sans-serif"}
+          fontFamily={fontFamily}
           opacity={0}
         />,
       );
