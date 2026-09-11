@@ -314,7 +314,7 @@ function* playBuddyConceptPreview(
   yield* waitFor(0.15);
 }
 
-/** Buddy 演示：概念预演后，再 AllocPage(7168) 申请 7KB */
+/** Buddy 演示：概念预演后，在同一棵树上依次申请 7KB、3KB */
 function* playBuddyDemo(view: View2D): ThreadGenerator {
   const root = createRef<BuddyRoot>();
   const formula = createRef<InkFormula>();
@@ -336,7 +336,7 @@ function* playBuddyDemo(view: View2D): ThreadGenerator {
   // 预演：无空闲链表、无 AllocPage
   yield* playBuddyConceptPreview(view, root());
 
-  // 正式演示：亮出空闲链表与 AllocPage，再申请 7KB
+  // 正式演示：亮出空闲链表与 AllocPage
   yield* root().setFreeListVisible(true, 0.4);
   yield* root().initFreeList();
   yield* waitFor(0.3);
@@ -352,7 +352,32 @@ function* playBuddyDemo(view: View2D): ThreadGenerator {
   yield* formula().write(0.65);
   yield* waitFor(0.45);
 
+  // 7KB 申请分裂
   yield* root().alloc(7);
+  const firstAlloc = root().lastAllocated;
+  yield* waitFor(1.0);
+
+  // 保持当前占用，继续在剩余空闲块上申请 3KB
+  yield* formula().rewrite("\\mathrm{AllocPage}(3072)", 0.55, false);
+  yield* waitFor(0.4);
+  yield* root().alloc(3);
+  const secondAlloc = root().lastAllocated;
+  yield* waitFor(1.0);
+
+  // 先释放第二次申请的 3KB
+  if (secondAlloc) {
+    yield* formula().rewrite("\\mathrm{FreePage}(3072)", 0.5, false);
+    yield* waitFor(0.35);
+    yield* root().free(secondAlloc);
+  }
+  yield* waitFor(0.8);
+
+  // 再释放第一次申请的 7KB（继续向上合并）
+  if (firstAlloc) {
+    yield* formula().rewrite("\\mathrm{FreePage}(7168)", 0.5, false);
+    yield* waitFor(0.35);
+    yield* root().free(firstAlloc);
+  }
   yield* waitFor(1.2);
 }
 

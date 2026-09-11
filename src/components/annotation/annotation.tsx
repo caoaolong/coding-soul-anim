@@ -1,4 +1,4 @@
-import { Node, NodeProps, Rect } from "@motion-canvas/2d";
+import { Line, Node, NodeProps, Rect } from "@motion-canvas/2d";
 import {
   all,
   BBox,
@@ -6,27 +6,37 @@ import {
   easeInOutCubic,
   easeOutCubic,
   ThreadGenerator,
+  waitFor,
 } from "@motion-canvas/core";
 import { Highlight } from "../../theme/highlight";
+import { Ink } from "../../theme/ink";
+import { brushLine } from "../../theme/ink_anim";
 
 export interface FocusBoxOptions {
-  /** 包围盒相对物体外扩的边距，默认 Highlight.focusBox.padding */
+  /** 相对物体外扩边距，默认 Highlight.focusBox.padding */
   padding?: number;
-  /** 高亮描边色，默认 Highlight.focusBox.color */
+  /** 底线/描边色，默认淡朱砂 Ink.seal */
   color?: string;
-  /** 描边宽度，默认 Highlight.focusBox.lineWidth */
+  /** 线宽，默认 Highlight.focusBox.lineWidth */
   lineWidth?: number;
-  /** 圆角，默认 Highlight.focusBox.radius */
+  /** 仅 style='box' 时使用 */
   radius?: number;
-  /** 闪烁总时长，默认 Highlight.focusBox.duration */
+  /** 总时长，默认 Highlight.focusBox.duration */
   duration?: number;
+  /**
+   * underline：底部运笔底线（默认，水墨批注感）
+   * box：旧式完整包围盒（兼容）
+   */
+  style?: "underline" | "box";
+  /** 底线相对包围盒底边的额外下移，默认 10 */
+  underlineGap?: number;
 }
 
 export interface AnnotationProps extends NodeProps {}
 
 /**
- * 标注类动画组件。
- * 当前提供：对 N 个物体绘制外扩圆角矩形包围盒并闪烁一次以聚焦。
+ * 标注类动画：默认以淡朱砂运笔底线圈点目标（水墨批注），
+ * 亦可回退为完整包围盒。
  */
 export class Annotation extends Node {
   public constructor(props: AnnotationProps = {}) {
@@ -34,8 +44,7 @@ export class Annotation extends Node {
   }
 
   /**
-   * 在给定物体之外画高亮圆角矩形包围盒，并闪烁一次。
-   * @param targets 一个或多个 Motion Canvas 节点
+   * 聚焦给定物体：默认在并集包围盒底部落一笔朱砂底线。
    */
   public *focusBox(
     targets: Node | Node[],
@@ -54,6 +63,8 @@ export class Annotation extends Node {
       lineWidth = Highlight.focusBox.lineWidth,
       radius = Highlight.focusBox.radius,
       duration = Highlight.focusBox.duration,
+      style = "underline",
+      underlineGap = 10,
     } = options;
 
     const worldBox = this.unionWorldBBox(list).expand(padding);
@@ -61,6 +72,76 @@ export class Annotation extends Node {
       ...worldBox.transformCorners(this.worldToLocal()),
     );
 
+    if (style === "box") {
+      yield* this.focusRectBox(localBox, {
+        color,
+        lineWidth,
+        radius,
+        duration,
+      });
+      return;
+    }
+
+    yield* this.focusUnderline(localBox, {
+      color,
+      lineWidth,
+      duration,
+      underlineGap,
+    });
+  }
+
+  /** 底部运笔底线：自左向右书写，稍顿后淡出 */
+  private *focusUnderline(
+    localBox: BBox,
+    options: {
+      color: string;
+      lineWidth: number;
+      duration: number;
+      underlineGap: number;
+    },
+  ): ThreadGenerator {
+    const { color, lineWidth, duration, underlineGap } = options;
+    const y = localBox.bottom + underlineGap;
+    const left = localBox.left;
+    const right = localBox.right;
+
+    const line = createRef<Line>();
+    this.add(
+      <Line
+        ref={line}
+        points={[
+          [left, y],
+          [right, y],
+        ]}
+        stroke={color}
+        lineWidth={lineWidth}
+        lineCap={"round"}
+        opacity={1}
+        end={0}
+      />,
+    );
+
+    const write = Math.min(Ink.brushDuration, duration * 0.45);
+    const hold = duration * 0.3;
+    const fade = duration * 0.25;
+
+    yield* brushLine(line(), { duration: write });
+    yield* waitFor(hold);
+    yield* line().opacity(0, fade, easeInOutCubic);
+    line().remove();
+  }
+
+  /** 兼容：完整包围盒闪烁 */
+  private *focusRectBox(
+    localBox: BBox,
+    options: {
+      color: string;
+      lineWidth: number;
+      radius: number;
+      duration: number;
+    },
+  ): ThreadGenerator {
+    const { color, lineWidth, radius, duration } = options;
     const box = createRef<Rect>();
     this.add(
       <Rect
@@ -74,8 +155,6 @@ export class Annotation extends Node {
         stroke={color}
         lineWidth={lineWidth}
         opacity={0}
-        shadowColor={color}
-        shadowBlur={0}
       />,
     );
 
@@ -85,18 +164,10 @@ export class Annotation extends Node {
 
     yield* all(
       box().opacity(1, up, easeOutCubic),
-      box().lineWidth(lineWidth * 1.6, up, easeOutCubic),
-      box().shadowBlur(18, up, easeOutCubic),
+      box().lineWidth(lineWidth * 1.35, up, easeOutCubic),
     );
-    yield* all(
-      box().lineWidth(lineWidth, hold, easeInOutCubic),
-      box().shadowBlur(8, hold, easeInOutCubic),
-    );
-    yield* all(
-      box().opacity(0, down, easeInOutCubic),
-      box().shadowBlur(0, down, easeInOutCubic),
-    );
-
+    yield* box().lineWidth(lineWidth, hold, easeInOutCubic);
+    yield* box().opacity(0, down, easeInOutCubic);
     box().remove();
   }
 

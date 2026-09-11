@@ -24,13 +24,13 @@ export const Highlight = {
   scalePeak: 1.04,
   /** 自身高亮默认时长（秒） */
   duration: Ink.duration,
-  /** Annotation.focusBox 默认参数 */
+  /** Annotation.focusBox：水墨运笔底线 */
   focusBox: {
-    color: Ink.goldSoft,
-    lineWidth: Ink.lineWidth,
-    padding: 16,
-    radius: 4,
-    duration: 0.9,
+    color: Ink.seal,
+    lineWidth: 3,
+    padding: 12,
+    radius: 0,
+    duration: 1.0,
   },
 } as const;
 

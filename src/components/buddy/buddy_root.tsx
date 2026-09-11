@@ -192,10 +192,8 @@ export class BuddyRoot extends Node {
       // 预演：框选两个伙伴块
       yield* this.annotation.focusBox([left, right], {
         padding: 16,
-        color: Ink.goldSoft,
+        color: Ink.seal,
         duration: 1.1,
-        radius: Ink.radius,
-        lineWidth: Ink.lineWidth,
       });
       return;
     }
@@ -413,10 +411,8 @@ export class BuddyRoot extends Node {
     if (syncFreeList) {
       yield* this.annotation.focusBox([left, right], {
         padding: 14,
-        color: Ink.goldSoft,
+        color: Ink.seal,
         duration: Math.max(0.9, duration * 0.55),
-        radius: Ink.radius,
-        lineWidth: Ink.lineWidth,
       });
     }
 
