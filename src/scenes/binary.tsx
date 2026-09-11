@@ -6,9 +6,12 @@ import {
   waitFor,
 } from "@motion-canvas/core";
 import { Brace, braceEdgeFromNodes } from "../components/annotation/brace";
+import { BuddyRoot } from "../components/buddy/buddy_root";
 import { NBytes } from "../components/bytes/n_bytes";
 import { InkFormula } from "../components/formula/ink_formula";
 import { CourseCover } from "../components/intro/course_cover";
+import { TransitionTitle } from "../components/intro/transition_title";
+import { MM } from "../components/memory/mm";
 import { ComplexityPlot } from "../components/plot/complexity_plot";
 import { Timeline } from "../components/timeline/timeline";
 import { Ink } from "../theme/ink";
@@ -30,10 +33,18 @@ const SCENE_BG_OPACITY = 0.08;
  * 整集拆成多段素材单独导出：只改下面 ACTIVE 即可切换要渲染的段。
  * 新增段：写 playXxx → 加入 SegmentId → 登记到 segments。
  */
-type SegmentId = "cover" | "introduction" | "memory" | "o";
+type SegmentId =
+  | "cover"
+  | "introduction"
+  | "memory"
+  | "ops"
+  | "o"
+  | "buddy_title"
+  | "buddy"
+  | "buddy_demo";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "memory" as SegmentId;
+const ACTIVE = "buddy_demo" as SegmentId;
 
 /** 片头自带不透明背景，其余段用淡墨共用底图 */
 function useSharedSceneBg(segment: SegmentId): boolean {
@@ -224,6 +235,13 @@ function* playMemory(view: View2D): ThreadGenerator {
   yield* waitFor(1.0);
 }
 
+/** 过渡：二进制运算 */
+function* playOps(view: View2D): ThreadGenerator {
+  const page = createRef<TransitionTitle>();
+  view.add(<TransitionTitle ref={page} title={"二进制运算"} />);
+  yield* page().play();
+}
+
 /** 复杂度：O(n) vs O(1) 曲线对比（loop / bitwise） */
 function* playO(view: View2D): ThreadGenerator {
   const plot = createRef<ComplexityPlot>();
@@ -242,6 +260,102 @@ function* playO(view: View2D): ThreadGenerator {
   yield* waitFor(1.2);
 }
 
+/** 过渡：Buddy System / 伙伴系统 */
+function* playBuddyTitle(view: View2D): ThreadGenerator {
+  const page = createRef<TransitionTitle>();
+  view.add(
+    <TransitionTitle
+      ref={page}
+      title={"Buddy System"}
+      subtitle={"伙伴系统"}
+    />,
+  );
+  yield* page().play();
+}
+
+/** Buddy：内存管理三层示意（应用 → 分页 → 物理页） */
+function* playBuddy(view: View2D): ThreadGenerator {
+  const mm = createRef<MM>();
+  view.add(<MM ref={mm} />);
+  yield* mm().play();
+}
+
+/**
+ * 伙伴概念预演：根块分裂一次 → 框选左右伙伴 → 点题「伙伴系统」→ 恢复原状。
+ * 预演期间不显示空闲链表，也不显示 AllocPage。
+ */
+function* playBuddyConceptPreview(
+  view: View2D,
+  root: BuddyRoot,
+): ThreadGenerator {
+  const title = createRef<InkFormula>();
+
+  // 分裂后框选两个内存块
+  yield* root.demoSplitOnce(2.2, false);
+  yield* waitFor(0.3);
+
+  // 框选完成后再出现「伙伴系统」
+  view.add(
+    <InkFormula
+      ref={title}
+      tex={"\\,"}
+      fontSize={40}
+      y={-320}
+    />,
+  );
+  yield* title().writePlain("伙伴系统", 0.55);
+  yield* waitFor(0.35);
+
+  // 标题出现即预演结束：直接恢复，不再二次框选
+  yield* all(
+    root.demoRestore(1.6, false),
+    title().hide(0.35),
+  );
+  yield* waitFor(0.15);
+}
+
+/** Buddy 演示：概念预演后，再 AllocPage(7168) 申请 7KB */
+function* playBuddyDemo(view: View2D): ThreadGenerator {
+  const root = createRef<BuddyRoot>();
+  const formula = createRef<InkFormula>();
+
+  view.add(
+    <BuddyRoot
+      ref={root}
+      order={3}
+      pageSize={0x1000}
+      start={0}
+      canvasWidth={view.width()}
+      canvasHeight={view.height()}
+    />,
+  );
+
+  yield* root().showOrder();
+  yield* waitFor(0.35);
+
+  // 预演：无空闲链表、无 AllocPage
+  yield* playBuddyConceptPreview(view, root());
+
+  // 正式演示：亮出空闲链表与 AllocPage，再申请 7KB
+  yield* root().setFreeListVisible(true, 0.4);
+  yield* root().initFreeList();
+  yield* waitFor(0.3);
+
+  view.add(
+    <InkFormula
+      ref={formula}
+      tex={"\\mathrm{AllocPage}(7168)"}
+      fontSize={36}
+      y={-320}
+    />,
+  );
+  yield* formula().write(0.65);
+  yield* waitFor(0.45);
+
+  yield* root().alloc(7);
+  yield* waitFor(1.2);
+}
+
 const segments: Record<
   SegmentId,
   (view: View2D) => ThreadGenerator
@@ -249,7 +363,11 @@ const segments: Record<
   cover: playCover,
   introduction: playIntroduction,
   memory: playMemory,
+  ops: playOps,
   o: playO,
+  buddy_title: playBuddyTitle,
+  buddy: playBuddy,
+  buddy_demo: playBuddyDemo,
 };
 
 export default makeScene2D(function* (view) {

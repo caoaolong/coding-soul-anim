@@ -8,7 +8,6 @@ import {
   waitFor,
 } from "@motion-canvas/core";
 import type { BuddyRoot } from "./buddy_root";
-import { Highlight } from "../../theme/highlight";
 import { Ink } from "../../theme/ink";
 
 export interface BuddySystemProps extends NodeProps {
@@ -41,13 +40,39 @@ function formatKB(kb: number): string {
   return `${t}KB`;
 }
 
-const DEPTH_FILL = [Ink.deep, Ink.deepAlt, "#1A1E1C", "#1E1C1A", "#201E1C"];
-const DEPTH_STROKE = [Ink.line, Ink.muted, "#6B7F6A", "#9A8B6E", Ink.goldSoft];
+/** 地址：等宽；块大小：仿书签字 */
+const ADDR_FONT = "SF Mono, Consolas, monospace";
+const SIZE_FONT = '"SimFang", FangSong, STFangsong, serif';
+
+/**
+ * 水墨层次（仅用暖墨 / 宣纸 / 淡金 / 赭石，避免青绿数码感）：
+ * - 默认叶：浓淡墨笺
+ * - 空闲链表：淡金描边笺条
+ * - 占用：赭石印记
+ * - 已分裂父块：淡墨残影
+ */
+const DEPTH_FILL = [
+  Ink.deep,
+  Ink.deepAlt,
+  "#181715",
+  "#1F1D1A",
+  "#22201C",
+];
+const DEPTH_STROKE = [
+  Ink.line,
+  Ink.muted,
+  "#6A6358",
+  "#756E62",
+  Ink.paperSoft,
+];
+const FREE_FILL = "#2A261C";
+const FREE_STROKE = Ink.gold;
+const FREE_TEXT = Ink.paper;
 const ALLOC_FILL = Ink.warnDeep;
-const ALLOC_STROKE = Highlight.accent;
-/** 已分裂的父块：非空闲内部节点 */
-const INTERNAL_FILL = Ink.deep;
-const INTERNAL_STROKE = Ink.line;
+const ALLOC_STROKE = Ink.warn;
+const ALLOC_TEXT = Ink.goldSoft;
+const INTERNAL_FILL = Ink.veil;
+const INTERNAL_STROKE = "#3A3630";
 const INTERNAL_TEXT = Ink.muted;
 const ADDR_COLOR = Ink.paperSoft;
 
@@ -66,6 +91,8 @@ export class BuddySystem extends Node {
   public parentBlock: BuddySystem | null = null;
   /** 是否已被分配 */
   public allocated = false;
+  /** 是否已挂在顶部空闲链表 */
+  public inFreeList = false;
 
   private readonly bar = createRef<Rect>();
   private readonly startTxt = createRef<Txt>();
@@ -107,7 +134,7 @@ export class BuddySystem extends Node {
         ref={this.bar}
         width={200}
         height={barHeight}
-        radius={Ink.radius}
+        radius={0}
         fill={DEPTH_FILL[0]}
         stroke={DEPTH_STROKE[0]}
         lineWidth={Ink.lineWidth}
@@ -119,8 +146,8 @@ export class BuddySystem extends Node {
         text={formatHex(start, digits)}
         fill={ADDR_COLOR}
         fontSize={fontSize}
-        fontWeight={700}
-        fontFamily={"SF Mono, Consolas, monospace"}
+        fontWeight={500}
+        fontFamily={ADDR_FONT}
         offset={[-1, 0]}
         y={-barHeight / 2 - fontSize * 0.75}
       />,
@@ -131,8 +158,8 @@ export class BuddySystem extends Node {
         text={formatHex(this.end, digits)}
         fill={ADDR_COLOR}
         fontSize={fontSize}
-        fontWeight={700}
-        fontFamily={"SF Mono, Consolas, monospace"}
+        fontWeight={500}
+        fontFamily={ADDR_FONT}
         offset={[1, 0]}
         y={-barHeight / 2 - fontSize * 0.75}
       />,
@@ -143,8 +170,8 @@ export class BuddySystem extends Node {
         text={sizeLabel(size)}
         fill={Ink.paper}
         fontSize={fontSize * 0.95}
-        fontWeight={700}
-        fontFamily={"SF Mono, Consolas, monospace"}
+        fontWeight={600}
+        fontFamily={SIZE_FONT}
       />,
     );
   }
@@ -242,6 +269,7 @@ export class BuddySystem extends Node {
     );
 
     // 整树重新居中布局：子块从父位置滑到下方，地址逐渐显现
+    // 空闲链表更新由 BuddyRoot.alloc 在分裂完成后单独编排，避免与分裂同播
     yield* this.buddyRoot.relayout(move);
   }
 
@@ -253,13 +281,15 @@ export class BuddySystem extends Node {
   }
 
   /**
-   * 已分裂父块：自身不再空闲，使用暗色内部节点样式。
+   * 已分裂父块：淡墨残影，弱化自身存在感。
    */
   public *setInternal(duration = 0.45): ThreadGenerator {
+    this.inFreeList = false;
     yield* all(
       this.bar().fill(INTERNAL_FILL, duration, easeInOutCubic),
       this.bar().stroke(INTERNAL_STROKE, duration, easeInOutCubic),
-      this.bar().lineWidth(Ink.lineWidth, duration * 0.5, easeOutCubic),
+      this.bar().lineWidth(Ink.lineWidth * 0.75, duration * 0.5, easeOutCubic),
+      this.bar().opacity(0.72, duration, easeInOutCubic),
       this.midTxt().fill(INTERNAL_TEXT, duration, easeInOutCubic),
       this.startTxt().fill(INTERNAL_TEXT, duration, easeInOutCubic),
       this.endTxt().fill(INTERNAL_TEXT, duration, easeInOutCubic),
@@ -318,14 +348,14 @@ export class BuddySystem extends Node {
 
     this.midTxt().text(text);
     yield* all(
-      this.midTxt().fill(Highlight.accent, duration * 0.2, easeOutCubic),
-      this.midTxt().scale(1.12, duration * 0.25, easeOutCubic).to(
+      this.midTxt().fill(Ink.goldSoft, duration * 0.2, easeOutCubic),
+      this.midTxt().scale(1.04, duration * 0.25, easeOutCubic).to(
         1,
         duration * 0.35,
         easeInOutCubic,
       ),
       this.bar()
-        .stroke(Highlight.accent, duration * 0.25, easeOutCubic)
+        .stroke(Ink.goldSoft, duration * 0.25, easeOutCubic)
         .to(stroke, duration * 0.5, easeInOutCubic),
       waitFor(duration * 0.55),
     );
@@ -345,11 +375,13 @@ export class BuddySystem extends Node {
     this.allocated = value;
     this.midTxt().text(sizeLabel(this.size));
     if (value) {
+      this.inFreeList = false;
       yield* all(
         this.bar().fill(ALLOC_FILL, duration, easeInOutCubic),
         this.bar().stroke(ALLOC_STROKE, duration, easeInOutCubic),
-        this.bar().lineWidth(Ink.lineWidth + 1, duration * 0.5, easeOutCubic),
-        this.midTxt().fill(ALLOC_STROKE, duration, easeInOutCubic),
+        this.bar().lineWidth(Ink.lineWidth + 0.5, duration * 0.5, easeOutCubic),
+        this.bar().opacity(1, duration * 0.4, easeOutCubic),
+        this.midTxt().fill(ALLOC_TEXT, duration, easeInOutCubic),
       );
     } else {
       const i = this.depth % DEPTH_FILL.length;
@@ -357,24 +389,49 @@ export class BuddySystem extends Node {
         this.bar().fill(DEPTH_FILL[i], duration, easeInOutCubic),
         this.bar().stroke(DEPTH_STROKE[i], duration, easeInOutCubic),
         this.bar().lineWidth(Ink.lineWidth, duration * 0.5, easeOutCubic),
+        this.bar().opacity(1, duration * 0.4, easeOutCubic),
         this.midTxt().fill(Ink.paper, duration, easeInOutCubic),
       );
     }
   }
 
-  /** 合并时短高亮 */
+  /** 挂入空闲链表：淡金描边笺条 */
+  public *setFreeListStyle(duration = 0.35): ThreadGenerator {
+    this.inFreeList = true;
+    yield* all(
+      this.bar().fill(FREE_FILL, duration, easeInOutCubic),
+      this.bar().stroke(FREE_STROKE, duration, easeInOutCubic),
+      this.bar().lineWidth(Ink.lineWidth, duration * 0.5, easeOutCubic),
+      this.bar().opacity(1, duration * 0.35, easeOutCubic),
+      this.midTxt().fill(FREE_TEXT, duration, easeInOutCubic),
+      this.startTxt().fill(ADDR_COLOR, duration, easeInOutCubic),
+      this.endTxt().fill(ADDR_COLOR, duration, easeInOutCubic),
+    );
+  }
+
+  /** 合并时短高亮：淡金墨晕，轻提不弹 */
   public *pulseHighlight(duration = 1.6): ThreadGenerator {
     const i = this.depth % DEPTH_STROKE.length;
-    yield* this.bar()
-      .stroke(Highlight.accent, duration * 0.4, easeOutCubic)
-      .to(DEPTH_STROKE[i], duration * 0.6, easeInOutCubic);
+    const restore = this.inFreeList ? FREE_STROKE : DEPTH_STROKE[i];
+    yield* all(
+      this.bar()
+        .stroke(Ink.goldSoft, duration * 0.4, easeOutCubic)
+        .to(restore, duration * 0.6, easeInOutCubic),
+      this.bar().scale(1.02, duration * 0.35, easeOutCubic).to(
+        1,
+        duration * 0.45,
+        easeInOutCubic,
+      ),
+    );
   }
 
   /** 恢复深度配色（合并后父块重新变为空闲叶） */
   public restoreDepthStyle(): void {
     this.allocated = false;
+    this.inFreeList = false;
     this.applyDepthStyle(this.depth);
     this.bar().lineWidth(Ink.lineWidth);
+    this.bar().opacity(1);
     this.midTxt().fill(Ink.paper);
     this.startTxt().fill(ADDR_COLOR);
     this.endTxt().fill(ADDR_COLOR);

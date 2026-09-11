@@ -9,7 +9,7 @@ import {
 } from "@motion-canvas/core";
 import { Annotation } from "../annotation/annotation";
 import { BuddySystem, BuddySystemProps } from "./buddy_system";
-import { Highlight } from "../../theme/highlight";
+import { BuddyFreeList } from "./free_list";
 import { Ink } from "../../theme/ink";
 
 export interface BuddyRootProps extends NodeProps {
@@ -18,7 +18,7 @@ export interface BuddyRootProps extends NodeProps {
    * 内存大小 = pageSize × 2^order；从根分裂到最小块共可分裂 order 次。
    */
   order?: number;
-  /** 最小块（order=0）大小，默认 0x200 */
+  /** 最小块（order=0）大小，固定默认 4KB（0x1000） */
   pageSize?: number;
   /** 整段内存起始地址 */
   start?: number;
@@ -29,6 +29,8 @@ export interface BuddyRootProps extends NodeProps {
   barWidth?: number;
   /** 画布宽度，用于计算左右留白，默认 1920 */
   canvasWidth?: number;
+  /** 画布高度，用于顶栏空闲链表定位，默认 1080 */
+  canvasHeight?: number;
   /** 相对屏幕左右边距，默认 72 */
   sideMargin?: number;
   /** 内存条高度 */
@@ -59,6 +61,9 @@ export class BuddyRoot extends Node {
     formula: Latex;
   }> = [];
   private readonly annotation: Annotation;
+  private readonly freeList: BuddyFreeList;
+  /** 为顶部空闲链表预留，整树下移 */
+  private readonly treeYPad: number;
 
   /** 根块 order；亦可分裂次数（降到 order=0） */
   public readonly order: number;
@@ -73,10 +78,11 @@ export class BuddyRoot extends Node {
   public constructor(props: BuddyRootProps) {
     const {
       order = 3,
-      pageSize = 0x200,
+      pageSize = 0x1000,
       start = 0,
       barWidth = 720,
       canvasWidth = 1920,
+      canvasHeight = 1080,
       sideMargin = 72,
       barHeight = 48,
       levelGap = 72,
@@ -127,6 +133,13 @@ export class BuddyRoot extends Node {
     this.annotation = new Annotation();
     this.add(this.annotation);
 
+    this.treeYPad = 100;
+    this.freeList = new BuddyFreeList({
+      y: -canvasHeight / 2 + 70,
+      opacity: 0,
+    });
+    this.add(this.freeList);
+
     this.rootBlock = new BuddySystem({
       start,
       size,
@@ -140,6 +153,111 @@ export class BuddyRoot extends Node {
     const initial = this.computeSlots();
     const slot = initial.get(this.rootBlock)!;
     this.rootBlock.applyLayout(slot.x, slot.y, slot.width);
+  }
+
+  /** 显示 / 隐藏顶部空闲链表 */
+  public *setFreeListVisible(
+    visible: boolean,
+    duration = 0.35,
+  ): ThreadGenerator {
+    yield* this.freeList.opacity(visible ? 1 : 0, duration, easeOutCubic);
+  }
+
+  /** 将根块高亮后挂入顶部空闲链表（场景开场时调用） */
+  public *initFreeList(): ThreadGenerator {
+    yield* this.freeList.admit(this.rootBlock, this.order, 0.55);
+  }
+
+  /**
+   * 概念演示：根块只分裂一次。
+   * - syncFreeList=false（预演）：框选左右两个伙伴后返回
+   * - syncFreeList=true：高亮并同步空闲链表
+   */
+  public *demoSplitOnce(
+    duration = 2.2,
+    syncFreeList = true,
+  ): ThreadGenerator {
+    const parent = this.rootBlock;
+    if (parent.isSplit) {
+      return;
+    }
+    yield* parent.split(duration);
+    const left = parent.left;
+    const right = parent.right;
+    if (!left || !right) {
+      return;
+    }
+
+    if (!syncFreeList) {
+      // 预演：框选两个伙伴块
+      yield* this.annotation.focusBox([left, right], {
+        padding: 16,
+        color: Ink.goldSoft,
+        duration: 1.1,
+        radius: Ink.radius,
+        lineWidth: Ink.lineWidth,
+      });
+      return;
+    }
+
+    yield* all(
+      left.pulseHighlight(0.55),
+      right.pulseHighlight(0.55),
+    );
+    yield* this.freeList.unlink(parent, 0.25);
+    yield* left.setFreeListStyle(0.3);
+    yield* right.setFreeListStyle(0.3);
+    yield* this.freeList.mount(left, this.orderOf(left.size), 0.3);
+    yield* this.freeList.mount(right, this.orderOf(right.size), 0.3);
+  }
+
+  /**
+   * 概念演示后合并回单一根块。
+   * @param syncFreeList 是否同步空闲链表（预演时应为 false）
+   */
+  public *demoRestore(
+    duration = 2.0,
+    syncFreeList = true,
+  ): ThreadGenerator {
+    if (!this.rootBlock.isSplit) {
+      return;
+    }
+    yield* this.merge(this.rootBlock, duration, syncFreeList);
+  }
+
+  /**
+   * 父块分裂完成后：父块出链；仅将伙伴加入空闲链表。
+   * 顺序：高亮伙伴 → 切空闲配色 → 链表淡入节点（互不重叠）。
+   */
+  public *afterSplit(
+    parent: BuddySystem,
+    kept: BuddySystem,
+    buddy: BuddySystem,
+  ): ThreadGenerator {
+    yield* this.freeList.unlink(parent, 0.25);
+    yield* buddy.pulseHighlight(0.45);
+    yield* buddy.setFreeListStyle(0.3);
+    yield* this.freeList.mount(
+      buddy,
+      this.orderOf(buddy.size),
+      0.3,
+    );
+  }
+
+  /** 占用 / 释放时同步空闲链表 */
+  public *syncFreeListOnAlloc(
+    block: BuddySystem,
+    allocated: boolean,
+  ): ThreadGenerator {
+    if (allocated) {
+      yield* this.freeList.unlink(block, 0.28);
+    } else if (!block.isSplit) {
+      yield* this.freeList.admit(
+        block,
+        this.orderOf(block.size),
+        0.5,
+      );
+    }
   }
 
   /** 根内存块 */
@@ -186,11 +304,14 @@ export class BuddyRoot extends Node {
   }
 
   /**
-   * 分裂指定块（默认根块）。
+   * 分裂指定块（默认根块）：先播树分裂，再将伙伴加入空闲链表。
    */
   public *split(target?: BuddySystem, duration = 2.6): ThreadGenerator {
     const block = target ?? this.rootBlock;
     yield* block.split(duration);
+    if (block.left && block.right) {
+      yield* this.afterSplit(block, block.left, block.right);
+    }
   }
 
   /** 最近一次 alloc 得到的块 */
@@ -218,23 +339,28 @@ export class BuddyRoot extends Node {
     }
 
     let block = candidate;
+    // 首次分裂前先亮出各层 order，便于对照伙伴阶
+    if (this.orderOf(block.size) > want && !this.orderVisible) {
+      yield* this.showOrder(duration * 0.7);
+    }
     while (this.orderOf(block.size) > want) {
-      // 例如：7KB < 32KB；恢复原文案与分裂同时进行
+      // 例如：7KB < 32KB → 先比较，再分裂，再改空闲链表（每步互不重叠）
       yield* block.showCompare(reqKB, duration * 0.5);
-      yield* all(
-        block.restoreMidLabel(duration * 0.35),
-        block.split(duration),
-      );
-      if (!block.left) {
+      yield* block.restoreMidLabel(duration * 0.25);
+      yield* block.split(duration);
+      if (!block.left || !block.right) {
         this.lastAllocated = null;
         return;
       }
+      // 继续走 left；仅伙伴 right 入空闲链表
+      yield* this.afterSplit(block, block.left, block.right);
       block = block.left;
     }
 
-    // 到达目标阶：7KB ≤ 8KB，然后标记占用
+    // 到达目标阶：7KB ≤ 8KB，先标记占用，再出空闲链表
     yield* block.showCompare(reqKB, duration * 0.45);
     yield* block.setAllocated(true, duration * 0.35);
+    yield* this.syncFreeListOnAlloc(block, true);
     this.lastAllocated = block;
   }
 
@@ -247,6 +373,7 @@ export class BuddyRoot extends Node {
     }
 
     yield* block.setAllocated(false, duration * 0.3);
+    yield* this.syncFreeListOnAlloc(block, false);
 
     let current = block;
     while (current.parentBlock) {
@@ -271,27 +398,40 @@ export class BuddyRoot extends Node {
   }
 
   /** 合并一对空闲 buddy：先 Annotation 标注，再合并 */
-  private *merge(parent: BuddySystem, duration: number): ThreadGenerator {
+  private *merge(
+    parent: BuddySystem,
+    duration: number,
+    syncFreeList = true,
+  ): ThreadGenerator {
     const left = parent.left;
     const right = parent.right;
     if (!left || !right) {
       return;
     }
 
-    // 聚焦即将合并的两个空闲 buddy
-    yield* this.annotation.focusBox([left, right], {
-      padding: 14,
-      color: Ink.goldSoft,
-      duration: Math.max(0.9, duration * 0.55),
-      radius: Ink.radius,
-      lineWidth: Ink.lineWidth,
-    });
+    // 正式合并（带空闲链表）时再框选；预演恢复直接收拢，避免二次 focusBox
+    if (syncFreeList) {
+      yield* this.annotation.focusBox([left, right], {
+        padding: 14,
+        color: Ink.goldSoft,
+        duration: Math.max(0.9, duration * 0.55),
+        radius: Ink.radius,
+        lineWidth: Ink.lineWidth,
+      });
+    }
 
-    yield* all(
+    const fadeOut: ThreadGenerator[] = [
       left.opacity(0, duration * 0.45, easeInOutCubic),
       right.opacity(0, duration * 0.45, easeInOutCubic),
       parent.pulseHighlight(duration * 0.5),
-    );
+    ];
+    if (syncFreeList) {
+      fadeOut.push(
+        this.freeList.unlink(left, duration * 0.35),
+        this.freeList.unlink(right, duration * 0.35),
+      );
+    }
+    yield* all(...fadeOut);
 
     parent.left = null;
     parent.right = null;
@@ -300,6 +440,13 @@ export class BuddyRoot extends Node {
     parent.restoreDepthStyle();
 
     yield* this.relayout(duration * 0.55);
+    if (syncFreeList) {
+      yield* this.freeList.admit(
+        parent,
+        this.orderOf(parent.size),
+        duration * 0.4,
+      );
+    }
   }
 
   private detachBlock(block: BuddySystem): void {
@@ -414,12 +561,13 @@ export class BuddyRoot extends Node {
 
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
-    // 仅按内存条图形居中，左侧 order 文案不参与宽度/居中计算
+    // 仅按内存条图形居中，左侧 order 文案不参与宽度/居中计算；
+    // treeYPad 整树下移，给顶部空闲链表留空
     const centered = new Map<BuddySystem, LayoutSlot>();
     for (const [node, slot] of raw) {
       centered.set(node, {
         x: slot.x - cx,
-        y: slot.y - cy,
+        y: slot.y - cy + this.treeYPad,
         width: slot.width,
       });
     }
@@ -511,15 +659,15 @@ export class BuddyRoot extends Node {
             <Txt
               ref={titleRef}
               text={`order=${ord}`}
-              fill={Highlight.accent}
+              fill={Ink.goldSoft}
               fontSize={this.orderFontSize}
-              fontWeight={700}
-              fontFamily={"SF Mono, Consolas, monospace"}
+              fontWeight={600}
+              fontFamily={'"SimFang", FangSong, STFangsong, serif'}
             />
             <Latex
               ref={formulaRef}
               tex={`(2^{${ord}}\\ \\mathrm{Pages})`}
-              fill={Highlight.accent}
+              fill={Ink.paperSoft}
               fontSize={this.orderFontSize}
             />
           </Layout>,
