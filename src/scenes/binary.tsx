@@ -13,6 +13,7 @@ import { CourseCover } from "../components/intro/course_cover";
 import { TransitionTitle } from "../components/intro/transition_title";
 import { MM } from "../components/memory/mm";
 import { ComplexityPlot } from "../components/plot/complexity_plot";
+import { CycleRing } from "../components/cycle/cycle_ring";
 import { Timeline } from "../components/timeline/timeline";
 import { Ink } from "../theme/ink";
 import { inkReveal } from "../theme/ink_anim";
@@ -41,10 +42,11 @@ type SegmentId =
   | "o"
   | "buddy_title"
   | "buddy"
-  | "buddy_demo";
+  | "buddy_demo"
+  | "cycle";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "buddy_demo" as SegmentId;
+const ACTIVE = "cycle" as SegmentId;
 
 /** 片头自带不透明背景，其余段用淡墨共用底图 */
 function useSharedSceneBg(segment: SegmentId): boolean {
@@ -381,6 +383,36 @@ function* playBuddyDemo(view: View2D): ThreadGenerator {
   yield* waitFor(1.2);
 }
 
+/** 环形循环组件预览 */
+function* playCycle(view: View2D): ThreadGenerator {
+  const ring = createRef<CycleRing>();
+  const formula = createRef<InkFormula>();
+
+  view.add(
+    <CycleRing
+      ref={ring}
+      theme={"伙伴系统"}
+      labels={["分裂", "合并"]}
+      radius={240}
+      nodeSize={80}
+    />,
+  );
+
+  yield* ring().play();
+  yield* waitFor(0.35);
+
+  view.add(
+    <InkFormula
+      ref={formula}
+      tex={"\\,"}
+      fontSize={40}
+      y={-380}
+    />,
+  );
+  yield* formula().writePlain("伙伴寻址", 0.6);
+  yield* waitFor(1.0);
+}
+
 const segments: Record<
   SegmentId,
   (view: View2D) => ThreadGenerator
@@ -393,9 +425,10 @@ const segments: Record<
   buddy_title: playBuddyTitle,
   buddy: playBuddy,
   buddy_demo: playBuddyDemo,
+  cycle: playCycle,
 };
 
-export default makeScene2D(function* (view) {
+const binaryScene = makeScene2D(function* (view) {
   view.fill(Ink.bg);
   // 片头 CourseCover 自带不透明背景；其余段用淡墨共用底图
   if (useSharedSceneBg(ACTIVE)) {
@@ -405,3 +438,5 @@ export default makeScene2D(function* (view) {
   }
   yield* segments[ACTIVE](view);
 });
+
+export default binaryScene;
