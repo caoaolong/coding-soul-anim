@@ -2,16 +2,24 @@ import { Latex, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
+  chain,
   createRef,
   createRefArray,
   easeInOutCubic,
   easeOutCubic,
   sequence,
+  waitFor,
 } from "@motion-canvas/core";
+import { Annotation } from "../annotation/annotation";
 import { Brace } from "../annotation/brace";
 import { Ink } from "../../theme/ink";
 import { Highlight } from "../../theme/highlight";
 import { highlightShapes } from "../../theme/highlight_anim";
+
+/** 数值/段名标注 */
+const LABEL_FONT = "SF Pro Text, Segoe UI, Microsoft YaHei, sans-serif";
+/** 格内 bit 数字 */
+const BIT_FONT = "SF Mono, Consolas, monospace";
 
 export type FloatSection = "sign" | "exponent" | "mantissa";
 
@@ -20,19 +28,38 @@ export interface FloatProps extends NodeProps {
   value?: number;
   /** 单个 bit 格子边长，默认 36 */
   cellSize?: number;
-  /** 格间距，默认 3 */
+  /** 格间距，默认 6 */
   gap?: number;
-  /** 段（Sign / Exp / Mant）之间额外间距，默认 14 */
+  /** 段（Sign / Exp / Mant）之间额外间距，默认 16 */
   sectionGap?: number;
 }
 
+/**
+ * 三段水墨配色：格底统一深墨，描边结构墨线；
+ * 段别仅由上方花括号/标注色区分（朱砂 / 淡金 / 淡赭）。
+ */
 const SECTION_STYLE: Record<
   FloatSection,
-  { fill: string; stroke: string; label: string }
+  { fill: string; stroke: string; accent: string; label: string }
 > = {
-  sign: { fill: Ink.deep, stroke: Ink.goldSoft, label: "Sign" },
-  exponent: { fill: Ink.deep, stroke: Ink.warn, label: "Exponent" },
-  mantissa: { fill: Ink.deep, stroke: "#6E7D6E", label: "Mantissa" },
+  sign: {
+    fill: Ink.deep,
+    stroke: Ink.line,
+    accent: Ink.seal,
+    label: "S",
+  },
+  exponent: {
+    fill: Ink.deep,
+    stroke: Ink.line,
+    accent: Ink.goldSoft,
+    label: "E",
+  },
+  mantissa: {
+    fill: Ink.deepAlt,
+    stroke: Ink.line,
+    accent: Ink.warn,
+    label: "M",
+  },
 };
 
 const SECTIONS: FloatSection[] = ["sign", "exponent", "mantissa"];
@@ -43,7 +70,7 @@ const BIT_COUNT = 32;
 
 /** 下方解码公式（IEEE 754 规格化数） */
 const DECODE_FORMULA =
-  "{V=(-1)^{S}\\times(1.M)_{2}\\times 2^{\\,E_{\\text{存}}-\\mathrm{Bias}}}";
+  "{V=(-1)^{S}\\times(1.M)_{2}\\times 2^{\\,E-\\mathrm{Bias}}}";
 
 function sectionOf(bitIndex: number): FloatSection {
   if (bitIndex < SIGN_END) return "sign";
@@ -66,16 +93,29 @@ export function float32ToBits(value: number): number[] {
   return bits;
 }
 
+/** IEEE 754 float32 位数组 → 数值（index 0 为符号位） */
+export function bitsToFloat32(bits: number[]): number {
+  let u = 0;
+  for (let i = 0; i < BIT_COUNT; i++) {
+    u = (u << 1) | (bits[i] & 1);
+  }
+  const buf = new ArrayBuffer(4);
+  new DataView(buf).setUint32(0, u >>> 0, false);
+  return new DataView(buf).getFloat32(0, false);
+}
+
 function formatFloatLabel(value: number): string {
   if (Number.isNaN(value)) return "NaN=";
   if (value === Infinity) return "∞=";
   if (value === -Infinity) return "-∞=";
-  if (Object.is(value, -0)) return "-0=";
+  if (Object.is(value, -0)) return "-0.00=";
+  if (value === 0) return "0.00=";
   return `${value}=`;
 }
 
 /**
  * IEEE 754 float32 位布局：Sign(1) | Exponent(8) | Mantissa(23)，左高右低。
+ * 水墨格网：直角深墨底、结构墨线；段别以花括号淡墨色相点题。
  */
 export class Float extends Node {
   public readonly cells = createRefArray<Rect>();
@@ -83,6 +123,7 @@ export class Float extends Node {
   private readonly valueLabel = createRef<Txt>();
   private readonly braces = createRefArray<Brace>();
   private readonly formula = createRef<Latex>();
+  private readonly annotation = createRef<Annotation>();
 
   private readonly cellSize: number;
   private readonly gap: number;
@@ -95,8 +136,8 @@ export class Float extends Node {
     const {
       value = 0,
       cellSize = 36,
-      gap = 3,
-      sectionGap = 14,
+      gap = 6,
+      sectionGap = 16,
       ...nodeProps
     } = props;
 
@@ -123,7 +164,7 @@ export class Float extends Node {
         fill={Ink.paper}
         fontSize={cellSize * 0.42}
         fontWeight={700}
-        fontFamily={"SF Mono, Consolas, monospace"}
+        fontFamily={LABEL_FONT}
       />,
     );
 
@@ -137,7 +178,7 @@ export class Float extends Node {
           y={gridY}
           width={cellSize}
           height={cellSize}
-          radius={Ink.radius}
+          radius={0}
           fill={style.fill}
           stroke={style.stroke}
           lineWidth={Ink.lineWidth}
@@ -151,7 +192,7 @@ export class Float extends Node {
             fill={Ink.paper}
             fontSize={cellSize * 0.45}
             fontWeight={700}
-            fontFamily={"SF Mono, Consolas, monospace"}
+            fontFamily={BIT_FONT}
           />
         </Rect>,
       );
@@ -173,10 +214,11 @@ export class Float extends Node {
           side={"top"}
           depth={braceDepth}
           label={style.label}
-          stroke={style.stroke}
-          labelFill={style.stroke}
+          stroke={style.accent}
+          labelFill={style.accent}
           lineWidth={Ink.lineWidth}
           fontSize={Math.max(18, Math.round(cellSize * 0.55))}
+          fontFamily={LABEL_FONT}
           zIndex={5}
         />,
       );
@@ -193,6 +235,9 @@ export class Float extends Node {
         opacity={0}
       />,
     );
+
+    // 朱砂批注层（改 bit 时画红线）
+    this.add(<Annotation ref={this.annotation} zIndex={20} />);
   }
 
   /** 当前浮点数值 */
@@ -206,7 +251,7 @@ export class Float extends Node {
   }
 
   /**
-   * 依次绘出 Sign / Exponent / Mantissa 上方花括号标注。
+   * 依次绘出 S / E / M 上方花括号标注。
    */
   public *showLabels(duration = 0.4): ThreadGenerator {
     yield* sequence(
@@ -234,17 +279,106 @@ export class Float extends Node {
   }
 
   /**
-   * 更新为新的 float32 值：各位淡出改写淡入，左侧文案同步。
+   * 按二进制串写入某一段（sign / exponent / mantissa）。
+   * 串可短于段宽：mantissa / exponent 右侧补 0；过长则截断。
+   * 朱砂底线点题变化位后改写。
+   */
+  public *writeSectionBits(
+    section: FloatSection,
+    binary: string,
+    duration = 0.55,
+  ): ThreadGenerator {
+    const [from, to] = this.sectionRange(section);
+    const width = to - from;
+    const cleaned = binary.replace(/[^01]/g, "");
+    const padded = (cleaned + "0".repeat(width)).slice(0, width);
+
+    const nextBits = [...this.bits];
+    const changed: number[] = [];
+    for (let i = 0; i < width; i++) {
+      const bit = (padded.charCodeAt(i) === 49 ? 1 : 0) as 0 | 1;
+      const index = from + i;
+      if (nextBits[index] !== bit) {
+        nextBits[index] = bit;
+        changed.push(index);
+      }
+    }
+
+    if (changed.length === 0) return;
+
+    const half = duration * 0.5;
+    yield* all(
+      this.markBits(changed, Math.max(0.9, duration + 0.5)),
+      chain(
+        waitFor(0.2),
+        all(
+          ...changed.map((i) =>
+            this.bitTexts[i].opacity(0, half, easeInOutCubic),
+          ),
+          this.valueLabel().opacity(0.35, half, easeInOutCubic),
+        ),
+      ),
+    );
+
+    this.bits = nextBits;
+    this.currentValue = bitsToFloat32(this.bits);
+    this.valueLabel().text(formatFloatLabel(this.currentValue));
+    for (const i of changed) {
+      this.bitTexts[i].text(`${nextBits[i]}`);
+    }
+
+    yield* all(
+      ...changed.map((i) =>
+        this.bitTexts[i].opacity(1, half, easeInOutCubic),
+      ),
+      this.valueLabel().opacity(1, half, easeInOutCubic),
+    );
+  }
+
+  /**
+   * 单独改写某一 bit（0 为符号位）：朱砂底线点题 → 格内改写；左侧数值同步。
+   */
+  public *setBit(
+    index: number,
+    bit: 0 | 1,
+    duration = 0.35,
+  ): ThreadGenerator {
+    if (index < 0 || index >= BIT_COUNT) return;
+    if (this.bits[index] === bit) return;
+
+    yield* all(
+      this.markBits([index], Math.max(0.85, duration + 0.45)),
+      chain(waitFor(0.18), this.applyBitChange(index, bit, duration)),
+    );
+  }
+
+  /**
+   * 更新为新的 float32 值：对变化位画朱砂底线，再淡出改写淡入。
    */
   public *setValue(value: number, duration = 0.45): ThreadGenerator {
     const nextBits = float32ToBits(value);
-    const half = duration * 0.5;
+    const changed: number[] = [];
+    for (let i = 0; i < BIT_COUNT; i++) {
+      if (this.bits[i] !== nextBits[i]) changed.push(i);
+    }
+    if (changed.length === 0) {
+      this.currentValue = value;
+      this.valueLabel().text(formatFloatLabel(value));
+      return;
+    }
 
+    const half = duration * 0.5;
     yield* all(
-      ...this.bitTexts.map((txt) =>
-        txt.opacity(0, half, easeInOutCubic),
+      this.markBits(changed, Math.max(0.9, duration + 0.5)),
+      chain(
+        waitFor(0.2),
+        all(
+          ...changed.map((i) =>
+            this.bitTexts[i].opacity(0, half, easeInOutCubic),
+          ),
+          this.valueLabel().opacity(0.35, half, easeInOutCubic),
+        ),
       ),
-      this.valueLabel().opacity(0.35, half, easeInOutCubic),
     );
 
     this.currentValue = value;
@@ -255,10 +389,52 @@ export class Float extends Node {
     }
 
     yield* all(
-      ...this.bitTexts.map((txt) =>
-        txt.opacity(1, half, easeInOutCubic),
+      ...changed.map((i) =>
+        this.bitTexts[i].opacity(1, half, easeInOutCubic),
       ),
       this.valueLabel().opacity(1, half, easeInOutCubic),
+    );
+  }
+
+  /** 在指定 bit 格下方落朱砂运笔底线 */
+  private *markBits(
+    indices: number[],
+    duration = 0.8,
+  ): ThreadGenerator {
+    const targets = indices
+      .map((i) => this.cells[i])
+      .filter(Boolean);
+    if (targets.length === 0) return;
+    yield* this.annotation().focusBox(targets, {
+      style: "underline",
+      color: Ink.seal,
+      lineWidth: 3,
+      padding: 2,
+      underlineGap: 6,
+      duration,
+    });
+  }
+
+  private *applyBitChange(
+    index: number,
+    bit: 0 | 1,
+    duration: number,
+  ): ThreadGenerator {
+    const txt = this.bitTexts[index];
+    const half = duration * 0.45;
+    yield* all(
+      txt.opacity(0, half, easeInOutCubic),
+      this.valueLabel().opacity(0.35, half, easeInOutCubic),
+    );
+
+    this.bits[index] = bit;
+    txt.text(`${bit}`);
+    this.currentValue = bitsToFloat32(this.bits);
+    this.valueLabel().text(formatFloatLabel(this.currentValue));
+
+    yield* all(
+      txt.opacity(1, duration - half, easeInOutCubic),
+      this.valueLabel().opacity(1, duration - half, easeInOutCubic),
     );
   }
 
@@ -269,7 +445,7 @@ export class Float extends Node {
   public *highlight(
     section: FloatSection,
     recovery = false,
-    duration = Highlight.duration,
+    duration: number = Highlight.duration,
   ): ThreadGenerator {
     const [from, to] = this.sectionRange(section);
     const targets = [];

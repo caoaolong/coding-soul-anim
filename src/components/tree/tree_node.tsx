@@ -33,6 +33,9 @@ export class TreeNode extends Circle {
     });
 
     this.baseFontSize = baseFontSize;
+    const initialTitle =
+      typeof props?.title === "string" ? props.title : "Node";
+    const initialFont = fontSizeForTitle(initialTitle, baseFontSize);
 
     // 构建组件 UI 结构
     this.add(
@@ -41,7 +44,7 @@ export class TreeNode extends Circle {
           ref={this.label}
           text={props?.title ?? "Node"}
           fill={Ink.paper}
-          fontSize={baseFontSize}
+          fontSize={initialFont}
           fontWeight={700}
         />
       </Circle>,
@@ -55,15 +58,13 @@ export class TreeNode extends Circle {
 
   /**
    * 将标题改为指定文本（可带淡入）。
-   * Index= 文案略缩小字号以免溢出。
+   * Index= / 2^i+x 文案略缩小字号以免溢出。
    */
   public *setTitle(
     text: string,
     duration = 0.25,
   ): ThreadGenerator {
-    const fontSize = text.startsWith("Index=")
-      ? Math.round(this.baseFontSize * 0.82)
-      : this.baseFontSize;
+    const fontSize = fontSizeForTitle(text, this.baseFontSize);
 
     if (duration <= 0) {
       this.label().text(text);
@@ -77,4 +78,14 @@ export class TreeNode extends Circle {
     this.label().fontSize(fontSize);
     yield* this.label().opacity(1, duration * 0.6, easeOutCubic);
   }
+}
+
+function fontSizeForTitle(text: string, base: number): number {
+  if (text.startsWith("Index=") || text.startsWith("2^")) {
+    return Math.round(base * 0.72);
+  }
+  if (text.startsWith("Node ")) {
+    return Math.round(base * 0.9);
+  }
+  return base;
 }

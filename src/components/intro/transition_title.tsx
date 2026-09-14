@@ -119,10 +119,11 @@ export class TransitionTitle extends Node {
       inkReveal(this.block(), { fromY: 14, duration: 0.55 }),
     );
 
-    // —— 底线运笔 + 墨金脉冲 ——
-    const titleWidth = Math.max(200, this.titleTxt().width() + 48);
+    // —— 底线运笔 + 墨金脉冲（线长以下方文字为准；无副标题则用主标题） ——
+    const spanTxt = this.hasSubtitle ? this.subtitleTxt() : this.titleTxt();
+    const lineWidth = Math.max(120, spanTxt.width() + 24);
     yield* all(
-      brushWidth(this.underline(), titleWidth),
+      brushWidth(this.underline(), lineWidth),
       this.titleTxt().fill(Ink.goldSoft, 0.28, easeOutCubic),
       delay(0.28, this.titleTxt().fill(Ink.paper, 0.45, easeInOutCubic)),
       this.breath().opacity(0.06, 0.55, easeInOutCubic),

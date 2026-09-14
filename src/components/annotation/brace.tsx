@@ -90,6 +90,7 @@ export class Brace extends Node {
         lineJoin={"round"}
         radius={Math.min(10, depth * 0.45)}
         end={0}
+        opacity={0}
       />,
     );
 
@@ -115,6 +116,8 @@ export class Brace extends Node {
    * 绘出括号（并可淡入文字）。
    */
   public *show(duration = 0.45): ThreadGenerator {
+    // end=0 时圆线帽仍会露出起点残点，先亮起再运笔
+    this.curve().opacity(1);
     const tasks: ThreadGenerator[] = [
       this.curve().end(1, duration, easeInOutCubic),
     ];
@@ -131,6 +134,35 @@ export class Brace extends Node {
     ];
     if (this.hasLabel) {
       tasks.push(this.labelTxt().opacity(0, duration * 0.6, easeInOutCubic));
+    }
+    yield* all(...tasks);
+    this.curve().opacity(0);
+  }
+
+  /**
+   * 额外高亮：括号描边与标注文字脉冲后复原。
+   */
+  public *pulse(
+    duration = 0.55,
+    color = Ink.seal,
+  ): ThreadGenerator {
+    const curve = this.curve();
+    const prevStroke = curve.stroke();
+    const up = duration * 0.35;
+    const down = duration * 0.65;
+    const tasks: ThreadGenerator[] = [
+      curve
+        .stroke(color, up, easeInOutCubic)
+        .to(prevStroke, down, easeInOutCubic),
+      curve.scale(1.04, up, easeInOutCubic).to(1, down, easeInOutCubic),
+    ];
+    if (this.hasLabel) {
+      const label = this.labelTxt();
+      const prevFill = label.fill();
+      tasks.push(
+        label.fill(color, up, easeInOutCubic).to(prevFill, down, easeInOutCubic),
+        label.scale(1.08, up, easeInOutCubic).to(1, down, easeInOutCubic),
+      );
     }
     yield* all(...tasks);
   }

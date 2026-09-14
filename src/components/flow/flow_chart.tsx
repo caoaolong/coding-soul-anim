@@ -1,0 +1,156 @@
+import { Img, Layout, Line, Node, NodeProps, Txt } from "@motion-canvas/2d";
+import {
+  ThreadGenerator,
+  createRef,
+  createRefArray,
+  waitFor,
+} from "@motion-canvas/core";
+import { Ink } from "../../theme/ink";
+import { brushLine, inkReveal } from "../../theme/ink_anim";
+
+const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
+
+export interface FlowStep {
+  /** 图标资源（Img src） */
+  icon: string;
+  /** 节点下方文案 */
+  label: string;
+}
+
+export interface FlowChartProps extends NodeProps {
+  /** 流程节点（按顺序） */
+  steps: FlowStep[];
+  /** 图标边长，默认 96 */
+  iconSize?: number;
+  /** 节点间距（含箭头区域），默认 160 */
+  gap?: number;
+  /** 文案字号，默认 28 */
+  fontSize?: number;
+  /** 箭头线宽，默认 Ink.lineWidth */
+  lineWidth?: number;
+}
+
+/**
+ * 横向流程图：上图标、下文案；next() 依次绘出箭头并显现下一节点。
+ */
+export class FlowChart extends Node {
+  private readonly cards = createRefArray<Layout>();
+  private readonly arrows = createRefArray<Line>();
+  private readonly count: number;
+  /** 当前已显现到的节点下标；-1 表示尚未显示任何节点 */
+  private shown = -1;
+
+  public constructor(props: FlowChartProps) {
+    const {
+      steps,
+      iconSize = 96,
+      gap = 160,
+      fontSize = 28,
+      lineWidth = Ink.lineWidth,
+      ...nodeProps
+    } = props;
+
+    super(nodeProps);
+
+    if (!steps || steps.length === 0) {
+      throw new Error("FlowChart: steps 不能为空");
+    }
+
+    this.count = steps.length;
+    const arrowLen = Math.max(48, gap * 0.42);
+    const cardW = Math.max(iconSize + 24, fontSize * 5);
+
+    const row = createRef<Layout>();
+    this.add(
+      <Layout
+        ref={row}
+        layout
+        direction={"row"}
+        alignItems={"center"}
+        gap={Math.max(12, gap - arrowLen)}
+      />,
+    );
+
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      const card = createRef<Layout>();
+      row().add(
+        <Layout
+          ref={card}
+          layout
+          direction={"column"}
+          alignItems={"center"}
+          gap={16}
+          width={cardW}
+          opacity={0}
+        >
+          <Img src={step.icon} width={iconSize} height={iconSize} />
+          <Txt
+            text={step.label}
+            fontFamily={LABEL_FONT}
+            fontSize={fontSize}
+            fill={Ink.paper}
+          />
+        </Layout>,
+      );
+      this.cards.push(card());
+
+      if (i < steps.length - 1) {
+        const arrow = createRef<Line>();
+        row().add(
+          <Line
+            ref={arrow}
+            points={[
+              [0, 0],
+              [arrowLen, 0],
+            ]}
+            stroke={Ink.goldSoft}
+            lineWidth={lineWidth}
+            lineCap={"round"}
+            endArrow
+            arrowSize={14}
+            end={0}
+            opacity={1}
+          />,
+        );
+        this.arrows.push(arrow());
+      }
+    }
+  }
+
+  /**
+   * 显现下一环节：
+   * - 首次：只淡入第一个节点
+   * - 之后：运笔箭头 → 淡入下一节点
+   */
+  public *next(duration = 0.5): ThreadGenerator {
+    if (this.shown >= this.count - 1) {
+      return;
+    }
+
+    if (this.shown < 0) {
+      this.shown = 0;
+      yield* inkReveal(this.cards[0], { duration, fromY: 12 });
+      return;
+    }
+
+    const arrow = this.arrows[this.shown];
+    const nextCard = this.cards[this.shown + 1];
+    const draw = Math.min(Ink.brushDuration, duration * 0.55);
+    const reveal = duration * 0.65;
+
+    yield* brushLine(arrow, { duration: draw });
+    yield* inkReveal(nextCard, { duration: reveal, fromY: 12 });
+    this.shown += 1;
+  }
+
+  /** 连续播放全部节点（含首节点与各 next） */
+  public *play(stepDuration = 0.5, pause = 0.25): ThreadGenerator {
+    for (let i = 0; i < this.count; i++) {
+      yield* this.next(stepDuration);
+      if (i < this.count - 1 && pause > 0) {
+        yield* waitFor(pause);
+      }
+    }
+  }
+}

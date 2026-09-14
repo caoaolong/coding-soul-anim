@@ -1,6 +1,5 @@
 import { Layout, Node, NodeProps, Rect } from "@motion-canvas/2d";
 import { ThreadGenerator, createRef } from "@motion-canvas/core";
-import { Highlight } from "../../theme/highlight";
 import { Ink } from "../../theme/ink";
 import { Annotation, FocusBoxOptions } from "../annotation/annotation";
 import { DataTableCell, createHeaderCell } from "./data_table_cell";
@@ -58,6 +57,10 @@ export interface DataTableProps extends NodeProps {
   stroke?: string;
   groupBorderColor?: string;
   groupBorderWidth?: number;
+  /**
+   * 边框样式：horizontal 仅横线（水墨默认）；box 单元格全框。
+   */
+  borders?: "horizontal" | "box";
 }
 
 /**
@@ -99,7 +102,10 @@ export class DataTable extends Node {
   private readonly groupBorderColor: string;
   private readonly groupBorderWidth: number;
   private readonly defaultColumnWidth: number;
-  private readonly cellLine = 1;
+  private readonly cellLine: number;
+  private readonly borders: "horizontal" | "box";
+  private readonly ruleColor: string;
+  private readonly headerRuleColor: string;
 
   public constructor(props: DataTableProps) {
     const {
@@ -116,19 +122,25 @@ export class DataTable extends Node {
       rowFillB = Ink.deepAlt,
       groupFill = Ink.deepAlt,
       groupFillAlt,
-      headerTextColor = Highlight.accent,
+      headerTextColor = Ink.goldSoft,
       textColor = Ink.paper,
-      groupTextColor = Highlight.accent,
+      groupTextColor = Ink.goldSoft,
       cellPaddingX = 16,
       stroke = Ink.line,
       groupBorderColor = Ink.line,
       groupBorderWidth = Ink.lineWidth,
+      borders = "horizontal",
       ...nodeProps
     } = props;
 
     super(nodeProps);
 
     if (!headers?.length) throw new Error("DataTable: headers 不能为空");
+
+    this.borders = borders;
+    this.cellLine = borders === "box" ? 1 : 0;
+    this.ruleColor = stroke;
+    this.headerRuleColor = Ink.goldSoft;
 
     this.headers = [...headers];
     this.currentRows = rows.map((r) => [...r]);
@@ -153,7 +165,8 @@ export class DataTable extends Node {
     this.cellPaddingX = cellPaddingX;
     this.stroke = stroke;
     this.groupBorderColor = groupBorderColor;
-    this.groupBorderWidth = groupBorderWidth;
+    this.groupBorderWidth =
+      borders === "horizontal" ? 0 : groupBorderWidth;
     this.defaultColumnWidth = defaultColumnWidth;
 
     const widths =
@@ -162,7 +175,15 @@ export class DataTable extends Node {
         : headers.map(() => defaultColumnWidth);
 
     const tableWidth = widths.reduce((a, b) => a + b, 0);
-    const tableHeight = (rows.length + 1) * rowHeight;
+    const ruleH = this.borders === "horizontal" ? 1 : 0;
+    const headerRuleH = this.borders === "horizontal" ? 2 : 0;
+    const tableHeight =
+      (rows.length + 1) * rowHeight +
+      headerRuleH +
+      rows.length * ruleH;
+
+    const cellStroke = this.borders === "box" ? stroke : null;
+    const cellLine = this.cellLine;
 
     // —— 表头 ——
     const headerNodes: DataTableCell[] = [];
@@ -172,8 +193,8 @@ export class DataTable extends Node {
         width: widths[c],
         height: rowHeight,
         fill: headerFill,
-        stroke,
-        lineWidth: this.cellLine,
+        stroke: cellStroke,
+        lineWidth: cellLine,
         textFill: headerTextColor,
         fontSize,
         fontFamily: this.fontFamily,
@@ -209,8 +230,8 @@ export class DataTable extends Node {
             width: widths[c],
             height: rowHeight,
             fill,
-            stroke,
-            lineWidth: this.cellLine,
+            stroke: cellStroke,
+            lineWidth: cellLine,
             textFill: textColor,
             fontSize,
             fontFamily: this.fontFamily,
@@ -220,14 +241,24 @@ export class DataTable extends Node {
           cellNodes.push(cell);
         }
         bodyNodes.push(
-          <Layout
-            ref={rowRef}
-            layout
-            direction="row"
-            width={tableWidth}
-            height={rowHeight}
-          >
-            {cellNodes}
+          <Layout layout direction="column" width={tableWidth}>
+            <Layout
+              ref={rowRef}
+              layout
+              direction="row"
+              width={tableWidth}
+              height={rowHeight}
+            >
+              {cellNodes}
+            </Layout>
+            {this.borders === "horizontal" ? (
+              <Rect
+                width={tableWidth}
+                height={ruleH}
+                fill={this.ruleColor}
+                radius={0}
+              />
+            ) : null}
           </Layout>,
         );
       }
@@ -244,7 +275,7 @@ export class DataTable extends Node {
       }> = [];
 
       this.groups.forEach((g, groupIndex) => {
-        const groupH = g.rows.length * rowHeight;
+        const groupH = g.rows.length * rowHeight + g.rows.length * ruleH;
         const gFill = groupIndex % 2 === 0 ? groupFill : this.altGroupFill;
         const frameRef = createRef<Rect>();
         const innerRef = createRef<Layout>();
@@ -260,8 +291,8 @@ export class DataTable extends Node {
           width: widths[gCol],
           height: groupH,
           fill: gFill,
-          stroke,
-          lineWidth: this.cellLine,
+          stroke: cellStroke,
+          lineWidth: cellLine,
           textFill: groupTextColor,
           fontSize,
           fontFamily: this.fontFamily,
@@ -289,8 +320,8 @@ export class DataTable extends Node {
               width: widths[c],
               height: rowHeight,
               fill,
-              stroke,
-              lineWidth: this.cellLine,
+              stroke: cellStroke,
+              lineWidth: cellLine,
               textFill: textColor,
               fontSize,
               fontFamily: this.fontFamily,
@@ -300,15 +331,25 @@ export class DataTable extends Node {
             cellNodes.push(cell);
           }
           rowNodes.push(
-            <Layout
-              ref={rowRef}
-              layout
-              direction="row"
-              width={dataColsWidth}
-              height={rowHeight}
-              minWidth={0}
-            >
-              {cellNodes}
+            <Layout layout direction="column" width={dataColsWidth}>
+              <Layout
+                ref={rowRef}
+                layout
+                direction="row"
+                width={dataColsWidth}
+                height={rowHeight}
+                minWidth={0}
+              >
+                {cellNodes}
+              </Layout>
+              {this.borders === "horizontal" ? (
+                <Rect
+                  width={dataColsWidth}
+                  height={ruleH}
+                  fill={this.ruleColor}
+                  radius={0}
+                />
+              ) : null}
             </Layout>,
           );
         }
@@ -321,8 +362,10 @@ export class DataTable extends Node {
             height={groupH}
             minWidth={0}
             fill={null}
-            stroke={groupBorderColor}
-            lineWidth={groupBorderWidth}
+            stroke={
+              this.borders === "box" ? groupBorderColor : null
+            }
+            lineWidth={this.groupBorderWidth}
             justifyContent="start"
             alignItems="start"
             clip
@@ -369,14 +412,24 @@ export class DataTable extends Node {
         height={tableHeight}
         offset={[0, 0]}
       >
-        <Layout
-          ref={this.headerRow}
-          layout
-          direction="row"
-          width={tableWidth}
-          height={rowHeight}
-        >
-          {headerNodes}
+        <Layout layout direction="column" width={tableWidth}>
+          <Layout
+            ref={this.headerRow}
+            layout
+            direction="row"
+            width={tableWidth}
+            height={rowHeight}
+          >
+            {headerNodes}
+          </Layout>
+          {this.borders === "horizontal" ? (
+            <Rect
+              width={tableWidth}
+              height={headerRuleH}
+              fill={this.headerRuleColor}
+              radius={0}
+            />
+          ) : null}
         </Layout>
         {bodyNodes}
       </Layout>,
@@ -485,13 +538,18 @@ export class DataTable extends Node {
   }
 
   /**
-   * 高亮若干单元格（可跨行），闪烁一次。
-   * @param cells `{ row, column }`，column 为列名或下标
+   * 高亮若干单元格（可跨行）。
+   * style='box' 时可配合 phase：enter / move / leave。
+   * @param cells `{ row, column }`，column 为列名或下标；phase='leave' 时可传空数组
    */
   public *annotateCells(
     cells: Array<{ row: number; column: string | number }>,
     options: FocusBoxOptions = {},
   ): ThreadGenerator {
+    if (options.phase === "leave") {
+      yield* this.annotation().dismissBox(options.duration ?? 0.35);
+      return;
+    }
     const targets: Node[] = [];
     for (const { row, column } of cells) {
       if (row < 0 || row >= this.rowCount) {

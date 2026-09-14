@@ -14,9 +14,15 @@ import { TransitionTitle } from "../components/intro/transition_title";
 import { MM } from "../components/memory/mm";
 import { ComplexityPlot } from "../components/plot/complexity_plot";
 import { CycleRing } from "../components/cycle/cycle_ring";
+import { DataTable } from "../components/table/data_table";
+import { Float } from "../components/float/float";
+import { PopupPanel } from "../components/panel/popup_panel";
+import { NumberAxis } from "../components/axis/number_axis";
+import { BTree } from "../components/tree/b_tree";
+import { FlowChart } from "../components/flow/flow_chart";
 import { Timeline } from "../components/timeline/timeline";
 import { Ink } from "../theme/ink";
-import { inkReveal } from "../theme/ink_anim";
+import { inkFade, inkReveal } from "../theme/ink_anim";
 
 import sceneBg from "../assets/bg.png";
 import eniacImg from "../assets/binary/ENIAC.jpg";
@@ -24,6 +30,8 @@ import system360Img from "../assets/binary/IBM System_360.jpg";
 import bellLabsImg from "../assets/binary/贝尔实验室.webp";
 import windowsImg from "../assets/binary/Windows1.0.png";
 import officeImg from "../assets/binary/办公.jpg";
+import memoryIcon from "../assets/binary/pp.svg";
+import btreeIcon from "../assets/binary/btree.svg";
 
 /** 全场景共用背景透明度：压得很淡以呈若隐若现 */
 const SCENE_BG_OPACITY = 0.08;
@@ -43,10 +51,16 @@ type SegmentId =
   | "buddy_title"
   | "buddy"
   | "buddy_demo"
-  | "cycle";
+  | "cycle"
+  | "address"
+  | "btree"
+  | "btree2array"
+  | "btree_address"
+  | "b2f"
+  | "float";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "cycle" as SegmentId;
+const ACTIVE = "float" as SegmentId;
 
 /** 片头自带不透明背景，其余段用淡墨共用底图 */
 function useSharedSceneBg(segment: SegmentId): boolean {
@@ -413,6 +427,585 @@ function* playCycle(view: View2D): ThreadGenerator {
   yield* waitFor(1.0);
 }
 
+/** 生成 order 伙伴系统各阶内存块：起始地址（十六进制）与大小 */
+function buddyAddressRows(
+  order: number,
+  pageSize: number,
+  start = 0,
+): string[][] {
+  const rows: string[][] = [];
+  const maxVal = Math.max(
+    start + pageSize * 2 ** order - 1,
+    pageSize * 2 ** order,
+  );
+  const hexDigits = Math.max(4, maxVal.toString(16).length);
+  const fmtHex = (addr: number) =>
+    `0x${addr.toString(16).toUpperCase().padStart(hexDigits, "0")}`;
+
+  for (let o = order; o >= 0; o--) {
+    const size = pageSize * 2 ** o;
+    const count = 2 ** (order - o);
+    for (let i = 0; i < count; i++) {
+      const blockStart = start + i * size;
+      rows.push([`order=${o}`, fmtHex(blockStart), fmtHex(size)]);
+    }
+  }
+  return rows;
+}
+
+/** 删掉顶阶后，剩余块按两行一对的伙伴对（含表格行下标） */
+function buddyPairsAfterDropTop(
+  order: number,
+  pageSize: number,
+  start = 0,
+): Array<{
+  rows: [number, number];
+  addrA: number;
+  addrB: number;
+  size: number;
+  left: string;
+  mid: string;
+  right: string;
+  equation: string;
+}> {
+  const maxVal = Math.max(
+    start + pageSize * 2 ** order - 1,
+    pageSize * 2 ** order,
+  );
+  const hexDigits = Math.max(4, maxVal.toString(16).length);
+  const fmtHex = (n: number) =>
+    `0x${n.toString(16).toUpperCase().padStart(hexDigits, "0")}`;
+
+  const pairs: Array<{
+    rows: [number, number];
+    addrA: number;
+    addrB: number;
+    size: number;
+    left: string;
+    mid: string;
+    right: string;
+    equation: string;
+  }> = [];
+  let row = 0;
+  for (let o = order - 1; o >= 0; o--) {
+    const size = pageSize * 2 ** o;
+    const count = 2 ** (order - o);
+    for (let i = 0; i < count; i += 2) {
+      const addrA = start + i * size;
+      const addrB = start + (i + 1) * size;
+      const left = fmtHex(addrA);
+      const mid = fmtHex(size);
+      const right = fmtHex(addrB);
+      pairs.push({
+        rows: [row, row + 1],
+        addrA,
+        addrB,
+        size,
+        left,
+        mid,
+        right,
+        equation: `${left} + ${mid} = ${right}`,
+      });
+      row += 2;
+    }
+  }
+  return pairs;
+}
+
+/** 地址表：删 order=3 后两行一组框选；先演示加法寻址，再演示异或寻址 */
+function* playAddress(view: View2D): ThreadGenerator {
+  const table = createRef<DataTable>();
+  const formula = createRef<InkFormula>();
+  const order = 3;
+  const pageSize = 0x1000;
+  const rows = buddyAddressRows(order, pageSize, 0);
+  const pairs = buddyPairsAfterDropTop(order, pageSize, 0);
+
+  view.add(
+    <DataTable
+      ref={table}
+      headers={["order", "起始地址", "大小"]}
+      rows={rows}
+      group={"order"}
+      stripeEvery={2}
+      columnWidths={[160, 280, 160]}
+      rowHeight={44}
+      fontSize={22}
+      borders={"horizontal"}
+      headerTextColor={Ink.goldSoft}
+      groupTextColor={Ink.goldSoft}
+      stroke={Ink.line}
+      opacity={0}
+    />,
+  );
+
+  yield* inkReveal(table(), { duration: 0.6, fromY: 16 });
+  yield* waitFor(0.8);
+
+  // 删掉 order=3 整组
+  yield* table().deleteGroup("order=3", {
+    duration: 0.55,
+    highlight: true,
+    highlightDuration: 0.85,
+    highlightColor: Ink.seal,
+  });
+  yield* waitFor(0.5);
+
+  view.add(
+    <InkFormula
+      ref={formula}
+      tex={"\\,"}
+      fontSize={36}
+      y={-460}
+    />,
+  );
+
+  // 第一遍：addr + size = buddy
+  yield* playAddressPairPass(table(), formula(), pairs, "+");
+  yield* waitFor(0.35);
+  yield* formula().hide(0.3);
+  yield* waitFor(0.25);
+
+  // 第二遍：addr ⊕ size = buddy
+  yield* playAddressPairPass(table(), formula(), pairs, "⊕");
+  yield* waitFor(0.6);
+}
+
+/** 两行一组框选并同步顶部算式（op 为 + 或 ⊕） */
+function* playAddressPairPass(
+  table: DataTable,
+  formula: InkFormula,
+  pairs: Array<{
+    rows: [number, number];
+    left: string;
+    mid: string;
+    right: string;
+  }>,
+  op: string,
+): ThreadGenerator {
+  for (let i = 0; i < pairs.length; i++) {
+    const pair = pairs[i];
+    yield* table.annotateCells(
+      [
+        { row: pair.rows[0], column: "起始地址" },
+        { row: pair.rows[0], column: "大小" },
+        { row: pair.rows[1], column: "起始地址" },
+        { row: pair.rows[1], column: "大小" },
+      ],
+      {
+        style: "box",
+        phase: i === 0 ? "enter" : "move",
+        color: Ink.seal,
+        padding: 8,
+        lineWidth: Ink.lineWidth,
+        radius: 0,
+        duration: i === 0 ? 0.45 : 0.55,
+      },
+    );
+    yield* waitFor(0.12);
+    if (i === 0) {
+      yield* formula.writeEquation(pair.left, pair.mid, pair.right, 0.55, op);
+    } else {
+      yield* formula.updateEquation(pair.left, pair.mid, pair.right, 0.4, op);
+    }
+    yield* waitFor(0.35);
+  }
+
+  yield* table.annotateCells([], {
+    style: "box",
+    phase: "leave",
+    duration: 0.4,
+  });
+}
+
+/** 满二叉树：展开标注 → 高亮 h → 逐行横线扫描并展示 max(n_i) 公式 */
+function* playBtree(view: View2D): ThreadGenerator {
+  const tree = createRef<BTree>();
+  const formula = createRef<InkFormula>();
+  const L = 4;
+
+  view.add(
+    <BTree
+      ref={tree}
+      L={L}
+      nodeSize={90}
+      spacing={40}
+    />,
+  );
+
+  yield* tree().create(0.45);
+  yield* waitFor(0.35);
+  yield* tree().rowNumber(0.4);
+  yield* waitFor(0.2);
+  yield* tree().showHeight(0.55);
+  yield* waitFor(0.35);
+  yield* tree().highlightHeight(0.55);
+  yield* waitFor(0.3);
+
+  view.add(
+    <InkFormula
+      ref={formula}
+      tex={"\\,"}
+      fontSize={34}
+      y={-460}
+    />,
+  );
+
+  // 逐行：横线 enter/move + 高亮该行节点 + 顶部公式局部更新
+  for (let i = 0; i < L; i++) {
+    const phase = i === 0 ? "enter" : "move";
+    yield* all(
+      tree().annotateRow(i, phase, i === 0 ? 0.5 : 0.45),
+      tree().highlightLevel(i, true, 0.45),
+      tree().pulseRowNumber(i, 0.4),
+    );
+    yield* waitFor(0.08);
+    if (i === 0) {
+      yield* formula().writeMaxNi(0, 0.55);
+    } else {
+      yield* formula().updateMaxNi(i, 0.4);
+    }
+    yield* waitFor(0.28);
+  }
+
+  yield* all(
+    tree().annotateRow(0, "leave", 0.4),
+    formula().hide(0.35),
+  );
+  yield* waitFor(0.35);
+
+  // 顶部：依次高亮 i=x，累加 2^i，最后闭合为等比求和公式
+  const sumFormula = createRef<InkFormula>();
+  view.add(
+    <InkFormula
+      ref={sumFormula}
+      tex={"\\,"}
+      fontSize={30}
+      y={-460}
+    />,
+  );
+
+  for (let i = 0; i < L; i++) {
+    yield* tree().pulseRowNumber(i, 0.45);
+    const partial = geomSumPartial(i);
+    if (i === 0) {
+      yield* sumFormula().writeTex(partial, 0.5);
+    } else {
+      yield* sumFormula().updateLatex(partial, 0.4);
+    }
+    yield* waitFor(0.28);
+  }
+
+  yield* waitFor(0.35);
+  yield* sumFormula().updateLatex(geomSumClosed(), 0.55);
+  yield* waitFor(0.8);
+
+  // 收起标注与公式，重建一棵无标注的满二叉树
+  yield* all(
+    inkFade(tree(), { duration: 0.45 }),
+    sumFormula().hide(0.4),
+  );
+  tree().remove();
+  sumFormula().remove();
+  yield* waitFor(0.2);
+
+  const fresh = createRef<BTree>();
+  view.add(
+    <BTree
+      ref={fresh}
+      L={L}
+      nodeSize={90}
+      spacing={40}
+    />,
+  );
+  yield* fresh().create(0.45);
+  yield* waitFor(1.0);
+}
+
+/** 累加到 2^i：2^0 + 2^1 + 2^2 + … */
+function geomSumPartial(upto: number): string {
+  const parts: string[] = [];
+  for (let k = 0; k <= upto; k++) {
+    parts.push(`2^{${k}}`);
+  }
+  return parts.join(" + ");
+}
+
+/**
+ * 闭合等比求和（与树上 h 标注一致：末项 2^h，和为 2^{h+1}-1）。
+ * 逐项相加展示的是 i=0..h 共 h+1 层时用 h=L-1；
+ * 此处按用户给定格式使用符号 h。
+ */
+function geomSumClosed(): string {
+  return String.raw`1 + 2 + 4 + \cdots + 2^{h} = \frac{1 - 2^{h+1}}{1 - 2} = 2^{h+1} - 1`;
+}
+
+/**
+ * 二叉树 ↔ 线性结构：顶部设问后，横向流程图
+ * 线性结构（内存条）→ 满二叉树
+ */
+function* playBtree2Array(view: View2D): ThreadGenerator {
+  const question = createRef<InkFormula>();
+  const flow = createRef<FlowChart>();
+
+  view.add(
+    <InkFormula
+      ref={question}
+      tex={"\\,"}
+      fontSize={40}
+      y={-360}
+    />,
+  );
+  yield* question().writePlain("伙伴的地址为何如此特殊？", 0.65);
+  yield* waitFor(0.45);
+
+  view.add(
+    <FlowChart
+      ref={flow}
+      y={40}
+      iconSize={110}
+      gap={200}
+      fontSize={30}
+      steps={[
+        { icon: memoryIcon, label: "线性结构" },
+        { icon: btreeIcon, label: "满二叉树" },
+      ]}
+    />,
+  );
+
+  yield* flow().next(0.55);
+  yield* waitFor(0.35);
+  yield* flow().next(0.55);
+  yield* waitFor(1.2);
+}
+
+/** 伙伴寻址：满二叉树 + i/order 行标注 + 父子组高亮与左右孩子公式 */
+function* playBtreeAddress(view: View2D): ThreadGenerator {
+  const tree = createRef<BTree>();
+  const formula = createRef<InkFormula>();
+
+  view.add(
+    <BTree
+      ref={tree}
+      L={4}
+      nodeSize={90}
+      spacing={40}
+      labelStyle={"number"}
+      startIndex={0}
+      rowLabel={"i/order"}
+    />,
+  );
+  yield* tree().create(0.45);
+  yield* waitFor(0.35);
+  yield* tree().rowNumber(0.4);
+  yield* waitFor(0.35);
+
+  view.add(
+    <InkFormula
+      ref={formula}
+      tex={"\\,"}
+      fontSize={32}
+      y={-360}
+    />,
+  );
+
+  // 从根起依次高亮「父 + 左右子」，顶部局部更新 n_左=2n+1 / n_右=2n+2
+  const nonLeaves = tree().nonLeafCount;
+  for (let n = 0; n < nonLeaves; n++) {
+    yield* tree().highlightFamily(n, true, 0.5);
+    if (n === 0) {
+      yield* formula().writeTex(childIndexFormula(n), 0.5);
+    } else {
+      yield* formula().updateLatex(childIndexFormula(n), 0.4);
+    }
+    yield* waitFor(0.28);
+  }
+
+  yield* waitFor(0.8);
+}
+
+/** n_left=2n+1，n_right=2n+2（n 为当前父节点编号） */
+function childIndexFormula(n: number): string {
+  return String.raw`n_{\mathrm{left}}=2\cdot ${n}+1,\quad n_{\mathrm{right}}=2\cdot ${n}+2`;
+}
+
+/** 过渡：伙伴系统 → 浮点数 */
+function* playB2f(view: View2D): ThreadGenerator {
+  const page = createRef<TransitionTitle>();
+  view.add(
+    <TransitionTitle
+      ref={page}
+      title={"浮点数"}
+      subtitle={"IEEE Standard for Floating-Point Arithmetic (IEEE 754)"}
+    />,
+  );
+  yield* page().play();
+}
+
+/** 浮点数：位布局 → S/E/M → 顶部赋值 → 符号/整数/小数与进制换算 */
+function* playFloat(view: View2D): ThreadGenerator {
+  const f = createRef<Float>();
+  const code = createRef<InkFormula>();
+  const radix = createRef<InkFormula>();
+
+  view.add(
+    <Float
+      ref={f}
+      value={0}
+      opacity={0}
+    />,
+  );
+  yield* inkReveal(f(), { duration: 0.6, fromY: 16 });
+  yield* waitFor(0.35);
+  yield* f().showLabels(0.45);
+  yield* waitFor(0.3);
+  yield* f().highlight("sign", true, 0.5);
+  yield* waitFor(0.15);
+  yield* f().highlight("exponent", true, 0.5);
+  yield* waitFor(0.15);
+  yield* f().highlight("mantissa", true, 0.5);
+  yield* waitFor(0.35);
+
+  view.add(
+    <InkFormula
+      ref={code}
+      tex={"\\,"}
+      fontSize={36}
+      y={-320}
+    />,
+  );
+  yield* code().writeFloatAssign(-12.75, 0.9);
+  yield* waitFor(0.35);
+  yield* code().highlightFloatPart("sign", 0.8);
+  yield* f().setBit(0, 1, 0.35);
+  yield* waitFor(0.25);
+
+  view.add(
+    <InkFormula
+      ref={radix}
+      tex={"\\,"}
+      fontSize={32}
+      y={220}
+    />,
+  );
+
+  // 整数 12 → 二进制
+  yield* code().highlightFloatPart("int", 0.8);
+  yield* radix().writeTex(
+    String.raw`12_{(10)} = 1100_{(2)}`,
+    0.75,
+  );
+  yield* waitFor(0.45);
+
+  // 小数 0.75 → 二进制
+  yield* code().highlightFloatPart("frac", 0.8);
+  yield* radix().rewrite(
+    String.raw`0.75_{(10)} = 0.11_{(2)}`,
+    0.95,
+  );
+  yield* waitFor(0.45);
+
+  // 合并绝对值
+  yield* radix().rewrite(
+    String.raw`12.75_{(10)} = 1100.11_{(2)}`,
+    0.95,
+  );
+  yield* waitFor(0.5);
+
+  // 规格化：小数点左移 → 1.xxxx，记下真指数 e（10011 可单独圈选为 M）
+  yield* radix().appendLatexPieces(
+    [
+      { tex: String.raw`\xrightarrow{\text{Standardization}}` },
+      { tex: String.raw`1.` },
+      { tex: String.raw`10011`, key: "M" },
+      { tex: String.raw`_{(2)},\ e=3` },
+    ],
+    0.85,
+  );
+  yield* waitFor(0.6);
+
+  // PopupPanel：IEEE 754 偏置参数 + E = e + bias + 数轴演示
+  const panel = createRef<PopupPanel>();
+  const biasEq = createRef<InkFormula>();
+  const axis = createRef<NumberAxis>();
+  view.add(
+    <PopupPanel ref={panel} zIndex={40} y={-20}>
+      <DataTable
+        headers={["格式", "符号位", "指数位", "尾数位", "偏置"]}
+        rows={[
+          ["单精度 float32", "1", "8", "23", "127"],
+          ["双精度 float64", "1", "11", "52", "1023"],
+        ]}
+        columnWidths={[240, 110, 110, 110, 120]}
+        rowHeight={42}
+        fontSize={20}
+        borders={"box"}
+        headerTextColor={Ink.goldSoft}
+        stroke={Ink.line}
+      />
+      <InkFormula
+        ref={biasEq}
+        tex={"\\,"}
+        fontSize={34}
+        underline={false}
+      />
+      <NumberAxis
+        ref={axis}
+        origin={127}
+        leftSpan={8}
+        rightSpan={8}
+        width={560}
+        initialValue={127}
+        formatValue={(v) => `E=${v}`}
+        fontSize={28}
+      />
+    </PopupPanel>,
+  );
+  yield* panel().show(0.55);
+  yield* biasEq().writeTex(
+    String.raw`E = e + \mathrm{bias}`,
+    0.7,
+  );
+  yield* waitFor(0.35);
+  // 游标沿真指数来回：E = 127 + e
+  yield* axis().travel([130, 122, 135, 127, 130], 0.65, 0.25);
+  yield* waitFor(0.8);
+  yield* panel().hide(0.45);
+  yield* waitFor(0.35);
+
+  // 套用偏置：E = bias + e → 十进制 / 二进制（10000010 可圈选为 E）
+  yield* radix().appendLatexPieces(
+    [
+      { tex: String.raw`\xrightarrow{}` },
+      { tex: String.raw`E=127+3=130_{(10)}=` },
+      { tex: String.raw`10000010`, key: "E" },
+      { tex: String.raw`_{(2)}` },
+    ],
+    0.9,
+  );
+  yield* waitFor(0.45);
+
+  // 红框圈选尾数 10011 → M，再圈选阶码 10000010 → E
+  yield* radix().annotateKey("M", {
+    label: "M",
+    color: Ink.seal,
+    duration: 1.1,
+  });
+  yield* waitFor(0.25);
+  yield* radix().annotateKey("E", {
+    label: "E",
+    color: Ink.goldSoft,
+    duration: 1.1,
+  });
+  yield* waitFor(0.35);
+
+  // 写入 Float：E=10000010，M=10011（右侧补 0）
+  yield* f().writeSectionBits("exponent", "10000010", 0.65);
+  yield* waitFor(0.2);
+  yield* f().writeSectionBits("mantissa", "10011", 0.65);
+  yield* waitFor(0.8);
+}
+
 const segments: Record<
   SegmentId,
   (view: View2D) => ThreadGenerator
@@ -426,6 +1019,12 @@ const segments: Record<
   buddy: playBuddy,
   buddy_demo: playBuddyDemo,
   cycle: playCycle,
+  address: playAddress,
+  btree: playBtree,
+  btree2array: playBtree2Array,
+  btree_address: playBtreeAddress,
+  b2f: playB2f,
+  float: playFloat,
 };
 
 const binaryScene = makeScene2D(function* (view) {

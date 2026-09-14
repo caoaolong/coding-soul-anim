@@ -25,11 +25,19 @@ export interface FocusBoxOptions {
   duration?: number;
   /**
    * underline：底部运笔底线（默认，水墨批注感）
-   * box：旧式完整包围盒（兼容）
+   * box：包围盒高亮
    */
   style?: "underline" | "box";
   /** 底线相对包围盒底边的额外下移，默认 10 */
   underlineGap?: number;
+  /**
+   * 仅 style='box'：多段行间高亮
+   * - enter：淡入后停留（首行）
+   * - move：移到新目标后停留（后续行）
+   * - leave：淡出并移除（末行完成后）
+   * 不传则单次：淡入 → 稍顿 → 淡出
+   */
+  phase?: "enter" | "move" | "leave";
 }
 
 export interface AnnotationProps extends NodeProps {}
@@ -39,24 +47,21 @@ export interface AnnotationProps extends NodeProps {}
  * 亦可回退为完整包围盒。
  */
 export class Annotation extends Node {
+  /** style=box 且 phase 为 enter/move 时保持的包围盒 */
+  private activeBox: Rect | null = null;
+
   public constructor(props: AnnotationProps = {}) {
     super(props);
   }
 
   /**
    * 聚焦给定物体：默认在并集包围盒底部落一笔朱砂底线。
+   * phase='leave' 时可传空 targets，仅淡出当前框。
    */
   public *focusBox(
     targets: Node | Node[],
     options: FocusBoxOptions = {},
   ): ThreadGenerator {
-    const list = (Array.isArray(targets) ? targets : [targets]).filter(
-      Boolean,
-    );
-    if (list.length === 0) {
-      return;
-    }
-
     const {
       padding = Highlight.focusBox.padding,
       color = Highlight.focusBox.color,
@@ -65,7 +70,20 @@ export class Annotation extends Node {
       duration = Highlight.focusBox.duration,
       style = "underline",
       underlineGap = 10,
+      phase,
     } = options;
+
+    if (style === "box" && phase === "leave") {
+      yield* this.dismissRectBox(duration * 0.35);
+      return;
+    }
+
+    const list = (Array.isArray(targets) ? targets : [targets]).filter(
+      Boolean,
+    );
+    if (list.length === 0) {
+      return;
+    }
 
     const worldBox = this.unionWorldBBox(list).expand(padding);
     const localBox = BBox.fromPoints(
@@ -78,6 +96,7 @@ export class Annotation extends Node {
         lineWidth,
         radius,
         duration,
+        phase,
       });
       return;
     }
@@ -88,6 +107,11 @@ export class Annotation extends Node {
       duration,
       underlineGap,
     });
+  }
+
+  /** 淡出并移除当前包围盒（若无则立刻返回） */
+  public *dismissBox(duration = 0.35): ThreadGenerator {
+    yield* this.dismissRectBox(duration);
   }
 
   /** 底部运笔底线：自左向右书写，稍顿后淡出 */
@@ -131,7 +155,12 @@ export class Annotation extends Node {
     line().remove();
   }
 
-  /** 兼容：完整包围盒闪烁 */
+  /**
+   * 包围盒：
+   * - enter：淡入停留
+   * - move：移到新位置停留
+   * - 默认：淡入 → 稍顿 → 淡出
+   */
   private *focusRectBox(
     localBox: BBox,
     options: {
@@ -139,17 +168,36 @@ export class Annotation extends Node {
       lineWidth: number;
       radius: number;
       duration: number;
+      phase?: "enter" | "move" | "leave";
     },
   ): ThreadGenerator {
-    const { color, lineWidth, radius, duration } = options;
+    const { color, lineWidth, radius, duration, phase } = options;
+    const cx = localBox.center.x;
+    const cy = localBox.center.y;
+    const w = Math.max(1, localBox.width);
+    const h = Math.max(1, localBox.height);
+
+    if (phase === "move" && this.activeBox) {
+      const box = this.activeBox;
+      yield* all(
+        box.x(cx, duration, easeInOutCubic),
+        box.y(cy, duration, easeInOutCubic),
+        box.width(w, duration, easeInOutCubic),
+        box.height(h, duration, easeInOutCubic),
+      );
+      return;
+    }
+
+    // enter / 默认 / move 但尚无框：新建
+    this.clearActiveBox();
     const box = createRef<Rect>();
     this.add(
       <Rect
         ref={box}
-        x={localBox.center.x}
-        y={localBox.center.y}
-        width={Math.max(1, localBox.width)}
-        height={Math.max(1, localBox.height)}
+        x={cx}
+        y={cy}
+        width={w}
+        height={h}
         radius={radius}
         fill={null}
         stroke={color}
@@ -157,18 +205,36 @@ export class Annotation extends Node {
         opacity={0}
       />,
     );
+    this.activeBox = box();
 
-    const up = duration * 0.35;
-    const hold = duration * 0.25;
-    const down = duration * 0.4;
+    if (phase === "enter" || phase === "move") {
+      const fadeIn = Math.min(0.35, duration * 0.55);
+      yield* box().opacity(1, fadeIn, easeOutCubic);
+      return;
+    }
 
-    yield* all(
-      box().opacity(1, up, easeOutCubic),
-      box().lineWidth(lineWidth * 1.35, up, easeOutCubic),
-    );
-    yield* box().lineWidth(lineWidth, hold, easeInOutCubic);
-    yield* box().opacity(0, down, easeInOutCubic);
-    box().remove();
+    // 单次：淡入 → 稍顿 → 淡出
+    const fadeIn = duration * 0.25;
+    const hold = duration * 0.45;
+    const fadeOut = duration * 0.3;
+    yield* box().opacity(1, fadeIn, easeOutCubic);
+    yield* waitFor(hold);
+    yield* box().opacity(0, fadeOut, easeInOutCubic);
+    this.clearActiveBox();
+  }
+
+  private *dismissRectBox(duration: number): ThreadGenerator {
+    const box = this.activeBox;
+    if (!box) return;
+    yield* box.opacity(0, duration, easeInOutCubic);
+    this.clearActiveBox();
+  }
+
+  private clearActiveBox(): void {
+    if (this.activeBox) {
+      this.activeBox.remove();
+      this.activeBox = null;
+    }
   }
 
   /** 计算节点在世界坐标下的包围盒并取并集 */

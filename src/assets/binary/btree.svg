@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#E8E0D0" stroke-linecap="round" stroke-linejoin="round" id="Binary-Tree--Streamline-Tabler" height="24" width="24">
+  <desc>Binary Tree</desc>
+  <path d="M6 20a2 2 0 1 0 -4 0 2 2 0 0 0 4 0z" stroke-width="2"></path>
+  <path d="M16 4a2 2 0 1 0 -4 0 2 2 0 0 0 4 0z" stroke-width="2"></path>
+  <path d="M16 20a2 2 0 1 0 -4 0 2 2 0 0 0 4 0z" stroke-width="2"></path>
+  <path d="M11 12a2 2 0 1 0 -4 0 2 2 0 0 0 4 0z" stroke-width="2"></path>
+  <path d="M21 12a2 2 0 1 0 -4 0 2 2 0 0 0 4 0z" stroke-width="2"></path>
+  <path d="m5.058 18.306 2.88 -4.606" stroke-width="2"></path>
+  <path d="m10.061 10.303 2.877 -4.604" stroke-width="2"></path>
+  <path d="m10.065 13.705 2.876 4.6" stroke-width="2"></path>
+  <path d="m15.063 5.7 2.881 4.61" stroke-width="2"></path>
+</svg>

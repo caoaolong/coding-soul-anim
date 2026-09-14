@@ -20,6 +20,8 @@ export interface DeleteRowOptions {
   highlightDuration?: number;
   /** 高亮颜色，默认 Highlight.focusBox.color */
   highlightColor?: string;
+  /** 高亮底线线宽，默认 3 */
+  highlightLineWidth?: number;
 }
 
 function* highlightBeforeDelete(
@@ -30,11 +32,12 @@ function* highlightBeforeDelete(
   if (!options.highlight) return;
   const list = targets.filter(Boolean);
   if (list.length === 0) return;
+  // 横线高亮须贴齐目标底边：不可再加 padding / underlineGap，否则会落到下一组
   yield* ctx.annotation.focusBox(list, {
-    padding: 6,
+    padding: 0,
+    underlineGap: 0,
     color: options.highlightColor ?? Highlight.focusBox.color,
-    lineWidth: 3,
-    radius: 8,
+    lineWidth: options.highlightLineWidth ?? 3,
     duration: options.highlightDuration ?? 0.7,
   });
 }
