@@ -1,4 +1,12 @@
-import { Img, Layout, Line, Node, NodeProps, Txt } from "@motion-canvas/2d";
+import {
+  Gradient,
+  Img,
+  Layout,
+  Line,
+  Node,
+  NodeProps,
+  Txt,
+} from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   createRef,
@@ -9,10 +17,29 @@ import { Ink } from "../../theme/ink";
 import { brushLine, inkReveal } from "../../theme/ink_anim";
 
 const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
+/** 无图标节点：芝麻行楷（global.css @font-face） */
+const TITLE_FONT =
+  '"Zhi Mang Xing", KaiTi, STKaiti, SF Pro Text, Microsoft YaHei, serif';
+
+/** 立体金色渐变：上亮下深 */
+function goldTitleGradient(fontSize: number): Gradient {
+  const half = fontSize * 0.55;
+  return new Gradient({
+    type: "linear",
+    from: [0, -half],
+    to: [0, half],
+    stops: [
+      { offset: 0, color: "#FFF6D0" },
+      { offset: 0.28, color: Ink.goldBright },
+      { offset: 0.62, color: Ink.goldSoft },
+      { offset: 1, color: "#8A6A18" },
+    ],
+  });
+}
 
 export interface FlowStep {
-  /** 图标资源（Img src） */
-  icon: string;
+  /** 图标资源（Img src）；省略则只显示文案 */
+  icon?: string;
   /** 节点下方文案 */
   label: string;
 }
@@ -24,14 +51,17 @@ export interface FlowChartProps extends NodeProps {
   iconSize?: number;
   /** 节点间距（含箭头区域），默认 160 */
   gap?: number;
-  /** 文案字号，默认 28 */
+  /** 有图标时的文案字号，默认 28 */
   fontSize?: number;
+  /** 无图标时的标题字号，默认 fontSize * 2.2 */
+  titleFontSize?: number;
   /** 箭头线宽，默认 Ink.lineWidth */
   lineWidth?: number;
 }
 
 /**
  * 横向流程图：上图标、下文案；next() 依次绘出箭头并显现下一节点。
+ * 无图标节点改用芝麻行楷大字 + 立体金色渐变。
  */
 export class FlowChart extends Node {
   private readonly cards = createRefArray<Layout>();
@@ -46,6 +76,7 @@ export class FlowChart extends Node {
       iconSize = 96,
       gap = 160,
       fontSize = 28,
+      titleFontSize,
       lineWidth = Ink.lineWidth,
       ...nodeProps
     } = props;
@@ -56,9 +87,16 @@ export class FlowChart extends Node {
       throw new Error("FlowChart: steps 不能为空");
     }
 
+    const heroSize = titleFontSize ?? Math.round(fontSize * 2.2);
     this.count = steps.length;
     const arrowLen = Math.max(48, gap * 0.42);
-    const cardW = Math.max(iconSize + 24, fontSize * 5);
+    const cardW = Math.max(
+      ...steps.map((s) => {
+        const fs = s.icon ? fontSize : heroSize;
+        const iconFloor = s.icon ? iconSize + 24 : 0;
+        return Math.max(iconFloor, fs * ([...s.label].length + 0.5));
+      }),
+    );
 
     const row = createRef<Layout>();
     this.add(
@@ -73,6 +111,7 @@ export class FlowChart extends Node {
 
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
+      const hasIcon = Boolean(step.icon);
       const card = createRef<Layout>();
       row().add(
         <Layout
@@ -84,13 +123,48 @@ export class FlowChart extends Node {
           width={cardW}
           opacity={0}
         >
-          <Img src={step.icon} width={iconSize} height={iconSize} />
-          <Txt
-            text={step.label}
-            fontFamily={LABEL_FONT}
-            fontSize={fontSize}
-            fill={Ink.paper}
-          />
+          {hasIcon ? (
+            <Img src={step.icon!} width={iconSize} height={iconSize} />
+          ) : null}
+          {hasIcon ? (
+            <Txt
+              text={step.label}
+              fontFamily={LABEL_FONT}
+              fontSize={fontSize}
+              fill={Ink.paper}
+            />
+          ) : (
+            // 立体金：底层深金错位 + 主层渐变高光阴影
+            <Node>
+              <Txt
+                text={step.label}
+                fontFamily={TITLE_FONT}
+                fontSize={heroSize}
+                fill={"#5C4510"}
+                x={2.5}
+                y={3.5}
+                opacity={0.55}
+              />
+              <Txt
+                text={step.label}
+                fontFamily={TITLE_FONT}
+                fontSize={heroSize}
+                fill={"#A67C1A"}
+                y={1.5}
+                opacity={0.85}
+              />
+              <Txt
+                text={step.label}
+                fontFamily={TITLE_FONT}
+                fontSize={heroSize}
+                fill={goldTitleGradient(heroSize)}
+                shadowColor={"rgba(0,0,0,0.55)"}
+                shadowBlur={18}
+                shadowOffsetX={3}
+                shadowOffsetY={5}
+              />
+            </Node>
+          )}
         </Layout>,
       );
       this.cards.push(card());

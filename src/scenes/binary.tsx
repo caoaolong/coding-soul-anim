@@ -1,8 +1,9 @@
-import { Img, makeScene2D, View2D } from "@motion-canvas/2d";
+import { Img, Txt, makeScene2D, View2D } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
   createRef,
+  easeInOutCubic,
   waitFor,
 } from "@motion-canvas/core";
 import { Brace, braceEdgeFromNodes } from "../components/annotation/brace";
@@ -13,6 +14,7 @@ import { CourseCover } from "../components/intro/course_cover";
 import { TransitionTitle } from "../components/intro/transition_title";
 import { MM } from "../components/memory/mm";
 import { ComplexityPlot } from "../components/plot/complexity_plot";
+import { FunctionPlot } from "../components/plot/function_plot";
 import { CycleRing } from "../components/cycle/cycle_ring";
 import { DataTable } from "../components/table/data_table";
 import { Float } from "../components/float/float";
@@ -32,6 +34,10 @@ import windowsImg from "../assets/binary/Windows1.0.png";
 import officeImg from "../assets/binary/办公.jpg";
 import memoryIcon from "../assets/binary/pp.svg";
 import btreeIcon from "../assets/binary/btree.svg";
+import bambooIcon from "../assets/binary/竹简.svg";
+import battleIcon from "../assets/binary/对战.svg";
+import systemIcon from "../assets/binary/系统.svg";
+import algoIcon from "../assets/binary/算法.svg";
 
 /** 全场景共用背景透明度：压得很淡以呈若隐若现 */
 const SCENE_BG_OPACITY = 0.08;
@@ -57,10 +63,13 @@ type SegmentId =
   | "btree2array"
   | "btree_address"
   | "b2f"
-  | "float";
+  | "float"
+  | "overview"
+  | "tradeoff"
+  | "analogy";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "float" as SegmentId;
+const ACTIVE = "overview" as SegmentId;
 
 /** 片头自带不透明背景，其余段用淡墨共用底图 */
 function useSharedSceneBg(segment: SegmentId): boolean {
@@ -1006,6 +1015,141 @@ function* playFloat(view: View2D): ThreadGenerator {
   yield* waitFor(0.8);
 }
 
+/** 总览环：伙伴系统 / 二叉树 / 浮点数编码，核心「自身性质」 */
+function* playOverview(view: View2D): ThreadGenerator {
+  const ring = createRef<CycleRing>();
+  view.add(
+    <CycleRing
+      ref={ring}
+      theme={"自身性质"}
+      labels={["伙伴系统", "二叉树", "浮点数编码"]}
+      radius={320}
+      nodeSize={168}
+      themeSize={44}
+    />,
+  );
+  yield* ring().play({
+    spinTurns: 1,
+    spinDuration: 1.6,
+  });
+  yield* waitFor(1.2);
+}
+
+/**
+ * 取舍示意：算法复杂度 ↑ → 系统稳定性 ↓（反比曲线）
+ */
+function* playTradeoff(view: View2D): ThreadGenerator {
+  const title = createRef<Txt>();
+  const plot = createRef<FunctionPlot>();
+
+  view.add(
+    <Txt
+      ref={title}
+      text={"简单算法才能构建稳定的复杂系统"}
+      fontFamily={'"SimFang", FangSong, STFangsong, serif'}
+      fontSize={40}
+      fill={Ink.paper}
+      y={-360}
+      opacity={0}
+    />,
+  );
+  view.add(
+    <FunctionPlot
+      ref={plot}
+      fn={(x) => 12 / x}
+      xMin={1}
+      xMax={12}
+      width={920}
+      height={540}
+      xLabel={"算法复杂度"}
+      yLabel={"系统稳定性"}
+      stroke={Ink.goldSoft}
+      opacity={0}
+    />,
+  );
+  yield* inkReveal(plot(), { duration: 0.55, fromY: 16 });
+  yield* waitFor(0.2);
+  yield* plot().trace(1.8);
+  yield* waitFor(0.35);
+  yield* inkReveal(title(), { duration: 0.55, fromY: 12 });
+  yield* waitFor(1.5);
+}
+
+/**
+ * 类比流程图（逐行显现，每加入一行整体重新居中）：
+ * 善之善者 → 不战而屈人之兵
+ * 复杂系统 → 简单算法
+ * 万物之繁 → 大道至简
+ */
+function* playAnalogy(view: View2D): ThreadGenerator {
+  const row1 = createRef<FlowChart>();
+  const row2 = createRef<FlowChart>();
+  const row3 = createRef<FlowChart>();
+  const rows = [row1, row2, row3];
+  /** 行中心间距；每多一行按此重算整体垂直居中 */
+  const rowPitch = 300;
+
+  const chartProps = {
+    iconSize: 100,
+    gap: 240,
+    fontSize: 28,
+    titleFontSize: 64,
+  } as const;
+
+  view.add(
+    <FlowChart
+      ref={row1}
+      {...chartProps}
+      steps={[
+        { icon: bambooIcon, label: "善之善者" },
+        { icon: battleIcon, label: "不战而屈人之兵" },
+      ]}
+    />,
+  );
+  view.add(
+    <FlowChart
+      ref={row2}
+      {...chartProps}
+      steps={[
+        { icon: systemIcon, label: "复杂系统" },
+        { icon: algoIcon, label: "简单算法" },
+      ]}
+    />,
+  );
+  view.add(
+    <FlowChart
+      ref={row3}
+      {...chartProps}
+      steps={[{ label: "万物之繁" }, { label: "大道至简" }]}
+    />,
+  );
+
+  /** 让前 visible 行相对屏幕中心对称排布 */
+  function* recenter(visible: number, duration = 0.5): ThreadGenerator {
+    const anims = [];
+    for (let i = 0; i < visible; i++) {
+      const y = (i - (visible - 1) / 2) * rowPitch;
+      anims.push(rows[i]().y(y, duration, easeInOutCubic));
+    }
+    yield* all(...anims);
+  }
+
+  // 第一行：单独居中后播放
+  yield* recenter(1, 0);
+  yield* row1().play(0.55, 0.35);
+  yield* waitFor(0.45);
+
+  // 第二行加入 → 两行整体居中 → 再播第二行
+  yield* recenter(2);
+  yield* row2().play(0.55, 0.35);
+  yield* waitFor(0.45);
+
+  // 第三行加入 → 三行整体居中 → 再播第三行
+  yield* recenter(3);
+  yield* row3().play(0.55, 0.35);
+  yield* waitFor(1.2);
+}
+
 const segments: Record<
   SegmentId,
   (view: View2D) => ThreadGenerator
@@ -1025,6 +1169,9 @@ const segments: Record<
   btree_address: playBtreeAddress,
   b2f: playB2f,
   float: playFloat,
+  overview: playOverview,
+  tradeoff: playTradeoff,
+  analogy: playAnalogy,
 };
 
 const binaryScene = makeScene2D(function* (view) {

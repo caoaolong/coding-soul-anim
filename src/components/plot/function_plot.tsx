@@ -36,6 +36,18 @@ export interface FunctionPlotProps extends NodeProps {
   axisColor?: string;
   /** y 上端相对边距比例，默认 0.08 */
   yPadding?: number;
+  /** 横轴名称（轴端外侧） */
+  xLabel?: string;
+  /** 纵轴名称（轴顶外侧） */
+  yLabel?: string;
+  /** 是否绘制网格，默认 true */
+  showGrid?: boolean;
+  /** 网格颜色，默认 Ink.line */
+  gridColor?: string;
+  /** 横轴方向网格分段数（不含原点轴），默认 4 */
+  gridX?: number;
+  /** 纵轴方向网格分段数（不含原点轴），默认 4 */
+  gridY?: number;
 }
 
 function formatTick(n: number): string {
@@ -72,6 +84,12 @@ export class FunctionPlot extends Node {
       lineWidth = Ink.lineWidth,
       axisColor = Ink.muted,
       yPadding = 0.08,
+      xLabel,
+      yLabel,
+      showGrid = true,
+      gridColor = Ink.line,
+      gridX = 4,
+      gridY = 4,
       ...nodeProps
     } = props;
 
@@ -125,6 +143,33 @@ export class FunctionPlot extends Node {
     const xAxisEnd = toLocal(xMax, 0);
     const yAxisStart = toLocal(xMin, 0);
     const yAxisEnd = toLocal(xMin, yMax);
+
+    if (showGrid) {
+      const xDiv = Math.max(1, Math.floor(gridX));
+      const yDiv = Math.max(1, Math.floor(gridY));
+      for (let i = 1; i <= xDiv; i++) {
+        const x = xMin + ((xMax - xMin) * i) / xDiv;
+        this.add(
+          <Line
+            points={[toLocal(x, 0), toLocal(x, yMax)]}
+            stroke={gridColor}
+            lineWidth={1}
+            opacity={0.55}
+          />,
+        );
+      }
+      for (let i = 1; i <= yDiv; i++) {
+        const y = (yMax * i) / yDiv;
+        this.add(
+          <Line
+            points={[toLocal(xMin, y), toLocal(xMax, y)]}
+            stroke={gridColor}
+            lineWidth={1}
+            opacity={0.55}
+          />,
+        );
+      }
+    }
 
     this.add(
       <Line
@@ -181,6 +226,34 @@ export class FunctionPlot extends Node {
         offsetX={1}
       />,
     );
+
+    const axisNameFont = '"SimFang", FangSong, STFangsong, serif';
+    if (xLabel) {
+      this.add(
+        <Txt
+          text={xLabel}
+          fill={Ink.paper}
+          fontSize={26}
+          fontFamily={axisNameFont}
+          x={xAxisEnd.x - 8}
+          y={xAxisEnd.y + labelGap * 2.2}
+          offsetX={1}
+        />,
+      );
+    }
+    if (yLabel) {
+      this.add(
+        <Txt
+          text={yLabel}
+          fill={Ink.paper}
+          fontSize={26}
+          fontFamily={axisNameFont}
+          x={yAxisEnd.x - labelGap * 1.2}
+          y={yAxisEnd.y - 28}
+          offsetX={1}
+        />,
+      );
+    }
 
     // —— 按有限非负值切段 ——
     const segments: PossibleVector2[][] = [];

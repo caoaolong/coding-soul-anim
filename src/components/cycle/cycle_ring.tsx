@@ -71,7 +71,15 @@ export class CycleRing extends Node {
 
     this.count = list.length;
     this.themeFontSize = themeSize;
-    const fontSize = Math.max(18, Math.round(nodeSize * 0.32));
+    // 按最长标签收缩字号，避免中文多字撑破圆节点
+    const maxChars = Math.max(...list.map((s) => [...s].length), 1);
+    const fontSize = Math.max(
+      16,
+      Math.min(
+        Math.round(nodeSize * 0.28),
+        Math.floor((nodeSize * 0.7) / maxChars),
+      ),
+    );
     const startRad = (startAngle * Math.PI) / 180;
     const step = (Math.PI * 2) / this.count;
     const stepDeg = 360 / this.count;
