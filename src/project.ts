@@ -1,9 +1,9 @@
 import { makeProject } from "@motion-canvas/core";
 
-import binary from "./scenes/binary?scene";
+import cube3d from "./scenes/cube3d?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [binary],
+  scenes: [cube3d],
 });
