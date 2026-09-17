@@ -21,7 +21,7 @@ export interface CourseCoverProps extends NodeProps {
   bgHeight: number;
   /** 背景显影后的目标透明度，默认 0.78 */
   bgOpacity?: number;
-  /** 底部文字区暗纱透明度，默认 0.42 */
+  /** 底部文字区暗纱透明度，默认 0.55 */
   veilOpacity?: number;
 }
 
@@ -48,7 +48,7 @@ export class CourseCover extends Node {
       series = "重铸编程之魂",
       bgHeight,
       bgOpacity = 0.78,
-      veilOpacity = 0.42,
+      veilOpacity = 0.55,
       ...nodeProps
     } = props;
 
@@ -82,21 +82,21 @@ export class CourseCover extends Node {
       />,
     );
 
-    // 底部暗纱：让标题落在云海留白上仍可读
+    // 底部暗纱：加高加深，托住系列名与本集标题
     this.add(
       <Rect
         ref={this.veil}
         width={1920}
-        height={460}
-        y={340}
+        height={560}
+        y={300}
         fill={Ink.veil}
         opacity={0}
       />,
     );
 
-    // 文字压在下半：太极完整留在上半；系列弱、本集强
-    const seriesY = 150;
-    const episodeY = 248;
+    // 下半构图：系列为眉题，本集标题为封面主视觉
+    const seriesY = 100;
+    const episodeY = 250;
 
     this.add(
       <Txt
@@ -105,32 +105,33 @@ export class CourseCover extends Node {
         fontFamily={
           '"Zhi Mang Xing", KaiTi, STKaiti, SF Pro Text, Microsoft YaHei, serif'
         }
-        fontSize={36}
-        fill={Ink.paperSoft}
+        fontSize={48}
+        fill={Ink.paper}
         y={seriesY}
         opacity={0}
         shadowColor={"#000000"}
-        shadowBlur={10}
+        shadowBlur={16}
+        shadowOffsetY={2}
       />,
     );
 
-    // 本集标题：大字号 + 左侧金标 + 底线（动效焦点）
+    // 本集标题：大字号主视觉 + 左侧金标 + 底线
     this.add(
       <Layout
         ref={this.episodeBlock}
         layout
         direction={"column"}
-        gap={18}
+        gap={22}
         alignItems={"center"}
         y={episodeY}
         opacity={0}
         scale={0.92}
       >
-        <Layout layout direction={"row"} gap={18} alignItems={"center"}>
+        <Layout layout direction={"row"} gap={22} alignItems={"center"}>
           <Rect
             ref={this.episodeMark}
-            width={4}
-            height={52}
+            width={6}
+            height={88}
             fill={Ink.gold}
             radius={2}
             opacity={0}
@@ -139,21 +140,22 @@ export class CourseCover extends Node {
             ref={this.episodeTxt}
             text={episodeTitle}
             fontFamily={'"SimFang", FangSong, STFangsong, serif'}
-            fontSize={56}
+            fontSize={88}
             fontWeight={400}
             fill={Ink.paper}
             shadowColor={"#000000"}
-            shadowBlur={14}
+            shadowBlur={22}
+            shadowOffsetY={4}
           />
         </Layout>
         <Rect
           ref={this.underline}
           width={0}
-          height={2}
+          height={3}
           fill={Ink.gold}
           radius={1}
           shadowColor={Ink.gold}
-          shadowBlur={12}
+          shadowBlur={16}
         />
       </Layout>,
     );
@@ -187,7 +189,7 @@ export class CourseCover extends Node {
       this.episodeMark().opacity(1, 0.35, easeOutCubic),
     );
 
-    const titleWidth = Math.max(280, this.episodeTxt().width() + 40);
+    const titleWidth = Math.max(420, this.episodeTxt().width() + 56);
     yield* all(
       this.episodeBlock().scale(1, 0.35, easeInOutCubic),
       brushWidth(this.underline(), titleWidth),

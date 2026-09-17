@@ -1,10 +1,10 @@
 import {
-  Gradient,
   Img,
   Layout,
   Line,
   Node,
   NodeProps,
+  Rect,
   Txt,
 } from "@motion-canvas/2d";
 import {
@@ -20,22 +20,6 @@ const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
 /** 无图标节点：芝麻行楷（global.css @font-face） */
 const TITLE_FONT =
   '"Zhi Mang Xing", KaiTi, STKaiti, SF Pro Text, Microsoft YaHei, serif';
-
-/** 立体金色渐变：上亮下深 */
-function goldTitleGradient(fontSize: number): Gradient {
-  const half = fontSize * 0.55;
-  return new Gradient({
-    type: "linear",
-    from: [0, -half],
-    to: [0, half],
-    stops: [
-      { offset: 0, color: "#FFF6D0" },
-      { offset: 0.28, color: Ink.goldBright },
-      { offset: 0.62, color: Ink.goldSoft },
-      { offset: 1, color: "#8A6A18" },
-    ],
-  });
-}
 
 export interface FlowStep {
   /** 图标资源（Img src）；省略则只显示文案 */
@@ -61,7 +45,7 @@ export interface FlowChartProps extends NodeProps {
 
 /**
  * 横向流程图：上图标、下文案；next() 依次绘出箭头并显现下一节点。
- * 无图标节点改用芝麻行楷大字 + 立体金色渐变。
+ * 无图标节点：行楷大字 + 宣纸色 + 淡金底线（与片头标题同系，避免立体金字）。
  */
 export class FlowChart extends Node {
   private readonly cards = createRefArray<Layout>();
@@ -113,13 +97,17 @@ export class FlowChart extends Node {
       const step = steps[i];
       const hasIcon = Boolean(step.icon);
       const card = createRef<Layout>();
+      const underlineW = Math.min(
+        cardW * 0.92,
+        heroSize * [...step.label].length * 0.92,
+      );
       row().add(
         <Layout
           ref={card}
           layout
           direction={"column"}
           alignItems={"center"}
-          gap={16}
+          gap={hasIcon ? 16 : 14}
           width={cardW}
           opacity={0}
         >
@@ -134,36 +122,27 @@ export class FlowChart extends Node {
               fill={Ink.paper}
             />
           ) : (
-            // 立体金：底层深金错位 + 主层渐变高光阴影
-            <Node>
+            // 点题句：行楷宣纸色 + 轻墨影 + 淡金底线
+            <Layout layout direction={"column"} alignItems={"center"} gap={14}>
               <Txt
                 text={step.label}
                 fontFamily={TITLE_FONT}
                 fontSize={heroSize}
-                fill={"#5C4510"}
-                x={2.5}
-                y={3.5}
-                opacity={0.55}
+                fill={Ink.paper}
+                shadowColor={Ink.veil}
+                shadowBlur={12}
+                shadowOffsetY={2}
               />
-              <Txt
-                text={step.label}
-                fontFamily={TITLE_FONT}
-                fontSize={heroSize}
-                fill={"#A67C1A"}
-                y={1.5}
-                opacity={0.85}
+              <Rect
+                width={underlineW}
+                height={2}
+                fill={Ink.gold}
+                radius={1}
+                opacity={0.9}
+                shadowColor={Ink.gold}
+                shadowBlur={10}
               />
-              <Txt
-                text={step.label}
-                fontFamily={TITLE_FONT}
-                fontSize={heroSize}
-                fill={goldTitleGradient(heroSize)}
-                shadowColor={"rgba(0,0,0,0.55)"}
-                shadowBlur={18}
-                shadowOffsetX={3}
-                shadowOffsetY={5}
-              />
-            </Node>
+            </Layout>
           )}
         </Layout>,
       );
