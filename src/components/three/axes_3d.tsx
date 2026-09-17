@@ -1,11 +1,15 @@
-import { Layout, LayoutProps } from "@motion-canvas/2d";
+import { Layout, LayoutProps, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
+  all,
   createRef,
+  createSignal,
   easeInCubic,
   easeInOutCubic,
   easeOutCubic,
+  linear,
   tween,
+  waitFor,
 } from "@motion-canvas/core";
 import * as THREE from "three";
 import { Ink } from "../../theme/ink";
@@ -17,6 +21,9 @@ const AXIS_COLOR = {
   y: Ink.gold,
   z: "#6B8A9A",
 } as const;
+
+const AXIS_FONT = '"SimFang", FangSong, STFangsong, serif';
+const VECTOR_COLOR = Ink.goldSoft;
 
 export interface Axes3DProps extends LayoutProps {
   /** 轴半长（原点向正负各延伸），默认 5 */
@@ -31,10 +38,13 @@ export interface Axes3DProps extends LayoutProps {
   tickStep?: number;
   /** 渲染分辨率倍率，默认 2 */
   quality?: number;
+  /** 底部标题文案，如「三维向量」 */
+  caption?: string;
 }
 
 /**
  * 自包含 3D 坐标轴：数轴（含刻度/轴名）+ XZ 网格。
+ * 可选从原点出发的向量箭头，支持生长画出与路径移动；相机默认固定。
  * 内部使用 {@link Three} 渲染，可直接放入 Motion Canvas 场景。
  */
 export class Axes3D extends Layout {
@@ -44,9 +54,27 @@ export class Axes3D extends Layout {
   public readonly root: THREE.Group;
 
   private readonly three = createRef<Three>();
+  private readonly captionTxt = createRef<Txt>();
+  private readonly hasCaption: boolean;
+  /** 轴半长（勿命名为 size，会遮蔽 Layout.size 信号导致 dispose 崩溃） */
+  private readonly axisSize: number;
+  /** 布局宽高缓存 */
+  private readonly frameW: number;
+  private readonly frameH: number;
+
   private readonly cameraRadius: number;
   private readonly cameraHeight: number;
   private orbitAngle = Math.PI / 4;
+
+  private readonly tipX = createSignal(0);
+  private readonly tipY = createSignal(0);
+  private readonly tipZ = createSignal(0);
+
+  /** 自定义向量（箭杆 + 锥头） */
+  private readonly vectorGroup: THREE.Group;
+  private readonly vectorShaft: THREE.Line;
+  private readonly vectorHead: THREE.Mesh;
+  private readonly yUp = new THREE.Vector3(0, 1, 0);
 
   public constructor(props: Axes3DProps = {}) {
     const {
@@ -56,10 +84,16 @@ export class Axes3D extends Layout {
       showLabels = true,
       tickStep = 1,
       quality = 2,
+      caption = "",
       width = 960,
       height = 720,
       ...rest
     } = props;
+
+    const frameW = typeof width === "number" ? width : 960;
+    const frameH = typeof height === "number" ? height : 720;
+
+    super({ width: frameW, height: frameH, layout: false, cache: false, ...rest });
 
     const threeScene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
@@ -71,6 +105,7 @@ export class Axes3D extends Layout {
       cameraRadius * Math.cos(Math.PI / 4),
     );
     camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
 
     threeScene.add(new THREE.AmbientLight(0xffffff, 0.55));
     const key = new THREE.DirectionalLight(0xfff2d6, 0.85);
@@ -86,41 +121,134 @@ export class Axes3D extends Layout {
     });
     threeScene.add(root);
 
-    super({ width, height, ...rest });
+    const { group, shaft, head } = createVectorArrow(VECTOR_COLOR, size);
+    root.add(group);
 
     this.threeScene = threeScene;
     this.camera = camera;
     this.root = root;
+    this.vectorGroup = group;
+    this.vectorShaft = shaft;
+    this.vectorHead = head;
+    this.axisSize = size;
+    this.frameW = frameW;
+    this.frameH = frameH;
     this.cameraRadius = cameraRadius;
     this.cameraHeight = cameraHeight;
+    this.hasCaption = Boolean(caption);
 
     this.add(
       <Three
         ref={this.three}
-        width={() => this.width()}
-        height={() => this.height()}
+        width={frameW}
+        height={frameH}
         scene={threeScene}
         camera={camera}
         quality={quality}
+        overlayText={""}
+        overlayOpacity={0}
       />,
+      caption ? (
+        <Txt
+          ref={this.captionTxt}
+          text={caption}
+          fontFamily={AXIS_FONT}
+          fontSize={36}
+          fill={Ink.paper}
+          y={frameH / 2 - 48}
+          zIndex={10}
+          opacity={0}
+        />
+      ) : null,
     );
   }
 
   /** 入场：淡入（与 {@link Three.show} 一致） */
-  public *show(duration = Ink.duration): ThreadGenerator {
+  public *show(duration: number = Ink.duration): ThreadGenerator {
     yield* this.opacity(1, duration, easeOutCubic);
+    if (this.hasCaption) {
+      yield* this.captionTxt().opacity(1, duration * 0.7, easeInOutCubic);
+    }
   }
 
   /** 退场：淡出（与 {@link Three.hide} 一致） */
-  public *hide(duration = Ink.duration): ThreadGenerator {
+  public *hide(duration: number = Ink.duration): ThreadGenerator {
     yield* this.opacity(0, duration, easeInCubic);
   }
 
-  /** 相机绕 Y 轴环绕一圈，便于看清立体坐标 */
+  /**
+   * 画出从原点到 (x, y, z) 的向量，并显示坐标读数。
+   */
+  public *showVector(
+    x: number,
+    y: number,
+    z: number,
+    duration = 0.55,
+  ): ThreadGenerator {
+    this.tipX(x);
+    this.tipY(y);
+    this.tipZ(z);
+    this.syncArrow(0);
+    this.syncReadout();
+    this.three().overlayOpacity(0);
+
+    yield* all(
+      tween(duration, (value) => {
+        const t = easeOutCubic(value);
+        this.syncArrow(t);
+        this.syncReadout();
+      }),
+      this.three().overlayOpacity(1, duration * 0.7, easeInOutCubic),
+    );
+    this.syncArrow(1);
+    this.syncReadout();
+    this.three().overlayOpacity(1);
+  }
+
+  /**
+   * 将向量尖端移到 (x, y, z)，途中实时更新坐标文字。
+   */
+  public *moveVector(
+    x: number,
+    y: number,
+    z: number,
+    duration = 0.8,
+  ): ThreadGenerator {
+    const fromX = this.tipX();
+    const fromY = this.tipY();
+    const fromZ = this.tipZ();
+    yield* tween(duration, (value) => {
+      const t = easeInOutCubic(value);
+      this.tipX(fromX + (x - fromX) * t);
+      this.tipY(fromY + (y - fromY) * t);
+      this.tipZ(fromZ + (z - fromZ) * t);
+      this.syncArrow(1);
+      this.syncReadout();
+    });
+  }
+
+  /**
+   * 按路径移动向量尖端。
+   * @param points 目标点序列（不含当前点）
+   */
+  public *travel(
+    points: Array<[number, number, number]>,
+    stepDuration = 0.8,
+    hold = 0.15,
+  ): ThreadGenerator {
+    for (const [x, y, z] of points) {
+      yield* this.moveVector(x, y, z, stepDuration);
+      if (hold > 0) {
+        yield* waitFor(hold);
+      }
+    }
+  }
+
+  /** 相机绕 Y 轴环绕（始终看向原点），默认匀速一周 */
   public *orbit(duration = 4): ThreadGenerator {
     const start = this.orbitAngle;
     yield* tween(duration, (value) => {
-      const t = easeInOutCubic(value);
+      const t = linear(value);
       this.orbitAngle = start + t * Math.PI * 2;
       this.camera.position.set(
         this.cameraRadius * Math.sin(this.orbitAngle),
@@ -130,6 +258,51 @@ export class Axes3D extends Layout {
       this.camera.lookAt(0, 0, 0);
     });
   }
+
+  /** 按 tip 信号同步向量方向与长度；scale∈[0,1] 用于生长画出 */
+  private syncArrow(scale: number) {
+    const tip = new THREE.Vector3(this.tipX(), this.tipY(), this.tipZ());
+    const fullLen = tip.length() * scale;
+    if (fullLen < 1e-4) {
+      this.vectorGroup.visible = false;
+      return;
+    }
+
+    this.vectorGroup.visible = true;
+    this.vectorGroup.quaternion.setFromUnitVectors(
+      this.yUp,
+      tip.clone().normalize(),
+    );
+
+    const headLen = Math.min(this.axisSize * 0.18, fullLen * 0.28);
+    const shaftLen = Math.max(fullLen - headLen, 0.001);
+
+    this.vectorShaft.geometry.setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, shaftLen, 0),
+    ]);
+
+    // 锥体默认沿 +Y、几何中心在原点 → 放到箭杆末端
+    const baseHeadLen = this.axisSize * 0.18;
+    this.vectorHead.position.set(0, shaftLen + headLen * 0.5, 0);
+    this.vectorHead.scale.set(1, headLen / baseHeadLen, 1);
+  }
+
+  /** 把当前尖端坐标同步到 Three 右上角 2D 叠字 */
+  private syncReadout() {
+    const view = this.three();
+    if (!view) return;
+    view.overlayText(this.formatXYZ(this.tipX(), this.tipY(), this.tipZ()));
+  }
+
+  private formatXYZ(x: number, y: number, z: number): string {
+    return `(${this.fmt(x)}, ${this.fmt(y)}, ${this.fmt(z)})`;
+  }
+
+  private fmt(n: number): string {
+    const r = Math.round(n * 10) / 10;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1);
+  }
 }
 
 interface BuildAxesOptions {
@@ -138,6 +311,34 @@ interface BuildAxesOptions {
   gridDivisions: number;
   showLabels: boolean;
   tickStep: number;
+}
+
+/** 单位锥高 / 半径基准与 syncArrow 中的缩放对应 */
+function createVectorArrow(
+  colorHex: string,
+  size: number,
+): { group: THREE.Group; shaft: THREE.Line; head: THREE.Mesh } {
+  const group = new THREE.Group();
+  group.visible = false;
+
+  const color = new THREE.Color(colorHex);
+  const shaftGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 1, 0),
+  ]);
+  const shaft = new THREE.Line(
+    shaftGeo,
+    new THREE.LineBasicMaterial({ color, linewidth: 2 }),
+  );
+  group.add(shaft);
+
+  const head = new THREE.Mesh(
+    new THREE.ConeGeometry(size * 0.055, size * 0.18, 16),
+    new THREE.MeshBasicMaterial({ color }),
+  );
+  group.add(head);
+
+  return { group, shaft, head };
 }
 
 function buildAxesContent(options: BuildAxesOptions): THREE.Group {
@@ -279,12 +480,13 @@ function makeTextSprite(
   const fontSize = bold ? 96 : 72;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
-  ctx.font = `${bold ? 700 : 500} ${fontSize}px "Noto Serif SC", "Songti SC", serif`;
+  const font = `${bold ? 700 : 500} ${fontSize}px "SimFang", FangSong, STFangsong, serif`;
+  ctx.font = font;
   const metrics = ctx.measureText(text);
   canvas.width = Math.ceil(metrics.width + pad * 2);
   canvas.height = Math.ceil(fontSize * 1.4 + pad * 2);
 
-  ctx.font = `${bold ? 700 : 500} ${fontSize}px "Noto Serif SC", "Songti SC", serif`;
+  ctx.font = font;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = colorHex;

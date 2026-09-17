@@ -39,11 +39,16 @@ export interface ThreeProps extends LayoutProps {
   zoom?: number;
   /** 自定义渲染回调；默认 `renderer.render(scene, camera)` */
   onRender?: ThreeRenderCallback;
+  /** 叠在 WebGL 之上的 2D 文案（如坐标读数） */
+  overlayText?: string;
+  /** 叠字不透明度，默认 0 */
+  overlayOpacity?: number;
 }
 
 /**
  * 将 Three.js 场景画进 Motion Canvas 的 Layout。
- * 每帧在 WebGL 离屏 canvas 上渲染，再 drawImage 到 2D 上下文。
+ * 每帧在 WebGL 离屏 canvas 上渲染，再 drawImage 到 2D 上下文；
+ * 可选在右上角叠 2D 文字（画在 WebGL 之后，不会被盖住）。
  */
 export class Three extends Layout {
   @initial(1)
@@ -66,7 +71,15 @@ export class Three extends Layout {
   @signal()
   public declare readonly zoom: SimpleSignal<number, this>;
 
-  private readonly renderer: WebGLRenderer;
+  @initial("")
+  @signal()
+  public declare readonly overlayText: SimpleSignal<string, this>;
+
+  @initial(0)
+  @signal()
+  public declare readonly overlayOpacity: SimpleSignal<number, this>;
+
+  private renderer: WebGLRenderer;
   private readonly gl: WebGLRenderingContext | WebGL2RenderingContext;
   private readonly pixelSample = new Uint8Array(4);
   public onRender: ThreeRenderCallback;
@@ -74,35 +87,76 @@ export class Three extends Layout {
   public constructor({ onRender, ...props }: ThreeProps) {
     super(props);
     this.renderer = borrow();
-    this.gl = this.renderer.getContext();
+    let ctx = this.renderer.getContext();
+    if (!ctx) {
+      // 池中渲染器上下文可能已丢失，重建
+      this.renderer = createRenderer();
+      ctx = this.renderer.getContext();
+    }
+    if (!ctx) {
+      throw new Error("WebGL context unavailable");
+    }
+    this.gl = ctx;
     this.onRender =
       onRender ?? ((renderer, scene, camera) => renderer.render(scene, camera));
   }
 
   protected override draw(context: CanvasRenderingContext2D) {
+    if (!context || !this.gl) {
+      super.draw(context);
+      return;
+    }
+
     const { width, height } = this.computedSize();
     const quality = this.quality();
     const scene = this.configuredScene();
     const camera = this.configuredCamera();
     const renderer = this.configuredRenderer();
 
-    if (width > 0 && height > 0 && scene && camera) {
-      this.onRender(renderer, scene, camera);
-      context.imageSmoothingEnabled = false;
-      context.drawImage(
-        renderer.domElement,
-        0,
-        0,
-        quality * width,
-        quality * height,
-        width / -2,
-        height / -2,
-        width,
-        height,
-      );
+    if (width > 0 && height > 0 && scene && camera && renderer) {
+      try {
+        this.onRender(renderer, scene, camera);
+        context.imageSmoothingEnabled = false;
+        context.drawImage(
+          renderer.domElement,
+          0,
+          0,
+          quality * width,
+          quality * height,
+          width / -2,
+          height / -2,
+          width,
+          height,
+        );
+      } catch {
+        // HMR / 上下文丢失时跳过本帧，避免整场景崩溃
+      }
     }
 
+    this.drawOverlay(context, width, height);
     super.draw(context);
+  }
+
+  /** 在 WebGL 画面之上画 2D 叠字（固定右上角） */
+  private drawOverlay(
+    context: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+  ) {
+    const text = this.overlayText();
+    const opacity = this.overlayOpacity();
+    if (!text || opacity <= 0 || width <= 0 || height <= 0) return;
+
+    const pad = 28;
+    const fontSize = 28;
+    context.save();
+    context.globalAlpha = opacity;
+    context.font = `500 ${fontSize}px "SimFang", FangSong, STFangsong, serif`;
+    context.textAlign = "right";
+    context.textBaseline = "top";
+    context.fillStyle = Ink.goldBright;
+    context.fillText(text, width / 2 - pad, -height / 2 + pad);
+    context.restore();
   }
 
   @computed()
@@ -149,7 +203,7 @@ export class Three extends Layout {
    * 入场：淡入到完全不透明。
    * @param duration 时长（秒），默认 Ink.duration
    */
-  public *show(duration = Ink.duration): ThreadGenerator {
+  public *show(duration: number = Ink.duration): ThreadGenerator {
     yield* this.opacity(1, duration, easeOutCubic);
   }
 
@@ -157,7 +211,7 @@ export class Three extends Layout {
    * 退场：淡出到完全透明。
    * @param duration 时长（秒），默认 Ink.duration
    */
-  public *hide(duration = Ink.duration): ThreadGenerator {
+  public *hide(duration: number = Ink.duration): ThreadGenerator {
     yield* this.opacity(0, duration, easeInCubic);
   }
 
@@ -184,15 +238,13 @@ export class Three extends Layout {
 
   public dispose() {
     dispose(this.renderer);
+    super.dispose();
   }
 }
 
 const pool: WebGLRenderer[] = [];
 
-function borrow(): WebGLRenderer {
-  if (pool.length) {
-    return pool.pop()!;
-  }
+function createRenderer(): WebGLRenderer {
   return new WebGLRenderer({
     canvas: document.createElement("canvas"),
     alpha: true,
@@ -201,6 +253,29 @@ function borrow(): WebGLRenderer {
   });
 }
 
+function borrow(): WebGLRenderer {
+  while (pool.length) {
+    const renderer = pool.pop()!;
+    if (renderer.getContext()) {
+      return renderer;
+    }
+    try {
+      renderer.dispose();
+    } catch {
+      // ignore
+    }
+  }
+  return createRenderer();
+}
+
 function dispose(renderer: WebGLRenderer) {
-  pool.push(renderer);
+  if (renderer.getContext()) {
+    pool.push(renderer);
+  } else {
+    try {
+      renderer.dispose();
+    } catch {
+      // ignore
+    }
+  }
 }

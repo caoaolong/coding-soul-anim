@@ -1,10 +1,19 @@
 import { Img, makeScene2D, View2D } from "@motion-canvas/2d";
-import { ThreadGenerator, createRef, waitFor } from "@motion-canvas/core";
+import { ThreadGenerator, all, createRef, waitFor } from "@motion-canvas/core";
+import { Axes2D } from "../components/axis/axes_2d";
+import { InkFormula } from "../components/formula/ink_formula";
 import { Grid } from "../components/grid/grid";
 import { CourseCover } from "../components/intro/course_cover";
+import { MindMap } from "../components/mindmap/mindmap";
+import { Axes3D } from "../components/three/axes_3d";
+import { SimpleTimeline } from "../components/timeline/simple_timeline";
 import { Ink } from "../theme/ink";
 
 import sceneBg from "../assets/bg.png";
+import appleImg from "../assets/vector/苹果.webp";
+import watchImg from "../assets/vector/手表.png";
+import brainImg from "../assets/vector/大脑.svg";
+import computerImg from "../assets/vector/计算机.svg";
 
 /** 全场景共用背景透明度：压得很淡以呈若隐若现 */
 const SCENE_BG_OPACITY = 0.08;
@@ -15,10 +24,16 @@ const SCENE_BG_OPACITY = 0.08;
  * 整集拆成多段素材单独导出：只改下面 ACTIVE 即可切换要渲染的段。
  * 新增段：写 playXxx → 加入 SegmentId → 登记到 segments。
  */
-type SegmentId = "cover" | "introduction";
+type SegmentId =
+  | "cover"
+  | "introduction"
+  | "mindmap"
+  | "cv_timeline"
+  | "vector2d"
+  | "vector3d";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "introduction" as SegmentId;
+const ACTIVE = "vector3d" as SegmentId;
 
 /** 片头自带不透明背景，其余段用淡墨共用底图 */
 function useSharedSceneBg(segment: SegmentId): boolean {
@@ -42,7 +57,7 @@ function* playCover(view: View2D): ThreadGenerator {
 }
 
 /**
- * 引言：两格图文（暂无 placeholder，后续可换成真实素材）
+ * 引言：先出两图（问号），再逐格揭晓文案
  */
 function* playIntroduction(view: View2D): ThreadGenerator {
   const grid = createRef<Grid>();
@@ -50,23 +65,189 @@ function* playIntroduction(view: View2D): ThreadGenerator {
     <Grid
       ref={grid}
       columns={2}
-      cellWidth={420}
-      gap={80}
-      fontSize={36}
+      cellWidth={240}
+      gap={64}
+      fontSize={30}
       items={[
-        { label: "方向与大小" },
-        { label: "坐标表示" },
+        { image: appleImg, label: "?" },
+        { image: watchImg, label: "?" },
       ]}
     />,
   );
 
   yield* grid().play(0.5, 0.3);
-  yield* waitFor(1.2);
+  yield* waitFor(0.45);
+  yield* grid().updateCell(0, { label: "苹果" });
+  yield* waitFor(0.25);
+  yield* grid().updateCell(1, { label: "手表" });
+  yield* waitFor(1.0);
+}
+
+/**
+ * 思维导图：根「大脑」→ 特征 →「苹果」→ 主节点换成「计算机」
+ */
+function* playMindmap(view: View2D): ThreadGenerator {
+  const map = createRef<MindMap>();
+  view.add(
+    <MindMap
+      ref={map}
+      root={{ icon: brainImg, label: "大脑" }}
+      iconSize={96}
+      fontSize={34}
+      branchGap={380}
+      childGap={92}
+      edgePadding={40}
+    />,
+  );
+
+  yield* map().showRoot(0.55);
+  yield* waitFor(0.3);
+  yield* map().addChildren(
+    [
+      { label: "红色" },
+      { label: "手掌大小" },
+      { label: "类圆形" },
+      { label: "表面光滑" },
+      { label: "红绿相间" },
+    ],
+    0.5,
+    0.22,
+  );
+  yield* waitFor(0.35);
+  yield* map().addResult({ icon: appleImg, label: "苹果" }, 0.6);
+  yield* waitFor(0.45);
+  yield* map().updateNode("root", {
+    icon: computerImg,
+    label: "计算机",
+  });
+  yield* waitFor(1.0);
+}
+
+/**
+ * 计算机视觉简史：横向时间轴自右向左推进，屏心聚焦；结束后上方点题「向量」
+ */
+function* playCvTimeline(view: View2D): ThreadGenerator {
+  const timeline = createRef<SimpleTimeline>();
+  const title = createRef<InkFormula>();
+  view.add(
+    <SimpleTimeline
+      ref={timeline}
+      spacing={320}
+      timeFontSize={44}
+      briefFontSize={30}
+      events={[
+        { time: "1966", brief: "计算机视觉诞生" },
+        { time: "1982", brief: "Marr：视觉理论" },
+        { time: "1999", brief: "SIFT：人工设计特征" },
+        { time: "2009", brief: "ImageNet：大规模数据" },
+        { time: "2012", brief: "AlexNet：机器学习特征" },
+        { time: "2020", brief: "ViT：Transformer进入视觉" },
+      ]}
+    />,
+  );
+  view.add(
+    <InkFormula
+      ref={title}
+      tex={"\\,"}
+      fontSize={72}
+      y={-320}
+    />,
+  );
+
+  yield* timeline().play(2.35);
+  yield* waitFor(0.35);
+  yield* title().writePlain("向量", 0.55);
+  yield* waitFor(1.0);
+}
+
+/**
+ * 二维向量：坐标轴 + 箭头，尖端来回移动并实时显示 (X, Y)
+ */
+function* playVector2d(view: View2D): ThreadGenerator {
+  const axes = createRef<Axes2D>();
+
+  view.add(
+    <Axes2D
+      ref={axes}
+      xMin={-5}
+      xMax={5}
+      yMin={-4}
+      yMax={4}
+      unit={72}
+      showGrid
+      caption={"二维向量"}
+    />,
+  );
+
+  yield* axes().show(0.55);
+  yield* waitFor(0.25);
+  yield* axes().showVector(3, 2, 0.6);
+  yield* waitFor(0.3);
+
+  // 来回移动，坐标实时刷新
+  yield* axes().travel(
+    [
+      [1.5, 3],
+      [4, 1],
+      [2, -1.5],
+      [3, 2],
+    ],
+    1.0,
+    0.12,
+  );
+  yield* waitFor(0.8);
+}
+
+/**
+ * 三维向量：Axes3D + 箭头生长画出，尖端路径移动并实时显示 (X, Y, Z)；
+ * 相机绕原点环视（始终 lookAt 原点）
+ */
+function* playVector3d(view: View2D): ThreadGenerator {
+  const axes = createRef<Axes3D>();
+
+  view.add(
+    <Axes3D
+      ref={axes}
+      width={960}
+      height={720}
+      size={4}
+      showGrid
+      gridDivisions={8}
+      caption={"三维向量"}
+      opacity={0}
+    />,
+  );
+
+  yield* axes().show(0.55);
+  yield* waitFor(0.25);
+  yield* axes().showVector(2, 2.5, 1.5, 0.6);
+  yield* waitFor(0.3);
+
+  // 向量尖端移动的同时，相机绕原点匀速转动
+  const path: Array<[number, number, number]> = [
+    [1, 3, 2],
+    [3, 1, -1],
+    [2, -1, 2.5],
+    [2, 2.5, 1.5],
+  ];
+  const stepDuration = 1.0;
+  const hold = 0.12;
+  const travelDuration = path.length * (stepDuration + hold);
+
+  yield* all(
+    axes().orbit(travelDuration),
+    axes().travel(path, stepDuration, hold),
+  );
+  yield* waitFor(0.8);
 }
 
 const segments: Record<SegmentId, (view: View2D) => ThreadGenerator> = {
   cover: playCover,
   introduction: playIntroduction,
+  mindmap: playMindmap,
+  cv_timeline: playCvTimeline,
+  vector2d: playVector2d,
+  vector3d: playVector3d,
 };
 
 const vectorScene = makeScene2D(function* (view) {
