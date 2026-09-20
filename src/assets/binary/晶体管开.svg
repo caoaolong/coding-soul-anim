@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+  <!-- 开：等距三极管封装，沟道导通 -->
+  <path d="M650 270 L860 175 L860 640 L650 750 Z" fill="#678289"/>
+  <path d="M240 210 L650 270 L860 175 L450 130 Z" fill="#A1BBC6"/>
+  <path d="M240 210 L650 270 L650 750 L240 690 Z" fill="#BACCD3"/>
+  <path d="M300 300 L600 345 L600 655 L300 610 Z" fill="#37BBEF"/>
+  <path d="M560 345 L600 345 L600 655 L560 630 Z" fill="#3ED6FF"/>
+  <path d="M350 370 L550 400 L550 560 L350 530 Z" fill="#1A8FB8"/>
+  <path d="M380 430 L550 462 L550 498 L380 466 Z" fill="#3ED6FF"/>
+  <path d="M380 430 L550 462 L530 445 L360 413 Z" fill="#FFFFFF" opacity="0.35"/>
+  <circle cx="410" cy="448" r="11" fill="#FFFFFF"/>
+  <circle cx="455" cy="458" r="11" fill="#FFFFFF"/>
+  <circle cx="500" cy="468" r="11" fill="#FFFFFF"/>
+  <path d="M140 470 L300 430 L300 480 L140 520 Z" fill="#678289"/>
+  <path d="M140 470 L300 430 L280 405 L120 445 Z" fill="#A1BBC6"/>
+  <path d="M340 620 L395 635 L320 820 L265 805 Z" fill="#678289"/>
+  <path d="M340 620 L395 635 L385 605 L330 590 Z" fill="#A1BBC6"/>
+  <path d="M600 600 L760 555 L785 605 L625 650 Z" fill="#678289"/>
+  <path d="M600 600 L760 555 L740 530 L580 575 Z" fill="#A1BBC6"/>
+  <circle cx="462" cy="458" r="24" fill="#FFFFFF" opacity="0.22"/>
+</svg>

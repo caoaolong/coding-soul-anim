@@ -13,6 +13,7 @@ import { InkFormula } from "../components/formula/ink_formula";
 import { CourseCover } from "../components/intro/course_cover";
 import { TransitionTitle } from "../components/intro/transition_title";
 import { MM } from "../components/memory/mm";
+import { BitCell, spawnBitRow } from "../components/memory/bit_cell";
 import { ComplexityPlot } from "../components/plot/complexity_plot";
 import { FunctionPlot } from "../components/plot/function_plot";
 import { CycleRing } from "../components/cycle/cycle_ring";
@@ -51,6 +52,7 @@ const SCENE_BG_OPACITY = 0.08;
 type SegmentId =
   | "cover"
   | "introduction"
+  | "storage"
   | "memory"
   | "ops"
   | "o"
@@ -69,7 +71,7 @@ type SegmentId =
   | "analogy";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "cover" as SegmentId;
+const ACTIVE = "storage" as SegmentId;
 
 /** 片头自带不透明背景，其余段用淡墨共用底图 */
 function useSharedSceneBg(segment: SegmentId): boolean {
@@ -149,6 +151,44 @@ function* playIntroduction(view: View2D): ThreadGenerator {
     yield* timeline().next();
     yield* waitFor(1.2);
   }
+}
+
+/**
+ * 存储原理（教学简化）：晶体管＝开关，电容＝蓄电。
+ * 单格写 1 / 写 0 → 点题「有电＝1，无电＝0」→ 复制成 8 格过渡到 memory。
+ */
+function* playStorage(view: View2D): ThreadGenerator {
+  const cell = createRef<BitCell>();
+  const title = createRef<InkFormula>();
+
+  view.add(<BitCell ref={cell} y={-20} />);
+  view.add(
+    <InkFormula
+      ref={title}
+      tex={"\\,"}
+      fontSize={40}
+      y={280}
+    />,
+  );
+
+  yield* cell().show(0.55);
+  yield* waitFor(0.35);
+
+  yield* cell().writeOne(0.75);
+  yield* waitFor(0.55);
+
+  yield* cell().writeZero(0.8);
+  yield* waitFor(0.35);
+
+  yield* title().writePlain("有电＝1，无电＝0", 0.55);
+  yield* waitFor(0.7);
+
+  // 再写回 1，以「有电」态展开成 8 格，衔接下一段字节
+  yield* cell().writeOne(0.55);
+  yield* waitFor(0.25);
+  yield* title().hide(0.35);
+  yield* spawnBitRow(view, cell(), 8, 140, 0.75);
+  yield* waitFor(0.35);
 }
 
 /**
@@ -1156,6 +1196,7 @@ const segments: Record<
 > = {
   cover: playCover,
   introduction: playIntroduction,
+  storage: playStorage,
   memory: playMemory,
   ops: playOps,
   o: playO,
