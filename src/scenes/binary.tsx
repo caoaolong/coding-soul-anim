@@ -52,6 +52,7 @@ const SCENE_BG_OPACITY = 0.08;
 type SegmentId =
   | "cover"
   | "introduction"
+  | "storage_title"
   | "storage"
   | "memory"
   | "ops"
@@ -71,7 +72,7 @@ type SegmentId =
   | "analogy";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "storage" as SegmentId;
+const ACTIVE = "analogy" as SegmentId;
 
 /** 片头自带不透明背景，其余段用淡墨共用底图 */
 function useSharedSceneBg(segment: SegmentId): boolean {
@@ -151,6 +152,13 @@ function* playIntroduction(view: View2D): ThreadGenerator {
     yield* timeline().next();
     yield* waitFor(1.2);
   }
+}
+
+/** 过渡：二进制存储 */
+function* playStorageTitle(view: View2D): ThreadGenerator {
+  const page = createRef<TransitionTitle>();
+  view.add(<TransitionTitle ref={page} title={"二进制存储"} />);
+  yield* page().play();
 }
 
 /**
@@ -1196,6 +1204,7 @@ const segments: Record<
 > = {
   cover: playCover,
   introduction: playIntroduction,
+  storage_title: playStorageTitle,
   storage: playStorage,
   memory: playMemory,
   ops: playOps,
