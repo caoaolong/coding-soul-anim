@@ -38,6 +38,7 @@ import btreeIcon from "../assets/binary/btree.svg";
 import bambooIcon from "../assets/binary/竹简.svg";
 import battleIcon from "../assets/binary/对战.svg";
 import systemIcon from "../assets/binary/系统.svg";
+import arrayIcon from "../assets/binary/数组.svg";
 import algoIcon from "../assets/binary/算法.svg";
 
 /** 全场景共用背景透明度：压得很淡以呈若隐若现 */
@@ -72,7 +73,7 @@ type SegmentId =
   | "analogy";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "analogy" as SegmentId;
+const ACTIVE = "btree_address" as SegmentId;
 
 /** 片头自带不透明背景，其余段用淡墨共用底图 */
 function useSharedSceneBg(segment: SegmentId): boolean {
@@ -798,41 +799,59 @@ function geomSumClosed(): string {
 }
 
 /**
- * 二叉树 ↔ 线性结构：顶部设问后，横向流程图
- * 线性结构（内存条）→ 满二叉树
+ * 二叉树 ↔ 线性结构：两行流程图
+ * 物理内存 → 伙伴系统
+ * 数组 → 满二叉树
  */
 function* playBtree2Array(view: View2D): ThreadGenerator {
-  const question = createRef<InkFormula>();
-  const flow = createRef<FlowChart>();
+  const row1 = createRef<FlowChart>();
+  const row2 = createRef<FlowChart>();
+  const rows = [row1, row2];
+  const rowPitch = 280;
 
-  view.add(
-    <InkFormula
-      ref={question}
-      tex={"\\,"}
-      fontSize={40}
-      y={-360}
-    />,
-  );
-  yield* question().writePlain("伙伴的地址为何如此特殊？", 0.65);
-  yield* waitFor(0.45);
+  const chartProps = {
+    iconSize: 110,
+    gap: 200,
+    fontSize: 30,
+  } as const;
 
   view.add(
     <FlowChart
-      ref={flow}
-      y={40}
-      iconSize={110}
-      gap={200}
-      fontSize={30}
+      ref={row1}
+      {...chartProps}
       steps={[
-        { icon: memoryIcon, label: "线性结构" },
+        { icon: memoryIcon, label: "物理内存" },
+        { icon: systemIcon, label: "伙伴系统" },
+      ]}
+    />,
+  );
+  view.add(
+    <FlowChart
+      ref={row2}
+      {...chartProps}
+      steps={[
+        { icon: arrayIcon, label: "数组" },
         { icon: btreeIcon, label: "满二叉树" },
       ]}
     />,
   );
 
-  yield* flow().next(0.55);
-  yield* waitFor(0.35);
-  yield* flow().next(0.55);
+  /** 让前 visible 行相对屏幕中心对称排布 */
+  function* recenter(visible: number, duration = 0.5): ThreadGenerator {
+    const anims = [];
+    for (let i = 0; i < visible; i++) {
+      const y = (i - (visible - 1) / 2) * rowPitch;
+      anims.push(rows[i]().y(y, duration, easeInOutCubic));
+    }
+    yield* all(...anims);
+  }
+
+  yield* recenter(1, 0);
+  yield* row1().play(0.55, 0.35);
+  yield* waitFor(0.45);
+
+  yield* recenter(2);
+  yield* row2().play(0.55, 0.35);
   yield* waitFor(1.2);
 }
 
@@ -878,6 +897,11 @@ function* playBtreeAddress(view: View2D): ThreadGenerator {
     yield* waitFor(0.28);
   }
 
+  yield* waitFor(0.45);
+  // 编号步长改为 4K：整树一次性改写为 0、4K、8K…
+  yield* formula().hide(0.35);
+  yield* waitFor(0.2);
+  yield* tree().relabelByStride(4, 0.45);
   yield* waitFor(0.8);
 }
 

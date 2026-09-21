@@ -87,5 +87,9 @@ function fontSizeForTitle(text: string, base: number): number {
   if (text.startsWith("Node ")) {
     return Math.round(base * 0.9);
   }
+  // 4K / 12K / 56K 等地址步长文案
+  if (/^\d+K$/.test(text)) {
+    return text.length >= 4 ? Math.round(base * 0.82) : base;
+  }
   return base;
 }

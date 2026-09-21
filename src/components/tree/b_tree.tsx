@@ -396,6 +396,22 @@ export class BTree extends Node {
   }
 
   /**
+   * 按地址步长改写节点编号（如 0、4K、8K…），整树一次性更新。
+   * @param strideKb 步长（单位 K），默认 4
+   */
+  public *relabelByStride(
+    strideKb = 4,
+    duration = 0.45,
+  ): ThreadGenerator {
+    yield* all(
+      ...Array.from({ length: this.nodes.length }, (_, i) => {
+        const text = i === 0 ? "0" : `${i * strideKb}K`;
+        return this.nodes[i].setTitle(text, duration);
+      }),
+    );
+  }
+
+  /**
    * 高亮指定节点（nodes 数组下标，从 0 开始）。
    * @param index 节点下标
    * @param recovery 高亮完成后是否自动复原
