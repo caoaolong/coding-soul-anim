@@ -7,6 +7,9 @@ import { CourseCover } from "../components/intro/course_cover";
 import { MindMap } from "../components/mindmap/mindmap";
 import { Axes3D } from "../components/three/axes_3d";
 import { SimpleTimeline } from "../components/timeline/simple_timeline";
+import { ColumnVectors } from "../components/vector/column_vectors";
+import { PrimaryColors } from "../components/color/primary_colors";
+import { Palette } from "../components/color/palette";
 import { Ink } from "../theme/ink";
 
 import sceneBg from "../assets/bg.png";
@@ -30,10 +33,12 @@ type SegmentId =
   | "mindmap"
   | "cv_timeline"
   | "vector2d"
-  | "vector3d";
+  | "vector3d"
+  | "column_vectors"
+  | "color";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "vector3d" as SegmentId;
+const ACTIVE = "color" as SegmentId;
 
 /** 片头自带不透明背景，其余段用淡墨共用底图 */
 function useSharedSceneBg(segment: SegmentId): boolean {
@@ -223,7 +228,7 @@ function* playVector3d(view: View2D): ThreadGenerator {
   yield* axes().showVector(2, 2.5, 1.5, 0.6);
   yield* waitFor(0.3);
 
-  // 向量尖端移动的同时，相机绕原点匀速转动
+  // 向量尖端移动的同时，相机绕原点匀速慢转（约 2.5 倍行程时长转一圈）
   const path: Array<[number, number, number]> = [
     [1, 3, 2],
     [3, 1, -1],
@@ -233,11 +238,72 @@ function* playVector3d(view: View2D): ThreadGenerator {
   const stepDuration = 1.0;
   const hold = 0.12;
   const travelDuration = path.length * (stepDuration + hold);
+  const orbitDuration = travelDuration * 2.5;
 
   yield* all(
-    axes().orbit(travelDuration),
+    axes().orbit(orbitDuration),
     axes().travel(path, stepDuration, hold),
   );
+  yield* waitFor(0.8);
+}
+
+/**
+ * 列向量：先横向排出列式，再上方点题 Xₙ∈ℝⁿˣ¹
+ */
+function* playColumnVectors(view: View2D): ThreadGenerator {
+  const title = createRef<InkFormula>();
+  const vectors = createRef<ColumnVectors>();
+
+  view.add(
+    <InkFormula
+      ref={title}
+      tex={String.raw`X_n \in \mathbb{R}^{n \times 1}`}
+      fontSize={52}
+      y={-260}
+    />,
+  );
+  view.add(
+    <ColumnVectors
+      ref={vectors}
+      fontSize={48}
+      gap={200}
+      y={40}
+      vectors={[
+        { name: String.raw`N_{2}`, values: [1, 1] },
+        { name: String.raw`N_{3}`, values: [1, 1, 1] },
+        { name: String.raw`N_{4}`, values: [1, 1, 1, 1] },
+      ]}
+    />,
+  );
+
+  yield* vectors().play(0.55, 0.4);
+  yield* waitFor(0.35);
+  yield* title().write(0.55);
+  yield* waitFor(1.2);
+}
+
+/**
+ * 三原色 → 调色板：叠圆加色显白后，三原色左出与 PS 色盘右入同时进行
+ */
+function* playColor(view: View2D): ThreadGenerator {
+  const colors = createRef<PrimaryColors>();
+  const palette = createRef<Palette>();
+
+  view.add(<PrimaryColors ref={colors} radius={170} />);
+  view.add(<Palette ref={palette} size={300} />);
+
+  yield* colors().play(0.55, 0.35);
+  yield* waitFor(0.8);
+  yield* all(
+    colors().exitLeft(0.75, 560),
+    palette().enterFromRight(0.75, 560),
+  );
+  yield* waitFor(0.25);
+  yield* palette().showRgb(0.5);
+  yield* waitFor(0.2);
+  // 色相横条：顶→底→顶，略慢
+  yield* palette().animateHue(1, 3.2, 0);
+  yield* palette().animateHue(0, 3.2);
   yield* waitFor(0.8);
 }
 
@@ -248,6 +314,8 @@ const segments: Record<SegmentId, (view: View2D) => ThreadGenerator> = {
   cv_timeline: playCvTimeline,
   vector2d: playVector2d,
   vector3d: playVector3d,
+  column_vectors: playColumnVectors,
+  color: playColor,
 };
 
 const vectorScene = makeScene2D(function* (view) {

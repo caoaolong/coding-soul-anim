@@ -740,6 +740,21 @@ export class InkFormula extends Node {
     yield* brushLine(this.underline(), { duration: duration * 0.5 });
   }
 
+  /**
+   * 瞬时替换 LaTeX 内容（无动画），供实时读数刷新。
+   * 不改透明度；调用方需已 write / writeTex 出场。
+   */
+  public setTex(content: string): void {
+    this.mode = "latex";
+    this.hideInactive();
+    this.clearLatexExt();
+    this.latex().tex(`{${content}}`);
+    this.latex().fill(this.fillColor);
+    if (this.underlineEnabled && this.latexRow().opacity() > 0.05) {
+      this.layoutUnderline();
+    }
+  }
+
   /** 隐去：当前文案与下划线一并墨色淡出 */
   public *hide(duration = 0.35): ThreadGenerator {
     yield* inkFade([this.activeText(), this.underline()], { duration });
