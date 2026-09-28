@@ -24,8 +24,10 @@ import { NumberAxis } from "../components/axis/number_axis";
 import { BTree } from "../components/tree/b_tree";
 import { FlowChart } from "../components/flow/flow_chart";
 import { Timeline } from "../components/timeline/timeline";
+import { MakeSum } from "../components/assemble/make_sum";
 import { BaseNumber } from "../components/number/base";
 import { BaseConvert } from "../components/number/base_convert";
+import { NumberDetail } from "../components/number/detail";
 import { Ink } from "../theme/ink";
 import { inkFade, inkReveal } from "../theme/ink_anim";
 
@@ -51,6 +53,8 @@ import algoIcon from "../assets/binary/算法.svg";
 type SegmentId =
   | "cover"
   | "introduction"
+  | "number_detail"
+  | "make_sum"
   | "base10"
   | "base2_translate"
   | "base2"
@@ -76,7 +80,7 @@ type SegmentId =
   | "analogy";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "ops" as SegmentId;
+const ACTIVE = "make_sum" as SegmentId;
 
 /** 片头：CourseCover */
 function* playCover(view: View2D): ThreadGenerator {
@@ -150,6 +154,28 @@ function* playIntroduction(view: View2D): ThreadGenerator {
     yield* timeline().next();
     yield* waitFor(1.2);
   }
+}
+
+/** 数字位权详解：2026（各位 + 位名 + 拆解公式） */
+function* playNumberDetail(view: View2D): ThreadGenerator {
+  const detail = createRef<NumberDetail>();
+  view.add(<NumberDetail ref={detail} value={2026} fontSize={64} />);
+
+  yield* detail().play();
+  yield* waitFor(0.4);
+  yield* detail().highlightBases();
+  yield* waitFor(1.0);
+  yield* detail().highlightWeights();
+  yield* waitFor(1.2);
+}
+
+/** 凑数：用 1000/100/10/1 凑出 2026（超则丢） */
+function* playMakeSum(view: View2D): ThreadGenerator {
+  const make = createRef<MakeSum>();
+  view.add(<MakeSum ref={make} target={2026} />);
+
+  yield* make().play();
+  yield* waitFor(1.2);
 }
 
 /** 十进制展开：2026₍₁₀₎ */
@@ -1320,6 +1346,8 @@ const segments: Record<
 > = {
   cover: playCover,
   introduction: playIntroduction,
+  number_detail: playNumberDetail,
+  make_sum: playMakeSum,
   base10: playBase10,
   base2_translate: playBase2Translate,
   base2: playBase2,

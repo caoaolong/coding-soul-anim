@@ -35,6 +35,10 @@ export interface InkPulseTxtOptions {
 /**
  * 淡入显现：淡入 + 轻上移，无缩放弹跳。
  * 适合标题、批注、节点整组入场。
+ *
+ * 注意：仅对布局根节点（或普通 Node 子节点）的 y 位移有效；
+ * Layout 非根子节点的 x/y 由 flex 接管，位移不会生效。
+ * 需要位移的叶子请放在普通 Node 容器下（见 NumberDetail）。
  */
 export function* inkReveal(
   nodes: Node | Node[],
