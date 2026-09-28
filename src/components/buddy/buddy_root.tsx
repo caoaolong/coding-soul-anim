@@ -1,4 +1,4 @@
-import { Node, NodeProps, Txt, Latex, Layout } from "@motion-canvas/2d";
+﻿import { Node, NodeProps, Txt, Latex, Layout } from "@motion-canvas/2d";
 import {
   all,
   createRef,
@@ -658,7 +658,7 @@ export class BuddyRoot extends Node {
               fill={Ink.goldSoft}
               fontSize={this.orderFontSize}
               fontWeight={600}
-              fontFamily={'"SimFang", FangSong, STFangsong, serif'}
+              fontFamily={Ink.font}
             />
             <Latex
               ref={formulaRef}

@@ -1,6 +1,5 @@
 import {
   Circle,
-  Img,
   Layout,
   Node,
   NodeProps,
@@ -18,7 +17,6 @@ import {
   ThreadGenerator,
   waitFor,
 } from "@motion-canvas/core";
-import forgeBg from "../../assets/bg.png";
 import { Highlight } from "../../theme/highlight";
 import { Ink } from "../../theme/ink";
 
@@ -35,9 +33,9 @@ export interface IntroProps extends NodeProps {
   brand?: string;
   /** 系列名，默认 重铸编程之魂 */
   series?: string;
-  /** 背景熔炉图高度（通常传 view.height()） */
+  /** 背景高度（保留接口兼容） */
   bgHeight: number;
-  /** 背景图透明度，默认 0.18 */
+  /** @deprecated Manim 风格无背景图，忽略 */
   bgOpacity?: number;
 }
 
@@ -60,19 +58,14 @@ export class Intro extends Node {
       episodeTitle,
       brand = "CodingSoul",
       series = "重铸编程之魂",
-      bgHeight,
-      bgOpacity = 0.18,
+      bgHeight: _bgHeight,
+      bgOpacity: _bgOpacity,
       ...nodeProps
     } = props;
 
     super(nodeProps);
 
     const brandY = -40;
-
-    // 熔炉图作低透明度背景：高度铺满画布并居中
-    this.add(
-      <Img src={forgeBg} height={bgHeight} opacity={bgOpacity} />,
-    );
 
     const chaosCount = 40;
     for (let i = 0; i < chaosCount; i++) {

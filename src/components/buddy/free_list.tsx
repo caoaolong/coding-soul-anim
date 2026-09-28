@@ -1,4 +1,4 @@
-import { Layout, Line, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
+﻿import { Layout, Line, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
@@ -9,7 +9,7 @@ import type { BuddySystem } from "./buddy_system";
 import { Ink } from "../../theme/ink";
 
 const CHIP_FONT = "SF Mono, Consolas, monospace";
-const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
+const LABEL_FONT = Ink.font;
 
 function formatHex(addr: number, digits = 4): string {
   return `0x${addr.toString(16).toUpperCase().padStart(digits, "0")}`;

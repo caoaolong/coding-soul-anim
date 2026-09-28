@@ -1,4 +1,4 @@
-import { Img, Layout, Node, NodeProps, Txt } from "@motion-canvas/2d";
+﻿import { Img, Layout, Node, NodeProps, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
@@ -11,7 +11,7 @@ import placeholderImg from "../../assets/placeholder.svg";
 import { Ink } from "../../theme/ink";
 import { inkFade, inkReveal } from "../../theme/ink_anim";
 
-const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
+const LABEL_FONT = Ink.font;
 
 export interface GridItem {
   /** 图片资源；省略则使用 placeholder.svg */

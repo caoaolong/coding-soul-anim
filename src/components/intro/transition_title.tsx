@@ -1,24 +1,30 @@
-import { Circle, Layout, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
+﻿import {
+  Circle,
+  Layout,
+  Line,
+  Node,
+  NodeProps,
+  Rect,
+  Txt,
+} from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
   createRef,
+  createRefArray,
   delay,
   easeInOutCubic,
+  easeInOutSine,
   easeOutCubic,
   waitFor,
 } from "@motion-canvas/core";
 import { Ink } from "../../theme/ink";
-import { brushWidth, inkReveal } from "../../theme/ink_anim";
-
-const TITLE_CN_FONT = '"SimFang", FangSong, STFangsong, serif';
-const TITLE_EN_FONT =
-  "SF Pro Text, Segoe UI, Microsoft YaHei, sans-serif";
+import { brushWidth } from "../../theme/ink_anim";
 
 export interface TransitionTitleProps extends NodeProps {
   /** 过渡页居中主标题 */
   title: string;
-  /** 可选副标题（如中文译名） */
+  /** 可选副标题（如中文译名 / 英文说明） */
   subtitle?: string;
   /** 主标题字号，默认 64 */
   fontSize?: number;
@@ -27,16 +33,21 @@ export interface TransitionTitleProps extends NodeProps {
 }
 
 /**
- * 章节过渡页：屏心标题（可带副标题）。
- * 墨晕入场 → 淡金底线运笔 → 墨金字色脉冲 → 金息圆晕散去（约 2.5–3 秒）。
+ * 科技风章节过渡：HUD 四角 + 脉冲环 + 扫描揭开标题 + 青色强调线。
  */
 export class TransitionTitle extends Node {
-  private readonly breath = createRef<Circle>();
+  private readonly hud = createRef<Node>();
+  private readonly rings = createRefArray<Circle>();
+  private readonly scan = createRef<Rect>();
+  private readonly revealRoot = createRef<Node>();
+  private readonly revealMask = createRef<Rect>();
   private readonly titleTxt = createRef<Txt>();
   private readonly subtitleTxt = createRef<Txt>();
   private readonly underline = createRef<Rect>();
-  private readonly block = createRef<Layout>();
+  private readonly accentBar = createRef<Rect>();
   private readonly hasSubtitle: boolean;
+  private readonly revealTop: number;
+  private readonly revealH: number;
 
   public constructor(props: TransitionTitleProps) {
     const {
@@ -50,95 +61,176 @@ export class TransitionTitle extends Node {
     super(nodeProps);
 
     this.hasSubtitle = Boolean(subtitle?.trim());
-    // 含拉丁字母时用无衬线，纯中文用仿宋
-    const titleFont = /[A-Za-z]/.test(title) ? TITLE_EN_FONT : TITLE_CN_FONT;
+    this.revealH = this.hasSubtitle ? 200 : 140;
+    this.revealTop = -this.revealH / 2;
 
-    // 极淡金息：点题「道」，不抢标题
+    // —— HUD 四角 ——
+    this.add(<Node ref={this.hud} opacity={0} />);
+    const arm = 40;
+    const inset = 160;
+    const corners: Array<[number, number, number, number]> = [
+      [-960 + inset, -540 + inset, 1, 1],
+      [960 - inset, -540 + inset, -1, 1],
+      [-960 + inset, 540 - inset, 1, -1],
+      [960 - inset, 540 - inset, -1, -1],
+    ];
+    for (const [cx, cy, sx, sy] of corners) {
+      this.hud().add(
+        <Line
+          points={[
+            [cx, cy + sy * arm],
+            [cx, cy],
+            [cx + sx * arm, cy],
+          ]}
+          stroke={Ink.teal}
+          lineWidth={2.25}
+          lineCap={"square"}
+        />,
+      );
+    }
+
+    // —— 脉冲环 ——
+    for (let i = 0; i < 2; i++) {
+      this.add(
+        <Circle
+          ref={this.rings}
+          size={100 + i * 70}
+          stroke={i === 0 ? Ink.blue : Ink.teal}
+          lineWidth={2}
+          opacity={0}
+        />,
+      );
+    }
+
+    // —— 标题（cache + destination-in 扫描揭开） ——
     this.add(
-      <Circle
-        ref={this.breath}
-        size={280}
-        stroke={Ink.gold}
-        lineWidth={1.5}
-        opacity={0}
-        shadowColor={Ink.gold}
-        shadowBlur={28}
-      />,
+      <Node ref={this.revealRoot} cache>
+        <Layout layout direction={"column"} gap={20} alignItems={"center"}>
+          <Layout layout direction={"row"} gap={16} alignItems={"center"}>
+            <Rect
+              ref={this.accentBar}
+              width={6}
+              height={Math.round(fontSize * 0.85)}
+              fill={Ink.teal}
+              radius={1}
+              shadowColor={Ink.teal}
+              shadowBlur={10}
+            />
+            <Txt
+              ref={this.titleTxt}
+              text={title}
+              fontFamily={Ink.font}
+              fontSize={fontSize}
+              fontWeight={500}
+              fill={Ink.paper}
+              letterSpacing={title.length <= 6 ? 4 : 2}
+            />
+          </Layout>
+          <Rect
+            ref={this.underline}
+            width={0}
+            height={3}
+            fill={Ink.teal}
+            radius={1}
+            shadowColor={Ink.teal}
+            shadowBlur={12}
+          />
+          {this.hasSubtitle && (
+            <Txt
+              ref={this.subtitleTxt}
+              text={subtitle!.trim()}
+              fontFamily={Ink.font}
+              fontSize={subtitleSize}
+              fontWeight={400}
+              fill={Ink.paperSoft}
+              letterSpacing={1}
+            />
+          )}
+        </Layout>
+        <Rect
+          ref={this.revealMask}
+          width={1600}
+          height={0}
+          y={this.revealTop}
+          offset={[0, -1]}
+          fill={"#ffffff"}
+          compositeOperation={"destination-in"}
+        />
+      </Node>,
     );
 
+    // —— 扫描线 ——
     this.add(
-      <Layout
-        ref={this.block}
-        layout
-        direction={"column"}
-        gap={18}
-        alignItems={"center"}
+      <Rect
+        ref={this.scan}
+        width={1400}
+        height={3}
+        fill={Ink.blue}
         opacity={0}
-      >
-        <Txt
-          ref={this.titleTxt}
-          text={title}
-          fontFamily={titleFont}
-          fontSize={fontSize}
-          fontWeight={400}
-          fill={Ink.paper}
-          shadowColor={"#000000"}
-          shadowBlur={12}
-        />
-        <Rect
-          ref={this.underline}
-          width={0}
-          height={2}
-          fill={Ink.gold}
-          radius={1}
-          shadowColor={Ink.gold}
-          shadowBlur={10}
-        />
-        {this.hasSubtitle && (
-          <Txt
-            ref={this.subtitleTxt}
-            text={subtitle!.trim()}
-            fontFamily={TITLE_CN_FONT}
-            fontSize={subtitleSize}
-            fontWeight={400}
-            fill={Ink.paperSoft}
-            shadowColor={"#000000"}
-            shadowBlur={8}
-          />
-        )}
-      </Layout>,
+        y={this.revealTop}
+        shadowColor={Ink.blue}
+        shadowBlur={16}
+      />,
     );
   }
 
   /** 播放过渡入场，结束后定格 */
   public *play(): ThreadGenerator {
-    // —— 金息轻起 + 标题墨晕 ——
+    const top = this.revealTop;
+    const height = this.revealH;
+
+    yield* this.hud().opacity(1, 0.3, easeOutCubic);
     yield* all(
-      this.breath().opacity(0.2, 0.4, easeOutCubic),
-      this.breath().size(340, 0.9, easeInOutCubic),
-      inkReveal(this.block(), { fromY: 14, duration: 0.55 }),
+      ...this.rings.map((ring, i) => {
+        const target = 420 + i * 120;
+        return delay(
+          i * 0.1,
+          all(
+            ring.opacity(0.5, 0.16, easeOutCubic),
+            ring.size(target, 0.55, easeOutCubic),
+            delay(0.18, ring.opacity(0, 0.4, easeInOutCubic)),
+          ),
+        );
+      }),
     );
 
-    // —— 底线运笔 + 墨金脉冲（线长以下方文字为准；无副标题则用主标题） ——
-    const spanTxt = this.hasSubtitle ? this.subtitleTxt() : this.titleTxt();
-    const lineWidth = Math.max(120, spanTxt.width() + 24);
+    this.scan().opacity(0.9);
+    this.scan().y(top);
+    this.revealMask().height(0);
+    this.revealMask().y(top);
+
+    const scanDur = 0.75;
     yield* all(
-      brushWidth(this.underline(), lineWidth),
-      this.titleTxt().fill(Ink.goldSoft, 0.28, easeOutCubic),
-      delay(0.28, this.titleTxt().fill(Ink.paper, 0.45, easeInOutCubic)),
-      this.breath().opacity(0.06, 0.55, easeInOutCubic),
+      this.scan().y(top + height, scanDur, easeInOutSine),
+      this.revealMask().height(height, scanDur, easeInOutSine),
+    );
+    yield* this.scan().opacity(0, 0.2, easeOutCubic);
+
+    const span = this.hasSubtitle ? this.subtitleTxt() : this.titleTxt();
+    const lineW = Math.max(160, span.width() + 36);
+    yield* all(
+      brushWidth(this.underline(), lineW, { duration: 0.4 }),
+      this.titleTxt()
+        .fill(Ink.gold, 0.14, easeOutCubic)
+        .to(Ink.paper, 0.36, easeInOutCubic),
+      this.accentBar().fill(Ink.goldBright, 0.14).to(Ink.teal, 0.36),
+      this.underline()
+        .shadowBlur(28, 0.14, easeOutCubic)
+        .to(12, 0.36, easeInOutCubic),
     );
 
-    // —— 金息散去，短停定格 ——
-    yield* this.breath().opacity(0, 0.45, easeOutCubic);
-    yield* waitFor(0.6);
+    yield* this.hud().opacity(0.55, 0.35, easeInOutCubic);
+    yield* waitFor(0.55);
   }
 
   /** 淡出整幅过渡（接下文时用） */
   public *hide(duration = 0.45): ThreadGenerator {
     yield* all(
-      this.block().opacity(0, duration, easeOutCubic),
-      this.breath().opacity(0, duration * 0.6, easeOutCubic),
+      this.hud().opacity(0, duration, easeOutCubic),
+      this.revealRoot().opacity(0, duration, easeOutCubic),
+      this.underline().opacity(0, duration * 0.85, easeOutCubic),
+      this.scan().opacity(0, duration * 0.5, easeOutCubic),
+      ...this.rings.map((r) => r.opacity(0, duration * 0.5, easeOutCubic)),
     );
   }
 }

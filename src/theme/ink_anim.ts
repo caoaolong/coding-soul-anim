@@ -33,8 +33,8 @@ export interface InkPulseTxtOptions {
 }
 
 /**
- * 墨晕显现：淡入 + 轻上移，无缩放弹跳。
- * 适合系列名、批注、节点整组入场。
+ * 淡入显现：淡入 + 轻上移，无缩放弹跳。
+ * 适合标题、批注、节点整组入场。
  */
 export function* inkReveal(
   nodes: Node | Node[],
@@ -72,7 +72,7 @@ export function* inkReveal(
 }
 
 /**
- * 墨色隐去：仅透明度，无位移。
+ * 淡出隐去：仅透明度，无位移。
  */
 export function* inkFade(
   nodes: Node | Node[],

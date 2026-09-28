@@ -8,8 +8,10 @@ import {
 import {
   all,
   chain,
+  Color,
   createRef,
   createRefArray,
+  delay,
   easeInOutCubic,
   easeOutCubic,
   ThreadGenerator,
@@ -21,9 +23,18 @@ import { pulseShapes, pulseTxt } from "../../theme/highlight_anim";
 import { inkPulseTxt } from "../../theme/ink_anim";
 
 /** 英文/数字标注 */
-const LABEL_FONT = "SF Pro Text, Segoe UI, Microsoft YaHei, sans-serif";
+const LABEL_FONT = Ink.font;
 /** 格内 bit 数字 */
 const BIT_FONT = "SF Mono, Consolas, monospace";
+
+/** 科技风格：空位描边 */
+const CELL_STROKE_OFF = Ink.blueDeep;
+/** 科技风格：点亮描边 */
+const CELL_STROKE_ON = Ink.goldSoft;
+/** 空位底色 */
+const CELL_FILL_OFF = Ink.deep;
+/** 点亮底色（极淡金） */
+const CELL_FILL_ON = () => new Color(Ink.gold).alpha(0.14).serialize();
 
 export interface NBytesProps extends NodeProps {
   /** 字节数，必须 1–2 */
@@ -170,7 +181,7 @@ export class NBytes extends Node {
           x={labelX}
           y={headerCenterY}
           offset={[1, 0]}
-          fill={Ink.paperSoft}
+          fill={Ink.teal}
           fontSize={26}
           fontWeight={700}
           fontFamily={LABEL_FONT}
@@ -206,7 +217,7 @@ export class NBytes extends Node {
           x={labelX}
           y={headerCenterY}
           offset={[1, 0]}
-          fill={Ink.paperSoft}
+          fill={Ink.teal}
           fontSize={26}
           fontWeight={700}
           fontFamily={LABEL_FONT}
@@ -247,10 +258,11 @@ export class NBytes extends Node {
       </Node>,
     );
 
-    // bit 格子：方格无圆角（水墨线框）；高字节在左
+    // bit 格子：科技风圆角框；高字节在左
     for (let byteIdx = 0; byteIdx < this.byteCount; byteIdx++) {
       for (let col = 0; col < 8; col++) {
         const bit = this.bits[byteIdx][col];
+        const on = bit === 1;
         this.add(
           <Rect
             ref={this.cells}
@@ -258,10 +270,12 @@ export class NBytes extends Node {
             y={gridY}
             width={cellSize}
             height={cellSize}
-            radius={0}
-            fill={Ink.deep}
-            stroke={Ink.line}
+            radius={Ink.radius}
+            fill={on ? CELL_FILL_ON() : CELL_FILL_OFF}
+            stroke={on ? CELL_STROKE_ON : CELL_STROKE_OFF}
             lineWidth={Ink.lineWidth}
+            shadowColor={on ? Ink.gold : "#00000000"}
+            shadowBlur={on ? 12 : 0}
             layout
             justifyContent={"center"}
             alignItems={"center"}
@@ -269,7 +283,7 @@ export class NBytes extends Node {
             <Txt
               ref={this.bitTexts}
               text={`${bit}`}
-              fill={Ink.paper}
+              fill={on ? Ink.paper : Ink.paperSoft}
               fontSize={cellSize * 0.45}
               fontWeight={700}
               fontFamily={BIT_FONT}
@@ -278,6 +292,18 @@ export class NBytes extends Node {
         );
       }
     }
+  }
+
+  /** 按 bit 值套用格子描边 / 底色 / 辉光 / 文字色（瞬时） */
+  private applyBitLook(idx: number, bit: 0 | 1, lit = false): void {
+    const on = bit === 1;
+    const cell = this.cells[idx];
+    const txt = this.bitTexts[idx];
+    cell.fill(on ? CELL_FILL_ON() : CELL_FILL_OFF);
+    cell.stroke(on ? CELL_STROKE_ON : CELL_STROKE_OFF);
+    cell.shadowColor(on ? Ink.gold : "#00000000");
+    cell.shadowBlur(on ? 12 : 0);
+    txt.fill(lit || on ? (lit ? Highlight.fill : Ink.paper) : Ink.paperSoft);
   }
 
   /**
@@ -435,9 +461,17 @@ export class NBytes extends Node {
     yield* all(
       pulseShapes(cell, {
         duration,
-        scalePeak: 1.14,
+        fill: CELL_FILL_ON(),
+        stroke: Ink.gold,
+        scalePeak: 1.12,
+        recovery: true,
       }),
-      pulseTxt(txt, { duration, scalePeak: 1.2 }),
+      pulseTxt(txt, {
+        duration,
+        color: Highlight.accent,
+        restore: this.bits[byteIndex][col] === 1 ? Ink.paper : Ink.paperSoft,
+        scalePeak: 1.18,
+      }),
     );
   }
 
@@ -468,8 +502,10 @@ export class NBytes extends Node {
     yield* all(
       ...order.map(([b, c]) => {
         const idx = b * 8 + c;
+        const lit = this.textHighlight[idx];
+        const on = this.bits[b][c] === 1;
         return this.bitTexts[idx].fill(
-          this.textHighlight[idx] ? Highlight.fill : Ink.paper,
+          lit ? Highlight.fill : on ? Ink.paper : Ink.paperSoft,
           duration,
           easeOutCubic,
         );
@@ -478,17 +514,31 @@ export class NBytes extends Node {
   }
 
   /**
-   * 跑马灯翻位演示：点亮波从右（低位 bit 0）到左逐位 0→1，
-   * 熄灭波紧接其尾、从左（高位）到右逐位 1→0。
-   * 两波均以 stepDelay 流水启动、零间隙折返：后一位不等前一位的
-   * 余晖（墨金脉冲）结束就启动，全程一气呵成。
-   * 全程只用 Ink / Highlight token 与 easeInOutCubic，保持克制无弹跳。
+   * 跑马灯翻位演示：先从低位到高位短 cascade 入场，再点亮波 + 熄灭波。
    * @param bitDuration 单个 bit 原子翻位时长（淡出 + 淡入）
    * @param stepDelay 相邻位启动间隔（小于 bitDuration 即形成重叠波）
    */
-  public *show(bitDuration = 0.3, stepDelay = 0.18): ThreadGenerator {
+  public *show(bitDuration = 0.3, stepDelay = 0.15): ThreadGenerator {
     const total = this.byteCount * 8;
-    // 熄灭波起点：点亮波最后一位原子翻位结束时（其墨金余晖仍可重叠，不冲突属性）
+
+    // 短 cascade：从右（低位）到左，格子轻微弹出（总时长 <0.4s）
+    const cascade: ThreadGenerator[] = [];
+    for (let bitPos = 0; bitPos < total; bitPos++) {
+      const byteIndex = Math.floor(bitPos / 8);
+      const col = 7 - (bitPos % 8);
+      const idx = byteIndex * 8 + col;
+      const cell = this.cells[idx];
+      cell.scale(0.86);
+      cascade.push(
+        delay(
+          bitPos * 0.022,
+          cell.scale(1, 0.2, easeOutCubic),
+        ),
+      );
+    }
+    yield* all(...cascade);
+
+    // 熄灭波起点：点亮波最后一位原子翻位结束时
     const turnStart = (total - 1) * stepDelay + bitDuration;
     const endTime = turnStart + (total - 1) * stepDelay + bitDuration;
 
@@ -506,7 +556,7 @@ export class NBytes extends Node {
 
     const putOut: ThreadGenerator[] = [];
     for (let k = 0; k < total; k++) {
-      const bitPos = total - 1 - k; // 从高位到低位（显示上从左到右）
+      const bitPos = total - 1 - k;
       const byteIndex = Math.floor(bitPos / 8);
       const col = 7 - (bitPos % 8);
       putOut.push(
@@ -520,15 +570,14 @@ export class NBytes extends Node {
     yield* all(
       ...lightUp,
       ...putOut,
-      // 全 1 峰值与全 0 收尾时各联动一次左侧十进制（无表头时仅同步文案）
       chain(waitFor(turnStart), this.pulseValueLabel(0.4)),
       chain(waitFor(endTime), this.pulseValueLabel(0.4)),
     );
   }
 
   /**
-   * 单个 bit 原子翻位：淡出旧字 + 墨线转色 → 换字淡入（点亮带墨金余晖）。
-   * 左侧十进制只同步文案、不做脉冲，避免流水并发时抢同一节点属性。
+   * 单个 bit 原子翻位：科技风描边/辉光 + 换字淡入。
+   * 点亮带金色余晖；熄灭收回青灰描边。
    */
   private *flipBit(
     byteIndex: number,
@@ -544,19 +593,53 @@ export class NBytes extends Node {
     const idx = byteIndex * 8 + col;
     const cell = this.cells[idx];
     const txt = this.bitTexts[idx];
-
-    yield* all(
-      txt.opacity(0, half, easeInOutCubic),
-      cell.stroke(to === 1 ? Highlight.fill : Ink.line, half, easeInOutCubic),
-    );
-    this.bits[byteIndex][col] = to;
-    txt.text(`${to}`);
-    this.syncValueLabel();
-    yield* txt.opacity(1, half, easeInOutCubic);
+    const lit = this.textHighlight[idx];
 
     if (to === 1) {
-      yield* inkPulseTxt(txt, { duration: half, scalePeak: 1.03 });
+      yield* all(
+        txt.opacity(0, half, easeInOutCubic),
+        cell.stroke(Ink.teal, half * 0.45, easeOutCubic).to(
+          CELL_STROKE_ON,
+          half * 0.55,
+          easeInOutCubic,
+        ),
+        cell.fill(CELL_FILL_ON(), half, easeOutCubic),
+        cell.shadowColor(Ink.gold, half, easeOutCubic),
+        cell.shadowBlur(14, half, easeOutCubic),
+        cell.scale(1.06, half, easeOutCubic),
+      );
+      this.bits[byteIndex][col] = to;
+      txt.text("1");
+      txt.fill(lit ? Highlight.fill : Ink.paper);
+      this.syncValueLabel();
+      yield* all(
+        txt.opacity(1, half, easeOutCubic),
+        cell.scale(1, half, easeInOutCubic),
+      );
+      yield* inkPulseTxt(txt, {
+        duration: half,
+        scalePeak: 1.04,
+        restore: lit ? Highlight.fill : Ink.paper,
+      });
+      return;
     }
+
+    // → 0
+    yield* all(
+      txt.opacity(0, half, easeInOutCubic),
+      cell.stroke(CELL_STROKE_OFF, half, easeInOutCubic),
+      cell.fill(CELL_FILL_OFF, half, easeInOutCubic),
+      cell.shadowBlur(0, half, easeInOutCubic),
+      cell.scale(0.96, half, easeInOutCubic),
+    );
+    this.bits[byteIndex][col] = to;
+    txt.text("0");
+    txt.fill(lit ? Highlight.fill : Ink.paperSoft);
+    this.syncValueLabel();
+    yield* all(
+      txt.opacity(1, half, easeOutCubic),
+      cell.scale(1, half, easeInOutCubic),
+    );
   }
 
   private computeNumber(): number {
@@ -614,7 +697,8 @@ export class NBytes extends Node {
         const idx = b * 8 + col;
         fadeOut.push(
           this.bitTexts[idx].opacity(0, half, easeInOutCubic),
-          this.cells[idx].stroke(Highlight.fill, half, easeInOutCubic),
+          this.cells[idx].stroke(Ink.teal, half, easeInOutCubic),
+          this.cells[idx].shadowBlur(8, half, easeInOutCubic),
         );
       }
     }
@@ -622,10 +706,11 @@ export class NBytes extends Node {
 
     for (let b = 0; b < this.byteCount; b++) {
       for (let col = 0; col < 8; col++) {
+        const idx = b * 8 + col;
         this.bits[b][col] = nextBits[b][col];
-        this.bitTexts[b * 8 + col].text(`${nextBits[b][col]}`);
-        this.textHighlight[b * 8 + col] = false;
-        this.bitTexts[b * 8 + col].fill(Ink.paper);
+        this.bitTexts[idx].text(`${nextBits[b][col]}`);
+        this.textHighlight[idx] = false;
+        this.applyBitLook(idx, nextBits[b][col] as 0 | 1);
       }
     }
 
@@ -633,10 +718,7 @@ export class NBytes extends Node {
     for (let b = 0; b < this.byteCount; b++) {
       for (let col = 0; col < 8; col++) {
         const idx = b * 8 + col;
-        fadeIn.push(
-          this.bitTexts[idx].opacity(1, half, easeInOutCubic),
-          this.cells[idx].stroke(Ink.line, half, easeInOutCubic),
-        );
+        fadeIn.push(this.bitTexts[idx].opacity(1, half, easeInOutCubic));
       }
     }
     yield* all(...fadeIn);
@@ -702,7 +784,7 @@ export class NBytes extends Node {
           text={`${values[i]}`}
           x={positions[i].x}
           y={positions[i].y}
-          fill={highlights[i] ? Highlight.fill : Ink.paper}
+          fill={highlights[i] ? Highlight.fill : values[i] === 1 ? Ink.paper : Ink.paperSoft}
           fontSize={fontSize}
           fontWeight={700}
           fontFamily={BIT_FONT}
@@ -724,7 +806,7 @@ export class NBytes extends Node {
         text={`${incoming}`}
         x={inStartX}
         y={positions[0].y}
-        fill={Ink.paper}
+        fill={Ink.paperSoft}
         fontSize={fontSize}
         fontWeight={700}
         fontFamily={BIT_FONT}
@@ -744,18 +826,28 @@ export class NBytes extends Node {
         text={`${outgoing}`}
         x={outStart.x}
         y={outStart.y}
-        fill={outgoingLit ? Highlight.fill : Ink.paper}
+        fill={
+          outgoingLit
+            ? Highlight.fill
+            : outgoing === 1
+              ? Ink.paper
+              : Ink.paperSoft
+        }
         fontSize={fontSize}
         fontWeight={700}
         fontFamily={BIT_FONT}
         textAlign={"center"}
+        opacity={0}
       />,
     );
+
     // 格内对应 ghost 与 out 重叠时隐藏其一：左移时 ghost[0] 即 outgoing
     if (dir < 0) {
       ghosts[0].opacity(0);
+      outGhost().opacity(1);
     } else {
       ghosts[total - 1].opacity(0);
+      outGhost().opacity(1);
     }
 
     const moves: ThreadGenerator[] = [];
@@ -793,8 +885,10 @@ export class NBytes extends Node {
       this.textHighlight[idx] = nextHighlights[i];
       const txt = this.bitTexts[idx];
       txt.text(`${nextValues[i]}`);
-      txt.fill(nextHighlights[i] ? Highlight.fill : Ink.paper);
+      const on = nextValues[i] === 1;
+      txt.fill(nextHighlights[i] ? Highlight.fill : on ? Ink.paper : Ink.paperSoft);
       txt.opacity(1);
+      this.applyBitLook(idx, on ? 1 : 0, nextHighlights[i]);
     }
     yield* this.pulseValueLabel();
 

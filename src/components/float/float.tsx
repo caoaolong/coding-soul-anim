@@ -17,7 +17,7 @@ import { Highlight } from "../../theme/highlight";
 import { highlightShapes } from "../../theme/highlight_anim";
 
 /** 数值/段名标注 */
-const LABEL_FONT = "SF Pro Text, Segoe UI, Microsoft YaHei, sans-serif";
+const LABEL_FONT = Ink.font;
 /** 格内 bit 数字 */
 const BIT_FONT = "SF Mono, Consolas, monospace";
 
@@ -35,7 +35,7 @@ export interface FloatProps extends NodeProps {
 }
 
 /**
- * 三段水墨配色：格底统一深墨，描边结构墨线；
+ * 三段配色：格底统一深灰，描边结构线；
  * 段别仅由上方花括号/标注色区分（朱砂 / 淡金 / 淡赭）。
  */
 const SECTION_STYLE: Record<
@@ -115,7 +115,7 @@ function formatFloatLabel(value: number): string {
 
 /**
  * IEEE 754 float32 位布局：Sign(1) | Exponent(8) | Mantissa(23)，左高右低。
- * 水墨格网：直角深墨底、结构墨线；段别以花括号淡墨色相点题。
+ * 格网：直角深灰底、结构线；段别以花括号色相点题。
  */
 export class Float extends Node {
   public readonly cells = createRefArray<Rect>();

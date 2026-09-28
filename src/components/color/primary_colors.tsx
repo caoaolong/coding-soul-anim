@@ -1,4 +1,4 @@
-import { Circle, Node, NodeProps, Txt } from "@motion-canvas/2d";
+﻿import { Circle, Node, NodeProps, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
@@ -9,7 +9,7 @@ import {
 import { Ink } from "../../theme/ink";
 import { inkFade, inkReveal } from "../../theme/ink_anim";
 
-const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
+const LABEL_FONT = Ink.font;
 
 export interface PrimaryColorsProps extends NodeProps {
   /** 圆半径，默认 168 */

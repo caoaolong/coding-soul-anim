@@ -1,4 +1,4 @@
-import { Img, Txt, makeScene2D, View2D } from "@motion-canvas/2d";
+﻿import { Txt, makeScene2D, View2D } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
@@ -24,10 +24,11 @@ import { NumberAxis } from "../components/axis/number_axis";
 import { BTree } from "../components/tree/b_tree";
 import { FlowChart } from "../components/flow/flow_chart";
 import { Timeline } from "../components/timeline/timeline";
+import { BaseNumber } from "../components/number/base";
+import { BaseConvert } from "../components/number/base_convert";
 import { Ink } from "../theme/ink";
 import { inkFade, inkReveal } from "../theme/ink_anim";
 
-import sceneBg from "../assets/bg.png";
 import eniacImg from "../assets/binary/ENIAC.jpg";
 import system360Img from "../assets/binary/IBM System_360.jpg";
 import bellLabsImg from "../assets/binary/贝尔实验室.webp";
@@ -41,9 +42,6 @@ import systemIcon from "../assets/binary/系统.svg";
 import arrayIcon from "../assets/binary/数组.svg";
 import algoIcon from "../assets/binary/算法.svg";
 
-/** 全场景共用背景透明度：压得很淡以呈若隐若现 */
-const SCENE_BG_OPACITY = 0.08;
-
 /**
  * 大道至简：二进制
  *
@@ -53,6 +51,11 @@ const SCENE_BG_OPACITY = 0.08;
 type SegmentId =
   | "cover"
   | "introduction"
+  | "base10"
+  | "base2_translate"
+  | "base2"
+  | "basef_translate"
+  | "base_float"
   | "storage_title"
   | "storage"
   | "memory"
@@ -73,12 +76,7 @@ type SegmentId =
   | "analogy";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "cover" as SegmentId;
-
-/** 片头自带不透明背景，其余段用淡墨共用底图 */
-function useSharedSceneBg(segment: SegmentId): boolean {
-  return segment !== "cover";
-}
+const ACTIVE = "ops" as SegmentId;
 
 /** 片头：CourseCover */
 function* playCover(view: View2D): ThreadGenerator {
@@ -86,10 +84,9 @@ function* playCover(view: View2D): ThreadGenerator {
   view.add(
     <CourseCover
       ref={cover}
-      series="算法之道"
-      episodeTitle={"大道至简：二进制"}
+      series="算法大师之路"
+      episodeTitle={"二进制"}
       bgHeight={view.height()}
-      bgOpacity={1}
     />,
   );
 
@@ -155,6 +152,101 @@ function* playIntroduction(view: View2D): ThreadGenerator {
   }
 }
 
+/** 十进制展开：2026₍₁₀₎ */
+function* playBase10(view: View2D): ThreadGenerator {
+  const dec = createRef<BaseNumber>();
+  const concept = createRef<InkFormula>();
+  view.add(<BaseNumber ref={dec} value={2026} base={10} fontSize={40} />);
+
+  yield* dec().play();
+  yield* waitFor(0.4);
+  yield* dec().highlightBases();
+  yield* waitFor(0.25);
+
+  // 屏幕偏上点题：基数
+  view.add(
+    <InkFormula
+      ref={concept}
+      tex={"\\,"}
+      fontSize={48}
+      y={-280}
+    />,
+  );
+  yield* concept().writePlain("基数", 0.55);
+  yield* waitFor(1.2);
+}
+
+/** 整数进制转换：2026₍₁₀₎ → ₍₂₎（连除取余） */
+function* playBase2Translate(view: View2D): ThreadGenerator {
+  const conv = createRef<BaseConvert>();
+  view.add(
+    <BaseConvert
+      ref={conv}
+      value={2026}
+      fromBase={10}
+      toBase={2}
+      fontSize={28}
+      rowGap={18}
+      stepWidth={580}
+    />,
+  );
+
+  yield* conv().play();
+  yield* waitFor(1.2);
+}
+
+/** 二进制展开：2026₍₂₎ */
+function* playBase2(view: View2D): ThreadGenerator {
+  const bin = createRef<BaseNumber>();
+  view.add(<BaseNumber ref={bin} value={2026} base={2} fontSize={26} />);
+
+  yield* bin().play(0.5, 0.32, 0.08);
+  yield* waitFor(0.4);
+  yield* bin().highlightBases();
+  yield* waitFor(1.2);
+}
+
+/** 小数进制转换：0.928₍₁₀₎ → ₍₂₎（仅乘基取整） */
+function* playBasefTranslate(view: View2D): ThreadGenerator {
+  const conv = createRef<BaseConvert>();
+  view.add(
+    <BaseConvert
+      ref={conv}
+      value={0.928}
+      fromBase={10}
+      toBase={2}
+      part={"frac"}
+      fracPlaces={8}
+      fontSize={28}
+      rowGap={16}
+      stepWidth={580}
+    />,
+  );
+
+  yield* conv().play();
+  yield* waitFor(1.2);
+}
+
+/** 二进制小数展开：0.928₍₂₎（仅小数位） */
+function* playBaseFloat(view: View2D): ThreadGenerator {
+  const bin = createRef<BaseNumber>();
+  view.add(
+    <BaseNumber
+      ref={bin}
+      value={0.928}
+      base={2}
+      part={"frac"}
+      fracPlaces={8}
+      fontSize={28}
+    />,
+  );
+
+  yield* bin().play(0.5, 0.32, 0.08);
+  yield* waitFor(0.4);
+  yield* bin().highlightBases();
+  yield* waitFor(1.2);
+}
+
 /** 过渡：二进制存储 */
 function* playStorageTitle(view: View2D): ThreadGenerator {
   const page = createRef<TransitionTitle>();
@@ -170,7 +262,7 @@ function* playStorage(view: View2D): ThreadGenerator {
   const cell = createRef<BitCell>();
   const title = createRef<InkFormula>();
 
-  view.add(<BitCell ref={cell} y={-20} />);
+  view.add(<BitCell ref={cell} y={-20} iconSize={168} bitFontSize={56} />);
   view.add(
     <InkFormula
       ref={title}
@@ -1118,7 +1210,7 @@ function* playTradeoff(view: View2D): ThreadGenerator {
     <Txt
       ref={title}
       text={"简单算法才能构建稳定的复杂系统"}
-      fontFamily={'"SimFang", FangSong, STFangsong, serif'}
+      fontFamily={Ink.font}
       fontSize={40}
       fill={Ink.paper}
       y={-360}
@@ -1228,6 +1320,11 @@ const segments: Record<
 > = {
   cover: playCover,
   introduction: playIntroduction,
+  base10: playBase10,
+  base2_translate: playBase2Translate,
+  base2: playBase2,
+  basef_translate: playBasefTranslate,
+  base_float: playBaseFloat,
   storage_title: playStorageTitle,
   storage: playStorage,
   memory: playMemory,
@@ -1250,12 +1347,6 @@ const segments: Record<
 
 const binaryScene = makeScene2D(function* (view) {
   view.fill(Ink.bg);
-  // 片头 CourseCover 自带不透明背景；其余段用淡墨共用底图
-  if (useSharedSceneBg(ACTIVE)) {
-    view.add(
-      <Img src={sceneBg} height={view.height()} opacity={SCENE_BG_OPACITY} />,
-    );
-  }
   yield* segments[ACTIVE](view);
 });
 

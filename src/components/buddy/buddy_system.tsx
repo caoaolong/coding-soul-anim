@@ -42,37 +42,37 @@ function formatKB(kb: number): string {
 
 /** 地址：等宽；块大小：仿书签字 */
 const ADDR_FONT = "SF Mono, Consolas, monospace";
-const SIZE_FONT = '"SimFang", FangSong, STFangsong, serif';
+const SIZE_FONT = Ink.font;
 
 /**
- * 水墨层次（仅用暖墨 / 宣纸 / 淡金 / 赭石，避免青绿数码感）：
- * - 默认叶：浓淡墨笺
- * - 空闲链表：淡金描边笺条
- * - 占用：赭石印记
- * - 已分裂父块：淡墨残影
+ * Manim 层次：
+ * - 默认叶：深灰面板
+ * - 空闲：黄描边
+ * - 占用：红系
+ * - 已分裂父块：弱化残影
  */
 const DEPTH_FILL = [
   Ink.deep,
   Ink.deepAlt,
-  "#181715",
-  "#1F1D1A",
-  "#22201C",
+  "#242424",
+  "#2E2E2E",
+  "#383838",
 ];
 const DEPTH_STROKE = [
   Ink.line,
   Ink.muted,
-  "#6A6358",
-  "#756E62",
+  "#777777",
+  "#999999",
   Ink.paperSoft,
 ];
-const FREE_FILL = "#2A261C";
+const FREE_FILL = "#2A2A22";
 const FREE_STROKE = Ink.gold;
 const FREE_TEXT = Ink.paper;
 const ALLOC_FILL = Ink.warnDeep;
 const ALLOC_STROKE = Ink.warn;
 const ALLOC_TEXT = Ink.goldSoft;
 const INTERNAL_FILL = Ink.veil;
-const INTERNAL_STROKE = "#3A3630";
+const INTERNAL_STROKE = "#444444";
 const INTERNAL_TEXT = Ink.muted;
 const ADDR_COLOR = Ink.paperSoft;
 

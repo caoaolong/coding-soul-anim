@@ -2,6 +2,7 @@ import { Line, Node, NodeProps, Rect } from "@motion-canvas/2d";
 import {
   all,
   BBox,
+  Color,
   createRef,
   easeInOutCubic,
   easeOutCubic,
@@ -26,29 +27,36 @@ export interface FocusBoxOptions {
   /**
    * underline：底部运笔底线（默认，水墨批注感）
    * box：包围盒高亮
+   * hud：科技感四角锁定框（半透底 + 虚线外框 + 角标描边）
    */
-  style?: "underline" | "box";
+  style?: "underline" | "box" | "hud";
   /** 底线相对包围盒底边的额外下移，默认 10 */
   underlineGap?: number;
   /**
-   * 仅 style='box'：多段行间高亮
+   * 仅 style='box' | 'hud'：多段行间高亮
    * - enter：淡入后停留（首行）
    * - move：移到新目标后停留（后续行）
    * - leave：淡出并移除（末行完成后）
    * 不传则单次：淡入 → 稍顿 → 淡出
    */
   phase?: "enter" | "move" | "leave";
+  /** 仅 hud：角标臂长，默认随尺寸自适应 */
+  cornerArm?: number;
+  /** 仅 hud：半透底填充透明度，默认 0.12 */
+  fillOpacity?: number;
 }
 
 export interface AnnotationProps extends NodeProps {}
 
 /**
  * 标注类动画：默认以淡朱砂运笔底线圈点目标（水墨批注），
- * 亦可回退为完整包围盒。
+ * 亦可回退为完整包围盒，或使用科技感 HUD 锁定框。
  */
 export class Annotation extends Node {
   /** style=box 且 phase 为 enter/move 时保持的包围盒 */
   private activeBox: Rect | null = null;
+  /** style=hud 且 phase 为 enter/move 时保持的 HUD 根节点 */
+  private activeHud: Node | null = null;
 
   public constructor(props: AnnotationProps = {}) {
     super(props);
@@ -71,10 +79,16 @@ export class Annotation extends Node {
       style = "underline",
       underlineGap = 10,
       phase,
+      cornerArm,
+      fillOpacity = Highlight.hud.fillOpacity,
     } = options;
 
-    if (style === "box" && phase === "leave") {
-      yield* this.dismissRectBox(duration * 0.35);
+    if ((style === "box" || style === "hud") && phase === "leave") {
+      if (style === "hud") {
+        yield* this.dismissHud(duration * 0.35);
+      } else {
+        yield* this.dismissRectBox(duration * 0.35);
+      }
       return;
     }
 
@@ -89,6 +103,18 @@ export class Annotation extends Node {
     const localBox = BBox.fromPoints(
       ...worldBox.transformCorners(this.worldToLocal()),
     );
+
+    if (style === "hud") {
+      yield* this.focusHudBox(localBox, {
+        color,
+        lineWidth,
+        duration,
+        phase,
+        cornerArm,
+        fillOpacity,
+      });
+      return;
+    }
 
     if (style === "box") {
       yield* this.focusRectBox(localBox, {
@@ -109,9 +135,9 @@ export class Annotation extends Node {
     });
   }
 
-  /** 淡出并移除当前包围盒（若无则立刻返回） */
+  /** 淡出并移除当前包围盒 / HUD（若无则立刻返回） */
   public *dismissBox(duration = 0.35): ThreadGenerator {
-    yield* this.dismissRectBox(duration);
+    yield* all(this.dismissRectBox(duration), this.dismissHud(duration));
   }
 
   /** 底部运笔底线：自左向右书写，稍顿后淡出 */
@@ -223,6 +249,200 @@ export class Annotation extends Node {
     this.clearActiveBox();
   }
 
+  /**
+   * 科技感 HUD：半透底 + 弱虚线外框 + 四角锁定描边 + 轻微辉光。
+   */
+  private *focusHudBox(
+    localBox: BBox,
+    options: {
+      color: string;
+      lineWidth: number;
+      duration: number;
+      phase?: "enter" | "move" | "leave";
+      cornerArm?: number;
+      fillOpacity: number;
+    },
+  ): ThreadGenerator {
+    const { color, lineWidth, duration, phase, fillOpacity } = options;
+    const cx = localBox.center.x;
+    const cy = localBox.center.y;
+    const w = Math.max(1, localBox.width);
+    const h = Math.max(1, localBox.height);
+    const arm =
+      options.cornerArm ??
+      Math.max(10, Math.min(22, Math.min(w, h) * 0.38));
+
+    if (phase === "move" && this.activeHud) {
+      yield* this.rebuildHud(this.activeHud, {
+        cx,
+        cy,
+        w,
+        h,
+        arm,
+        color,
+        lineWidth,
+        fillOpacity,
+        animate: true,
+        duration,
+      });
+      return;
+    }
+
+    this.clearActiveHud();
+    const root = createRef<Node>();
+    this.add(<Node ref={root} x={cx} y={cy} opacity={0} zIndex={20} />);
+    this.activeHud = root();
+    this.buildHudChildren(root(), {
+      w,
+      h,
+      arm,
+      color,
+      lineWidth,
+      fillOpacity,
+      cornersEnd: 0,
+    });
+
+    const corners = root()
+      .children()
+      .filter((c): c is Line => c instanceof Line);
+
+    if (phase === "enter" || phase === "move") {
+      const fadeIn = Math.min(0.35, duration * 0.55);
+      yield* all(
+        root().opacity(1, fadeIn, easeOutCubic),
+        ...corners.map((c) => c.end(1, fadeIn * 1.15, easeOutCubic)),
+      );
+      return;
+    }
+
+    const fadeIn = duration * 0.28;
+    const hold = duration * 0.42;
+    const fadeOut = duration * 0.3;
+    yield* all(
+      root().opacity(1, fadeIn, easeOutCubic),
+      ...corners.map((c) => c.end(1, fadeIn * 1.2, easeOutCubic)),
+    );
+    yield* waitFor(hold);
+    yield* root().opacity(0, fadeOut, easeInOutCubic);
+    this.clearActiveHud();
+  }
+
+  private buildHudChildren(
+    root: Node,
+    opts: {
+      w: number;
+      h: number;
+      arm: number;
+      color: string;
+      lineWidth: number;
+      fillOpacity: number;
+      cornersEnd: number;
+    },
+  ): void {
+    const { w, h, arm, color, lineWidth, fillOpacity, cornersEnd } = opts;
+    const hw = w / 2;
+    const hh = h / 2;
+    const fill = new Color(color).alpha(fillOpacity);
+
+    root.add(
+      <Rect
+        width={w}
+        height={h}
+        fill={fill}
+        stroke={null}
+        shadowColor={color}
+        shadowBlur={18}
+        shadowOffset={[0, 0]}
+      />,
+    );
+    root.add(
+      <Rect
+        width={w}
+        height={h}
+        fill={null}
+        stroke={color}
+        lineWidth={Math.max(1, lineWidth * 0.55)}
+        opacity={0.35}
+        lineDash={[5, 5]}
+      />,
+    );
+
+    const corners: Array<Array<[number, number]>> = [
+      [
+        [-hw, -hh + arm],
+        [-hw, -hh],
+        [-hw + arm, -hh],
+      ],
+      [
+        [hw, -hh + arm],
+        [hw, -hh],
+        [hw - arm, -hh],
+      ],
+      [
+        [-hw, hh - arm],
+        [-hw, hh],
+        [-hw + arm, hh],
+      ],
+      [
+        [hw, hh - arm],
+        [hw, hh],
+        [hw - arm, hh],
+      ],
+    ];
+
+    for (const points of corners) {
+      root.add(
+        <Line
+          points={points}
+          stroke={color}
+          lineWidth={lineWidth}
+          lineCap={"square"}
+          lineJoin={"miter"}
+          end={cornersEnd}
+          shadowColor={color}
+          shadowBlur={10}
+        />,
+      );
+    }
+  }
+
+  /** move 时重建 HUD 几何（保持可见），并补间根节点位移 */
+  private *rebuildHud(
+    root: Node,
+    opts: {
+      cx: number;
+      cy: number;
+      w: number;
+      h: number;
+      arm: number;
+      color: string;
+      lineWidth: number;
+      fillOpacity: number;
+      animate: boolean;
+      duration: number;
+    },
+  ): ThreadGenerator {
+    const { cx, cy, w, h, arm, color, lineWidth, fillOpacity, duration } =
+      opts;
+    // 清掉旧子节点，按新尺寸重建（保持 end=1）
+    for (const child of [...root.children()]) {
+      child.remove();
+    }
+    this.buildHudChildren(root, {
+      w,
+      h,
+      arm,
+      color,
+      lineWidth,
+      fillOpacity,
+      cornersEnd: 1,
+    });
+    yield* all(
+      root.x(cx, duration, easeInOutCubic),
+      root.y(cy, duration, easeInOutCubic),
+    );
+  }
+
   private *dismissRectBox(duration: number): ThreadGenerator {
     const box = this.activeBox;
     if (!box) return;
@@ -230,10 +450,24 @@ export class Annotation extends Node {
     this.clearActiveBox();
   }
 
+  private *dismissHud(duration: number): ThreadGenerator {
+    const hud = this.activeHud;
+    if (!hud) return;
+    yield* hud.opacity(0, duration, easeInOutCubic);
+    this.clearActiveHud();
+  }
+
   private clearActiveBox(): void {
     if (this.activeBox) {
       this.activeBox.remove();
       this.activeBox = null;
+    }
+  }
+
+  private clearActiveHud(): void {
+    if (this.activeHud) {
+      this.activeHud.remove();
+      this.activeHud = null;
     }
   }
 

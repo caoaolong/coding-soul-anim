@@ -1,15 +1,1 @@
-@font-face {
-  font-family: "Zhi Mang Xing";
-  src: url("./assets/ZhiMangXing-Regular.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-  font-display: block;
-}
-
-@font-face {
-  font-family: "SimFang";
-  src: url("./assets/simfang.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-  font-display: block;
-}
+/* Manim 风格：使用系统无衬线字体（见 Ink.font），不再加载水墨专用字体 */

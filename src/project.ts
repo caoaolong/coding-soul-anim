@@ -6,5 +6,5 @@ import vector from "./scenes/vector?scene";
 import "./global.css";
 
 export default makeProject({
-  scenes: [vector],
+  scenes: [binary],
 });

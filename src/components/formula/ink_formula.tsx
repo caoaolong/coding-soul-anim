@@ -7,11 +7,12 @@ import {
   easeInOutCubic,
   waitFor,
 } from "@motion-canvas/core";
+import { Highlight } from "../../theme/highlight";
 import { Ink } from "../../theme/ink";
 import { brushLine, inkFade, inkPulseTxt, inkReveal } from "../../theme/ink_anim";
 import { Annotation } from "../annotation/annotation";
 
-const PLAIN_FONT = '"SimFang", FangSong, STFangsong, serif';
+const PLAIN_FONT = Ink.font;
 
 export type FloatLitPart = "sign" | "int" | "frac";
 
@@ -35,8 +36,8 @@ export interface InkFormulaProps extends NodeProps {
 }
 
 /**
- * 水墨单行公式：以墨晕显现 + 下划线运笔「书写」出场，一横落笔即点题。
- * 亦支持 rewrite 切换为纯中文标题（仿宋），以及算式局部更新（只换变化的数字）。
+ * 单行公式：淡入显现 + 下划线运笔「书写」出场。
+ * 亦支持 rewrite 切换为纯中文标题，以及算式局部更新（只换变化的数字）。
  */
 export class InkFormula extends Node {
   /** 主公式 + 右侧追加片段行 */
@@ -393,17 +394,17 @@ export class InkFormula extends Node {
 
     const {
       label,
-      duration = 1.0,
-      color = Ink.seal,
+      duration = Highlight.hud.duration as number,
+      color = Highlight.hud.color,
     } = options;
 
     const tasks: ThreadGenerator[] = [
       this.annotation().focusBox(node, {
-        style: "box",
+        style: "hud",
         color,
-        lineWidth: 2.5,
-        padding: 5,
-        radius: 0,
+        lineWidth: Highlight.hud.lineWidth,
+        padding: Highlight.hud.padding,
+        fillOpacity: Highlight.hud.fillOpacity,
         duration,
       }),
     ];
@@ -418,11 +419,12 @@ export class InkFormula extends Node {
       const tag = (
         <Txt
           text={label}
-          fontFamily={"SF Pro Text, Segoe UI, Microsoft YaHei, sans-serif"}
-          fontSize={Math.round(this.fontSize * 0.9)}
+          fontFamily={Ink.font}
+          fontSize={Math.round(this.fontSize * 0.85)}
           fill={color}
+          letterSpacing={3}
           x={local.center.x}
-          y={local.top - Math.max(18, this.fontSize * 0.55)}
+          y={local.top - Math.max(20, this.fontSize * 0.6)}
           opacity={0}
           zIndex={40}
         />
@@ -466,15 +468,59 @@ export class InkFormula extends Node {
     }
   }
 
-  /** 以仿宋纯文本书写（如「伙伴系统」） */
+  /**
+   * 纯中文点题（如「基数」「伙伴系统」）：
+   * 文字显现后用科技感 HUD 锁定，不再走水墨底线。
+   */
   public *writePlain(text: string, duration = 0.55): ThreadGenerator {
     this.mode = "plain";
     this.hideInactive();
     this.plain().text(text);
     this.plain().fill(this.fillColor);
     this.plain().opacity(0);
+    this.underline().opacity(0);
     yield* inkReveal(this.plain(), { duration });
-    yield* this.writeUnderline(duration * 0.7);
+    yield* this.annotation().focusBox(this.plain(), {
+      style: "hud",
+      color: Highlight.hud.color,
+      lineWidth: Highlight.hud.lineWidth,
+      padding: Math.max(Highlight.hud.padding, Math.round(this.fontSize * 0.28)),
+      fillOpacity: Highlight.hud.fillOpacity,
+      duration: Math.max(0.45, duration * 0.85),
+      phase: "enter",
+    });
+  }
+
+  /** 对当前可见文案套一层 HUD 锁定（可停留） */
+  public *highlightSelf(
+    options: {
+      duration?: number;
+      color?: string;
+      phase?: "enter" | "move" | "leave";
+    } = {},
+  ): ThreadGenerator {
+    const {
+      duration = Highlight.hud.duration as number,
+      color = Highlight.hud.color,
+      phase = "enter",
+    } = options;
+    if (phase === "leave") {
+      yield* this.annotation().focusBox([], {
+        style: "hud",
+        phase: "leave",
+        duration,
+      });
+      return;
+    }
+    yield* this.annotation().focusBox(this.activeText(), {
+      style: "hud",
+      color,
+      lineWidth: Highlight.hud.lineWidth,
+      padding: Math.max(Highlight.hud.padding, Math.round(this.fontSize * 0.22)),
+      fillOpacity: Highlight.hud.fillOpacity,
+      duration,
+      phase,
+    });
   }
 
   /**
@@ -621,12 +667,12 @@ export class InkFormula extends Node {
   }
 
   /**
-   * 方框圈选浮点字面量片段：sign / int / frac。
-   * 色相与 Float 的 S/E/M 呼应（朱砂 / 淡金 / 淡赭）。
+   * HUD 锁定浮点字面量片段：sign / int / frac。
+   * 色相与 Float 的 S/E/M 呼应（警示红 / 青 / 金）。
    */
   public *highlightFloatPart(
     part: FloatLitPart,
-    duration = 0.8,
+    duration: number = Highlight.hud.duration,
   ): ThreadGenerator {
     if (this.mode !== "floatLit") return;
     const node =
@@ -637,16 +683,16 @@ export class InkFormula extends Node {
           : this.floatLitFrac();
     const color =
       part === "sign"
-        ? Ink.seal
+        ? Ink.warn
         : part === "int"
-          ? Ink.goldSoft
-          : Ink.warn;
+          ? Ink.teal
+          : Ink.goldSoft;
     yield* this.annotation().focusBox(node, {
-      style: "box",
+      style: "hud",
       color,
-      lineWidth: 2.5,
-      padding: 6,
-      radius: 0,
+      lineWidth: Highlight.hud.lineWidth,
+      padding: Highlight.hud.padding,
+      fillOpacity: Highlight.hud.fillOpacity,
       duration,
     });
   }
@@ -720,15 +766,20 @@ export class InkFormula extends Node {
       this.plain().fill(this.fillColor);
       this.plain().opacity(0);
       yield* inkReveal(this.plain(), { duration: duration * 0.55 });
-    } else {
-      this.mode = "latex";
-      this.hideInactive();
-      this.clearLatexExt();
-      this.latex().tex(`{${content}}`);
-      this.latex().fill(this.fillColor);
-      this.latexRow().opacity(0);
-      yield* inkReveal(this.latexRow(), { duration: duration * 0.55 });
+      yield* this.highlightSelf({
+        duration: Math.max(0.4, duration * 0.5),
+        phase: "enter",
+      });
+      return;
     }
+
+    this.mode = "latex";
+    this.hideInactive();
+    this.clearLatexExt();
+    this.latex().tex(`{${content}}`);
+    this.latex().fill(this.fillColor);
+    this.latexRow().opacity(0);
+    yield* inkReveal(this.latexRow(), { duration: duration * 0.55 });
 
     if (!this.underlineEnabled) {
       return;
@@ -755,8 +806,13 @@ export class InkFormula extends Node {
     }
   }
 
-  /** 隐去：当前文案与下划线一并墨色淡出 */
+  /** 隐去：HUD / 下划线与当前文案一并淡出 */
   public *hide(duration = 0.35): ThreadGenerator {
+    yield* this.annotation().focusBox([], {
+      style: "hud",
+      phase: "leave",
+      duration: duration * 0.45,
+    });
     yield* inkFade([this.activeText(), this.underline()], { duration });
   }
 

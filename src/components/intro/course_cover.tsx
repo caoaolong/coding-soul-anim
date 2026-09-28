@@ -1,220 +1,295 @@
-import { Circle, Img, Layout, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
+import {
+  Circle,
+  Layout,
+  Line,
+  Node,
+  NodeProps,
+  Rect,
+  Txt,
+} from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
   createRef,
+  createRefArray,
   delay,
   easeInOutCubic,
+  easeInOutSine,
   easeOutCubic,
   waitFor,
 } from "@motion-canvas/core";
-import taijiBg from "../../assets/bg.png";
 import { Ink } from "../../theme/ink";
-import { brushWidth, inkReveal } from "../../theme/ink_anim";
+import { brushWidth } from "../../theme/ink_anim";
 
 export interface CourseCoverProps extends NodeProps {
   /** 本集标题（每集必改，视觉焦点） */
   episodeTitle: string;
   /** 系列名，默认 重铸编程之魂 */
   series?: string;
-  /** 背景图高度（通常传 view.height()） */
+  /** 背景高度（保留接口兼容） */
   bgHeight: number;
-  /** 背景显影后的目标透明度，默认 0.78 */
+  /** @deprecated 忽略 */
   bgOpacity?: number;
-  /** 底部文字区暗纱透明度，默认 0.55 */
+  /** @deprecated 忽略 */
   veilOpacity?: number;
 }
 
+/** 遮罩顶边与高度 */
+const REVEAL_TOP = -110;
+const REVEAL_HEIGHT = 220;
+
 /**
- * 每集封面片头：云开见字
- * 水墨太极背景缓缓显影 → 系列名 → 本集标题强调动效（约 5 秒）
+ * 科技风封面：网格始终可见；
+ * 文字固定，用 cache + destination-in 遮罩自上而下揭开。
  */
 export class CourseCover extends Node {
-  private readonly bg = createRef<Img>();
-  private readonly veil = createRef<Rect>();
-  private readonly breath = createRef<Circle>();
+  private readonly gridRoot = createRef<Node>();
+  private readonly rings = createRefArray<Circle>();
+  private readonly scan = createRef<Rect>();
+  private readonly hud = createRef<Node>();
+  private readonly revealRoot = createRef<Node>();
+  private readonly revealMask = createRef<Rect>();
+  private readonly titleBlock = createRef<Layout>();
   private readonly seriesTxt = createRef<Txt>();
   private readonly episodeTxt = createRef<Txt>();
-  private readonly episodeMark = createRef<Rect>();
   private readonly underline = createRef<Rect>();
-  private readonly episodeBlock = createRef<Layout>();
-
-  private readonly targetBgOpacity: number;
-  private readonly targetVeilOpacity: number;
+  private readonly accentBar = createRef<Rect>();
 
   public constructor(props: CourseCoverProps) {
     const {
       episodeTitle,
       series = "重铸编程之魂",
-      bgHeight,
-      bgOpacity = 0.78,
-      veilOpacity = 0.55,
+      bgHeight: _bgHeight,
+      bgOpacity: _bgOpacity,
+      veilOpacity: _veilOpacity,
       ...nodeProps
     } = props;
 
     super(nodeProps);
 
-    this.targetBgOpacity = bgOpacity;
-    this.targetVeilOpacity = veilOpacity;
+    // —— 淡网格底纹 ——
+    const gStep = 80;
+    const gHalfW = 960;
+    const gHalfH = 540;
+    this.add(<Node ref={this.gridRoot} opacity={0} />);
+    for (let x = -gHalfW; x <= gHalfW; x += gStep) {
+      this.gridRoot().add(
+        <Line
+          points={[
+            [x, -gHalfH],
+            [x, gHalfH],
+          ]}
+          stroke={Ink.blueDeep}
+          lineWidth={1}
+          opacity={0.35}
+        />,
+      );
+    }
+    for (let y = -gHalfH; y <= gHalfH; y += gStep) {
+      this.gridRoot().add(
+        <Line
+          points={[
+            [-gHalfW, y],
+            [gHalfW, y],
+          ]}
+          stroke={Ink.blueDeep}
+          lineWidth={1}
+          opacity={0.35}
+        />,
+      );
+    }
 
-    // 全幅水墨太极：初始隐藏，由 play 显影
+    // —— 三层脉冲环 ——
+    for (let i = 0; i < 3; i++) {
+      this.add(
+        <Circle
+          ref={this.rings}
+          size={120 + i * 90}
+          stroke={i === 1 ? Ink.gold : Ink.blue}
+          lineWidth={2}
+          opacity={0}
+        />,
+      );
+    }
+
+    // —— HUD 四角 ——
+    this.add(<Node ref={this.hud} opacity={0} />);
+    const arm = 48;
+    const inset = 120;
+    const corners: Array<[number, number, number, number]> = [
+      [-960 + inset, -540 + inset, 1, 1],
+      [960 - inset, -540 + inset, -1, 1],
+      [-960 + inset, 540 - inset, 1, -1],
+      [960 - inset, 540 - inset, -1, -1],
+    ];
+    for (const [cx, cy, sx, sy] of corners) {
+      this.hud().add(
+        <Line
+          points={[
+            [cx, cy + sy * arm],
+            [cx, cy],
+            [cx + sx * arm, cy],
+          ]}
+          stroke={Ink.teal}
+          lineWidth={2.5}
+          lineCap={"square"}
+        />,
+      );
+    }
+
+    // —— 文字固定 + destination-in 遮罩揭开（不改文字坐标） ——
     this.add(
-      <Img
-        ref={this.bg}
-        src={taijiBg}
-        height={bgHeight}
-        opacity={0}
-        scale={1.04}
-      />,
+      <Node ref={this.revealRoot} cache>
+        <Layout
+          ref={this.titleBlock}
+          layout
+          direction={"column"}
+          gap={22}
+          alignItems={"center"}
+          y={10}
+        >
+          <Txt
+            ref={this.seriesTxt}
+            text={series}
+            fontFamily={Ink.font}
+            fontSize={34}
+            fill={Ink.teal}
+            letterSpacing={6}
+          />
+          <Layout layout direction={"row"} gap={18} alignItems={"center"}>
+            <Rect
+              ref={this.accentBar}
+              width={5}
+              height={72}
+              fill={Ink.gold}
+              radius={1}
+            />
+            <Txt
+              ref={this.episodeTxt}
+              text={episodeTitle}
+              fontFamily={Ink.font}
+              fontSize={78}
+              fontWeight={700}
+              fill={Ink.paper}
+            />
+          </Layout>
+        </Layout>
+        {/* 白矩形作遮罩：增高 = 从上往下露出已绘制的文字 */}
+        <Rect
+          ref={this.revealMask}
+          width={1800}
+          height={0}
+          fill={"#ffffff"}
+          x={0}
+          y={REVEAL_TOP}
+          offset={[0, -1]}
+          compositeOperation={"destination-in"}
+        />
+      </Node>,
     );
 
-    // 太极处极淡金息：点题「道」，不抢画面
-    this.add(
-      <Circle
-        ref={this.breath}
-        size={420}
-        y={-160}
-        stroke={Ink.gold}
-        lineWidth={1.5}
-        opacity={0}
-        shadowColor={Ink.gold}
-        shadowBlur={36}
-      />,
-    );
-
-    // 底部暗纱：加高加深，托住系列名与本集标题
+    // 底线在遮罩外，扫完再写
     this.add(
       <Rect
-        ref={this.veil}
-        width={1920}
-        height={560}
-        y={300}
-        fill={Ink.veil}
-        opacity={0}
+        ref={this.underline}
+        y={REVEAL_TOP + REVEAL_HEIGHT + 8}
+        width={0}
+        height={3}
+        fill={Ink.blue}
+        radius={1}
+        shadowColor={Ink.blue}
+        shadowBlur={12}
       />,
     );
 
-    // 下半构图：系列为眉题，本集标题为封面主视觉
-    const seriesY = 100;
-    const episodeY = 250;
-
+    // —— 扫描线 ——
     this.add(
-      <Txt
-        ref={this.seriesTxt}
-        text={series}
-        fontFamily={
-          '"Zhi Mang Xing", KaiTi, STKaiti, SF Pro Text, Microsoft YaHei, serif'
-        }
-        fontSize={48}
-        fill={Ink.paper}
-        y={seriesY}
+      <Rect
+        ref={this.scan}
+        width={1600}
+        height={3}
+        fill={Ink.blue}
         opacity={0}
-        shadowColor={"#000000"}
-        shadowBlur={16}
-        shadowOffsetY={2}
+        y={REVEAL_TOP}
+        shadowColor={Ink.blue}
+        shadowBlur={18}
       />,
-    );
-
-    // 本集标题：大字号主视觉 + 左侧金标 + 底线
-    this.add(
-      <Layout
-        ref={this.episodeBlock}
-        layout
-        direction={"column"}
-        gap={22}
-        alignItems={"center"}
-        y={episodeY}
-        opacity={0}
-        scale={0.92}
-      >
-        <Layout layout direction={"row"} gap={22} alignItems={"center"}>
-          <Rect
-            ref={this.episodeMark}
-            width={6}
-            height={88}
-            fill={Ink.gold}
-            radius={2}
-            opacity={0}
-          />
-          <Txt
-            ref={this.episodeTxt}
-            text={episodeTitle}
-            fontFamily={'"SimFang", FangSong, STFangsong, serif'}
-            fontSize={88}
-            fontWeight={400}
-            fill={Ink.paper}
-            shadowColor={"#000000"}
-            shadowBlur={22}
-            shadowOffsetY={4}
-          />
-        </Layout>
-        <Rect
-          ref={this.underline}
-          width={0}
-          height={3}
-          fill={Ink.gold}
-          radius={1}
-          shadowColor={Ink.gold}
-          shadowBlur={16}
-        />
-      </Layout>,
     );
   }
 
-  /** 播放封面入场（约 5 秒），结束后定格 */
+  /** 播放封面入场 */
   public *play(): ThreadGenerator {
-    const episodeY = this.episodeBlock().y();
+    yield* this.gridRoot().opacity(1, 0.45, easeOutCubic);
+    yield* this.hud().opacity(1, 0.35, easeOutCubic);
 
-    // —— 云开（背景显影 + 微缩放回落）——
     yield* all(
-      this.bg().opacity(this.targetBgOpacity, 1.35, easeOutCubic),
-      this.bg().scale(1, 1.45, easeOutCubic),
-      this.veil().opacity(this.targetVeilOpacity, 1.2, easeOutCubic),
+      ...this.rings.map((ring, i) => {
+        const target = 520 + i * 140;
+        return delay(
+          i * 0.12,
+          all(
+            ring.opacity(0.55, 0.18, easeOutCubic),
+            ring.size(target, 0.7, easeOutCubic),
+            delay(0.22, ring.opacity(0, 0.5, easeInOutCubic)),
+          ),
+        );
+      }),
     );
 
-    // —— 系列名墨晕轻入（配角）——
+    // 扫描线与遮罩高度同步；文字 y 始终不变
+    const scanDur = 1.05;
+    this.scan().opacity(0.95);
+    this.scan().y(REVEAL_TOP);
+    this.revealMask().height(0);
+
     yield* all(
-      this.breath().opacity(0.22, 0.4, easeOutCubic),
-      this.breath().size(460, 1.0, easeInOutCubic),
-      inkReveal(this.seriesTxt(), { fromY: 12, duration: 0.55 }),
+      this.scan().y(REVEAL_TOP + REVEAL_HEIGHT, scanDur, easeInOutSine),
+      this.revealMask().height(REVEAL_HEIGHT, scanDur, easeInOutSine),
+    );
+    yield* this.scan().opacity(0, 0.25, easeOutCubic);
+
+    const titleW = Math.max(320, this.episodeTxt().width() + 40);
+    yield* brushWidth(this.underline(), titleW, { duration: 0.42 });
+
+    this.rings[1].size(180);
+    yield* all(
+      this.episodeTxt()
+        .fill(Ink.gold, 0.14, easeOutCubic)
+        .to(Ink.paper, 0.36, easeInOutCubic),
+      this.episodeTxt()
+        .scale(1.08, 0.14, easeOutCubic)
+        .to(1, 0.36, easeInOutCubic),
+      this.underline()
+        .shadowBlur(32, 0.14, easeOutCubic)
+        .to(12, 0.36, easeInOutCubic),
+      this.accentBar().fill(Ink.goldBright, 0.14).to(Ink.gold, 0.36),
+      all(
+        this.rings[1].opacity(0.45, 0.1, easeOutCubic).to(
+          0,
+          0.42,
+          easeInOutCubic,
+        ),
+        this.rings[1].size(680, 0.52, easeOutCubic),
+      ),
     );
 
-    // —— 本集标题强调：轻提 + 金标/底线运笔 + 墨金脉冲 ——
-    this.episodeBlock().y(episodeY - 14);
     yield* all(
-      this.breath().opacity(0.06, 0.6, easeInOutCubic),
-      this.episodeBlock().opacity(1, 0.4, easeOutCubic),
-      this.episodeBlock().y(episodeY, 0.55, easeOutCubic),
-      this.episodeBlock().scale(1.03, 0.45, easeOutCubic),
-      this.episodeMark().opacity(1, 0.35, easeOutCubic),
+      this.gridRoot().opacity(0.4, 0.4, easeInOutCubic),
+      this.hud().opacity(0.5, 0.4, easeInOutCubic),
     );
 
-    const titleWidth = Math.max(420, this.episodeTxt().width() + 56);
-    yield* all(
-      this.episodeBlock().scale(1, 0.35, easeInOutCubic),
-      brushWidth(this.underline(), titleWidth),
-      this.episodeTxt().fill(Ink.goldSoft, 0.28, easeOutCubic),
-      delay(0.28, this.episodeTxt().fill(Ink.paper, 0.45, easeInOutCubic)),
-      this.breath().opacity(0, 0.5, easeOutCubic),
-    );
-
-    // 短促金息余韵
-    yield* all(
-      this.underline().shadowBlur(22, 0.2, easeOutCubic).to(12, 0.35),
-      this.episodeMark().fill(Ink.goldSoft, 0.2).to(Ink.gold, 0.35),
-    );
-
-    yield* waitFor(0.5);
+    yield* waitFor(1);
   }
 
-  /** 淡出整幅封面（接下文内容时用） */
+  /** 淡出整幅封面 */
   public *hide(duration = 0.55): ThreadGenerator {
     yield* all(
-      this.bg().opacity(0, duration, easeOutCubic),
-      this.veil().opacity(0, duration, easeOutCubic),
-      this.seriesTxt().opacity(0, duration * 0.85, easeOutCubic),
-      this.episodeBlock().opacity(0, duration * 0.85, easeOutCubic),
-      this.breath().opacity(0, duration * 0.5, easeOutCubic),
+      this.gridRoot().opacity(0, duration, easeOutCubic),
+      this.hud().opacity(0, duration, easeOutCubic),
+      this.revealRoot().opacity(0, duration * 0.85, easeOutCubic),
+      this.underline().opacity(0, duration * 0.85, easeOutCubic),
+      this.scan().opacity(0, duration * 0.5, easeOutCubic),
+      ...this.rings.map((r) => r.opacity(0, duration * 0.5, easeOutCubic)),
     );
   }
 }

@@ -1,4 +1,4 @@
-import { Img, Layout, Line, Node, NodeProps, Txt } from "@motion-canvas/2d";
+﻿import { Circle, Layout, Line, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
@@ -10,114 +10,240 @@ import {
 import { Ink } from "../../theme/ink";
 import { inkReveal } from "../../theme/ink_anim";
 
-import capacitorEmptyImg from "../../assets/binary/电容器没电.svg";
-import capacitorChargedImg from "../../assets/binary/电容器有电.svg";
-import transistorOffImg from "../../assets/binary/晶体管关.svg";
-import transistorOnImg from "../../assets/binary/晶体管开.svg";
-
-const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
+const LABEL_FONT = Ink.font;
 
 export interface BitCellProps extends NodeProps {
-  /** 图标边长，默认 96 */
+  /**
+   * 电路整体尺度，默认 150。
+   * 影响 MOSFET / 电容尺寸与连线长度。
+   */
   iconSize?: number;
-  /** 两图标中心距（半距），默认 iconSize * 1.15 */
+  /** 位线方向拉伸（电容–MOS 纵向间距），默认 iconSize * 1.05 */
   pairGap?: number;
-  /** 位数字号，默认 44 */
+  /** 位数字号，默认 52 */
   bitFontSize?: number;
-  /** 是否显示「电容」「晶体管」旁注，默认 true */
+  /** 是否显示「电容」「晶体管」及 WL/BL 标注，默认 true */
   showParts?: boolean;
 }
 
 /**
- * 教学向 1-bit 存储单元：电容蓄电 + 晶体管开关（各两态矢量图 + 连线）。
- * 不追求真实 DRAM 拓扑，只表达「有电＝1 / 无电＝0」。
+ * 教学向 1-bit DRAM 存储单元（示意逻辑电路）：
+ * 一个 MOSFET（晶体管开关）+ 一个电容（蓄电）。
+ * 写 1：栅极导通 → 位线向电容充电；写 0：导通泄放 → 关断。
  */
 export class BitCell extends Node {
   private readonly frame = createRef<Layout>();
-  private readonly capacitorEmpty = createRef<Img>();
-  private readonly capacitorCharged = createRef<Img>();
-  private readonly transistorOff = createRef<Img>();
-  private readonly transistorOn = createRef<Img>();
-  private readonly wire = createRef<Line>();
+  private readonly bitLine = createRef<Line>();
+  private readonly wordLine = createRef<Line>();
+  private readonly drainWire = createRef<Line>();
+  private readonly storageWire = createRef<Line>();
+  /** MOSFET：三道栅极竖线 */
+  private readonly gateBar = createRef<Line>();
+  private readonly channelBar = createRef<Line>();
+  private readonly sourceArm = createRef<Line>();
+  private readonly drainArm = createRef<Line>();
+  private readonly gateDot = createRef<Circle>();
+  /** 电容两极板 + 充电辉光 */
+  private readonly capTop = createRef<Line>();
+  private readonly capBot = createRef<Line>();
+  private readonly capGlow = createRef<Rect>();
   private readonly bitTxt = createRef<Txt>();
+  private readonly gateFill = createRef<Rect>();
 
   private bit: 0 | 1 = 0;
+  private readonly idleStroke = Ink.line;
+  private readonly activeStroke = Ink.goldSoft;
 
   public constructor(props: BitCellProps = {}) {
     const {
-      iconSize = 96,
+      iconSize = 150,
       pairGap,
-      bitFontSize = 44,
+      bitFontSize = 52,
       showParts = true,
       ...nodeProps
     } = props;
 
     super({ opacity: 0, ...nodeProps });
 
-    const gap = pairGap ?? iconSize * 1.15;
+    const s = iconSize;
+    const gap = pairGap ?? s * 1.05;
+
+    // —— 坐标：电容在上、MOS 在下，中间竖位线 ——
     const capY = -gap;
-    const trY = gap;
-    // 连线：电容底边附近 → 晶体管顶边附近
-    const wireTop = capY + iconSize * 0.42;
-    const wireBottom = trY - iconSize * 0.42;
+    const mosY = gap * 0.35;
+    const blX = 0;
+    const wlY = mosY;
+    const wlLeft = -s * 1.15;
+    const wlRight = -s * 0.22;
+
+    // MOSFET 符号（简化：栅极竖条 + 沟道 + 源/漏臂）
+    const gateX = -s * 0.18;
+    const chX = s * 0.02;
+    const mosTop = mosY - s * 0.28;
+    const mosBot = mosY + s * 0.28;
+    const mosMid = mosY;
+
+    // 电容平行板
+    const capW = s * 0.42;
+    const capGap = s * 0.14;
 
     this.add(
       <Layout ref={this.frame} layout={false}>
-        {/* 电容：没电 / 有电 */}
-        <Img
-          ref={this.capacitorEmpty}
-          src={capacitorEmptyImg}
-          width={iconSize}
-          height={iconSize}
-          y={capY}
-          opacity={1}
-        />
-        <Img
-          ref={this.capacitorCharged}
-          src={capacitorChargedImg}
-          width={iconSize}
-          height={iconSize}
-          y={capY}
-          opacity={0}
-        />
-
-        {/* 电容 ↔ 晶体管 连线 */}
+        {/* Word Line（栅极控制线） */}
         <Line
-          ref={this.wire}
+          ref={this.wordLine}
           points={[
-            [0, wireTop],
-            [0, wireBottom],
+            [wlLeft, wlY],
+            [wlRight, wlY],
           ]}
-          stroke={Ink.line}
-          lineWidth={Ink.lineWidth + 1}
-          lineCap={"round"}
+          stroke={this.idleStroke}
+          lineWidth={2.5}
+          lineCap={"square"}
+        />
+        <Circle
+          ref={this.gateDot}
+          size={8}
+          fill={this.idleStroke}
+          x={wlRight}
+          y={wlY}
         />
 
-        {/* 晶体管：关 / 开 */}
-        <Img
-          ref={this.transistorOff}
-          src={transistorOffImg}
-          width={iconSize}
-          height={iconSize}
-          y={trY}
-          opacity={1}
+        {/* 栅极竖条（绝缘栅示意） */}
+        <Line
+          ref={this.gateBar}
+          points={[
+            [gateX, mosTop],
+            [gateX, mosBot],
+          ]}
+          stroke={this.idleStroke}
+          lineWidth={3}
+          lineCap={"square"}
         />
-        <Img
-          ref={this.transistorOn}
-          src={transistorOnImg}
-          width={iconSize}
-          height={iconSize}
-          y={trY}
+        {/* 导通时栅极区域淡金填充 */}
+        <Rect
+          ref={this.gateFill}
+          x={(gateX + chX) / 2}
+          y={mosMid}
+          width={Math.abs(chX - gateX) + 6}
+          height={mosBot - mosTop}
+          fill={Ink.gold}
           opacity={0}
+          radius={2}
+        />
+        {/* 沟道 */}
+        <Line
+          ref={this.channelBar}
+          points={[
+            [chX, mosTop],
+            [chX, mosBot],
+          ]}
+          stroke={this.idleStroke}
+          lineWidth={2.5}
+          lineCap={"square"}
+        />
+        {/* 漏极臂 → 接电容 */}
+        <Line
+          ref={this.drainArm}
+          points={[
+            [chX, mosTop],
+            [blX, mosTop],
+            [blX, mosTop - s * 0.08],
+          ]}
+          stroke={this.idleStroke}
+          lineWidth={2.5}
+          lineCap={"square"}
+          lineJoin={"miter"}
+        />
+        {/* 源极臂 → 接位线下方 */}
+        <Line
+          ref={this.sourceArm}
+          points={[
+            [chX, mosBot],
+            [blX, mosBot],
+            [blX, mosBot + s * 0.35],
+          ]}
+          stroke={this.idleStroke}
+          lineWidth={2.5}
+          lineCap={"square"}
+          lineJoin={"miter"}
         />
 
+        {/* Bit Line：穿过 MOS 接到电容 */}
+        <Line
+          ref={this.bitLine}
+          points={[
+            [blX, mosBot + s * 0.35],
+            [blX, mosTop - s * 0.08],
+          ]}
+          stroke={this.idleStroke}
+          lineWidth={2}
+          lineCap={"square"}
+          opacity={0.35}
+        />
+        <Line
+          ref={this.drainWire}
+          points={[
+            [blX, mosTop - s * 0.08],
+            [blX, capY + capGap * 0.5 + 2],
+          ]}
+          stroke={this.idleStroke}
+          lineWidth={2.5}
+          lineCap={"square"}
+        />
+        <Line
+          ref={this.storageWire}
+          points={[
+            [blX, capY - capGap * 0.5 - 2],
+            [blX, capY - s * 0.55],
+          ]}
+          stroke={this.idleStroke}
+          lineWidth={2}
+          lineCap={"square"}
+          opacity={0.5}
+        />
+
+        {/* 电容：两极板 + 充电辉光 */}
+        <Rect
+          ref={this.capGlow}
+          x={blX}
+          y={capY}
+          width={capW * 1.35}
+          height={capGap * 2.2}
+          fill={Ink.gold}
+          opacity={0}
+          radius={3}
+          shadowColor={Ink.gold}
+          shadowBlur={18}
+        />
+        <Line
+          ref={this.capTop}
+          points={[
+            [-capW / 2, capY - capGap / 2],
+            [capW / 2, capY - capGap / 2],
+          ]}
+          stroke={this.idleStroke}
+          lineWidth={4}
+          lineCap={"square"}
+        />
+        <Line
+          ref={this.capBot}
+          points={[
+            [-capW / 2, capY + capGap / 2],
+            [capW / 2, capY + capGap / 2],
+          ]}
+          stroke={this.idleStroke}
+          lineWidth={4}
+          lineCap={"square"}
+        />
+
+        {/* 位值 */}
         <Txt
           ref={this.bitTxt}
           text={"0"}
           fontFamily={LABEL_FONT}
           fontSize={bitFontSize}
           fill={Ink.muted}
-          x={iconSize * 0.95}
+          x={s * 0.95}
           y={capY}
         />
 
@@ -126,18 +252,34 @@ export class BitCell extends Node {
             <Txt
               text={"电容"}
               fontFamily={LABEL_FONT}
-              fontSize={22}
+              fontSize={24}
               fill={Ink.paperSoft}
-              x={-iconSize * 1.05}
+              x={-s * 0.95}
               y={capY}
             />
             <Txt
               text={"晶体管"}
               fontFamily={LABEL_FONT}
-              fontSize={22}
+              fontSize={24}
               fill={Ink.paperSoft}
-              x={-iconSize * 1.05}
-              y={trY}
+              x={-s * 1.05}
+              y={mosY + s * 0.55}
+            />
+            <Txt
+              text={"WL"}
+              fontFamily={LABEL_FONT}
+              fontSize={22}
+              fill={Ink.teal}
+              x={wlLeft + 22}
+              y={wlY - 22}
+            />
+            <Txt
+              text={"BL"}
+              fontFamily={LABEL_FONT}
+              fontSize={22}
+              fill={Ink.teal}
+              x={blX + 26}
+              y={mosBot + s * 0.35}
             />
           </>
         ) : null}
@@ -149,7 +291,52 @@ export class BitCell extends Node {
     return this.bit;
   }
 
-  /** 墨晕入场 */
+  private *setGateOn(duration: number): ThreadGenerator {
+    yield* all(
+      this.wordLine().stroke(this.activeStroke, duration, easeInOutCubic),
+      this.gateBar().stroke(this.activeStroke, duration, easeInOutCubic),
+      this.gateDot().fill(this.activeStroke, duration, easeInOutCubic),
+      this.gateFill().opacity(0.22, duration, easeOutCubic),
+      this.channelBar().stroke(this.activeStroke, duration, easeInOutCubic),
+      this.drainArm().stroke(this.activeStroke, duration, easeInOutCubic),
+      this.sourceArm().stroke(this.activeStroke, duration, easeInOutCubic),
+      this.drainWire().stroke(this.activeStroke, duration, easeInOutCubic),
+    );
+  }
+
+  private *setGateOff(duration: number): ThreadGenerator {
+    yield* all(
+      this.wordLine().stroke(this.idleStroke, duration, easeInOutCubic),
+      this.gateBar().stroke(this.idleStroke, duration, easeInOutCubic),
+      this.gateDot().fill(this.idleStroke, duration, easeInOutCubic),
+      this.gateFill().opacity(0, duration, easeInOutCubic),
+      this.channelBar().stroke(this.idleStroke, duration, easeInOutCubic),
+      this.drainArm().stroke(this.idleStroke, duration, easeInOutCubic),
+      this.sourceArm().stroke(this.idleStroke, duration, easeInOutCubic),
+      this.drainWire().stroke(
+        this.bit === 1 ? this.activeStroke : this.idleStroke,
+        duration,
+        easeInOutCubic,
+      ),
+    );
+  }
+
+  private *setCapCharged(on: boolean, duration: number): ThreadGenerator {
+    const stroke = on ? this.activeStroke : this.idleStroke;
+    yield* all(
+      this.capTop().stroke(stroke, duration, easeOutCubic),
+      this.capBot().stroke(stroke, duration, easeOutCubic),
+      this.capGlow().opacity(on ? 0.35 : 0, duration, easeOutCubic),
+      this.storageWire().stroke(
+        on ? this.activeStroke : this.idleStroke,
+        duration,
+        easeOutCubic,
+      ),
+      this.drainWire().stroke(stroke, duration, easeOutCubic),
+    );
+  }
+
+  /** 入场 */
   public *show(duration = 0.55): ThreadGenerator {
     yield* inkReveal(this, { duration, fromY: 14 });
   }
@@ -160,60 +347,58 @@ export class BitCell extends Node {
   }
 
   /**
-   * 写 1：晶体管导通 → 电容充入（切到有电图）→ 标「1」
+   * 写 1：字线拉高 → MOSFET 导通 → 电容充电 → 标「1」→ 可选关断保持
    */
   public *writeOne(duration = 0.7): ThreadGenerator {
-    const close = duration * 0.35;
-    const charge = duration * 0.65;
-    yield* all(
-      this.transistorOff().opacity(0, close, easeInOutCubic),
-      this.transistorOn().opacity(1, close, easeInOutCubic),
-      this.wire().stroke(Ink.goldSoft, close, easeInOutCubic),
-    );
+    const open = duration * 0.3;
+    const charge = duration * 0.45;
+    const hold = duration * 0.25;
+    yield* this.setGateOn(open);
     this.bitTxt().text("1");
     yield* all(
-      this.capacitorEmpty().opacity(0, charge, easeOutCubic),
-      this.capacitorCharged().opacity(1, charge, easeOutCubic),
+      this.setCapCharged(true, charge),
       this.bitTxt().fill(Ink.goldBright, charge, easeOutCubic),
     );
     this.bit = 1;
+    // 关断晶体管，电荷留在电容上
+    yield* this.setGateOff(hold);
   }
 
   /**
-   * 写 0：晶体管导通放电 → 电容切到没电 → 晶体管关断 → 标「0」
+   * 写 0：导通 → 电容放电 → 关断 → 标「0」
    */
   public *writeZero(duration = 0.75): ThreadGenerator {
-    const close = duration * 0.25;
-    const drain = duration * 0.5;
     const open = duration * 0.25;
-    yield* all(
-      this.transistorOff().opacity(0, close, easeInOutCubic),
-      this.transistorOn().opacity(1, close, easeInOutCubic),
-      this.wire().stroke(Ink.goldSoft, close, easeInOutCubic),
-    );
+    const drain = duration * 0.45;
+    const close = duration * 0.3;
+    yield* this.setGateOn(open);
     this.bitTxt().text("0");
     yield* all(
-      this.capacitorCharged().opacity(0, drain, easeInOutCubic),
-      this.capacitorEmpty().opacity(1, drain, easeInOutCubic),
+      this.setCapCharged(false, drain),
       this.bitTxt().fill(Ink.muted, drain, easeInOutCubic),
     );
-    yield* all(
-      this.transistorOn().opacity(0, open, easeInOutCubic),
-      this.transistorOff().opacity(1, open, easeInOutCubic),
-      this.wire().stroke(Ink.line, open, easeInOutCubic),
-    );
     this.bit = 0;
+    yield* this.setGateOff(close);
   }
 
   /** 瞬间置于指定位（无动画，供阵列复制用） */
   public setBitInstant(value: 0 | 1) {
     this.bit = value;
     const on = value === 1;
-    this.capacitorCharged().opacity(on ? 1 : 0);
-    this.capacitorEmpty().opacity(on ? 0 : 1);
-    this.transistorOn().opacity(on ? 1 : 0);
-    this.transistorOff().opacity(on ? 0 : 1);
-    this.wire().stroke(on ? Ink.goldSoft : Ink.line);
+    const stroke = on ? this.activeStroke : this.idleStroke;
+    this.capTop().stroke(stroke);
+    this.capBot().stroke(stroke);
+    this.capGlow().opacity(on ? 0.35 : 0);
+    this.storageWire().stroke(stroke);
+    this.drainWire().stroke(stroke);
+    // 阵列态默认晶体管关断，靠电容保持
+    this.wordLine().stroke(this.idleStroke);
+    this.gateBar().stroke(this.idleStroke);
+    this.gateDot().fill(this.idleStroke);
+    this.gateFill().opacity(0);
+    this.channelBar().stroke(this.idleStroke);
+    this.drainArm().stroke(this.idleStroke);
+    this.sourceArm().stroke(this.idleStroke);
     this.bitTxt().text(on ? "1" : "0");
     this.bitTxt().fill(on ? Ink.goldBright : Ink.muted);
   }
@@ -221,7 +406,6 @@ export class BitCell extends Node {
 
 /**
  * 将单格复制为横向 N 格，表达「多比特」过渡。
- * 阵列格使用更短的电容–晶体管连线（compact pairGap）。
  * @param prototype 已在场景中的样板格（会隐藏）
  */
 export function* spawnBitRow(
@@ -235,8 +419,7 @@ export function* spawnBitRow(
   const cells: BitCell[] = [];
   const totalW = (count - 1) * spacing;
   const startX = -totalW / 2;
-  /** 阵列态：图标仍 96，中心距压到约半距，连线明显缩短 */
-  const rowIconSize = 96;
+  const rowIconSize = 120;
   const rowPairGap = rowIconSize * 0.52;
 
   for (let i = 0; i < count; i++) {

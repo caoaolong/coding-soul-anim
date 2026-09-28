@@ -1,4 +1,4 @@
-import { Img, makeScene2D, View2D } from "@motion-canvas/2d";
+import { makeScene2D, View2D } from "@motion-canvas/2d";
 import { ThreadGenerator, all, createRef, waitFor } from "@motion-canvas/core";
 import { Axes2D } from "../components/axis/axes_2d";
 import { InkFormula } from "../components/formula/ink_formula";
@@ -12,14 +12,10 @@ import { PrimaryColors } from "../components/color/primary_colors";
 import { Palette } from "../components/color/palette";
 import { Ink } from "../theme/ink";
 
-import sceneBg from "../assets/bg.png";
 import appleImg from "../assets/vector/苹果.webp";
 import watchImg from "../assets/vector/手表.png";
 import brainImg from "../assets/vector/大脑.svg";
 import computerImg from "../assets/vector/计算机.svg";
-
-/** 全场景共用背景透明度：压得很淡以呈若隐若现 */
-const SCENE_BG_OPACITY = 0.08;
 
 /**
  * 万象归一：向量
@@ -39,11 +35,6 @@ type SegmentId =
 
 /** 改这一行切换要导出的素材段 */
 const ACTIVE = "color" as SegmentId;
-
-/** 片头自带不透明背景，其余段用淡墨共用底图 */
-function useSharedSceneBg(segment: SegmentId): boolean {
-  return segment !== "cover";
-}
 
 /** 片头：CourseCover */
 function* playCover(view: View2D): ThreadGenerator {
@@ -320,11 +311,6 @@ const segments: Record<SegmentId, (view: View2D) => ThreadGenerator> = {
 
 const vectorScene = makeScene2D(function* (view) {
   view.fill(Ink.bg);
-  if (useSharedSceneBg(ACTIVE)) {
-    view.add(
-      <Img src={sceneBg} height={view.height()} opacity={SCENE_BG_OPACITY} />,
-    );
-  }
   yield* segments[ACTIVE](view);
 });
 

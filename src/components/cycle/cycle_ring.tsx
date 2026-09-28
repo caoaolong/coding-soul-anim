@@ -1,4 +1,4 @@
-import { Circle, Line, Node, NodeProps, Txt } from "@motion-canvas/2d";
+﻿import { Circle, Line, Node, NodeProps, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
@@ -12,7 +12,7 @@ import {
 import { Ink } from "../../theme/ink";
 import { brushLine, inkReveal } from "../../theme/ink_anim";
 
-const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
+const LABEL_FONT = Ink.font;
 
 export interface CycleRingProps extends NodeProps {
   /** 圆心核心主题文案（仅配底部运笔线，无外框） */

@@ -1,4 +1,4 @@
-import { Line, Node, NodeProps, Txt } from "@motion-canvas/2d";
+﻿import { Line, Node, NodeProps, Txt } from "@motion-canvas/2d";
 import {
   PossibleVector2,
   ThreadGenerator,
@@ -227,7 +227,7 @@ export class FunctionPlot extends Node {
       />,
     );
 
-    const axisNameFont = '"SimFang", FangSong, STFangsong, serif';
+    const axisNameFont = Ink.font;
     if (xLabel) {
       this.add(
         <Txt

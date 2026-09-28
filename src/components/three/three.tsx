@@ -1,4 +1,4 @@
-import {
+﻿import {
   Layout,
   LayoutProps,
   computed,
@@ -151,7 +151,7 @@ export class Three extends Layout {
     const fontSize = 28;
     context.save();
     context.globalAlpha = opacity;
-    context.font = `500 ${fontSize}px "SimFang", FangSong, STFangsong, serif`;
+    context.font = `500 ${fontSize}px ${Ink.font}`;
     context.textAlign = "right";
     context.textBaseline = "top";
     context.fillStyle = Ink.goldBright;

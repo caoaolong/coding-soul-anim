@@ -15,14 +15,14 @@ import * as THREE from "three";
 import { Ink } from "../../theme/ink";
 import { Three } from "./three";
 
-/** 三轴配色：X 朱砂、Y 淡金、Z 青灰 */
+/** 三轴配色：X 红、Y 黄、Z 蓝（Manim） */
 const AXIS_COLOR = {
   x: Ink.seal,
   y: Ink.gold,
-  z: "#6B8A9A",
+  z: Ink.blue,
 } as const;
 
-const AXIS_FONT = '"SimFang", FangSong, STFangsong, serif';
+const AXIS_FONT = Ink.font;
 const VECTOR_COLOR = Ink.goldSoft;
 
 export interface Axes3DProps extends LayoutProps {
@@ -480,7 +480,7 @@ function makeTextSprite(
   const fontSize = bold ? 96 : 72;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
-  const font = `${bold ? 700 : 500} ${fontSize}px "SimFang", FangSong, STFangsong, serif`;
+  const font = `${bold ? 700 : 500} ${fontSize}px ${Ink.font}`;
   ctx.font = font;
   const metrics = ctx.measureText(text);
   canvas.width = Math.ceil(metrics.width + pad * 2);

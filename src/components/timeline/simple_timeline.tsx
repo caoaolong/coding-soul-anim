@@ -1,4 +1,4 @@
-import { Circle, Layout, Line, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
+﻿import { Circle, Layout, Line, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
@@ -10,8 +10,8 @@ import {
 import { Highlight } from "../../theme/highlight";
 import { Ink } from "../../theme/ink";
 
-const TIME_FONT = '"SimFang", FangSong, STFangsong, serif';
-const BRIEF_FONT = '"SimFang", FangSong, STFangsong, KaiTi, STKaiti, serif';
+const TIME_FONT = Ink.font;
+const BRIEF_FONT = Ink.font;
 
 export interface SimpleTimelineEvent {
   /** 时间文案，如 "1966" */

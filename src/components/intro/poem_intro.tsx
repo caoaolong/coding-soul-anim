@@ -15,7 +15,7 @@ export interface PoemIntroProps extends NodeProps {
   width: number;
   /** 画布高 */
   height: number;
-  /** 字体，默认芝麻行（需已在 global.css 注册） */
+  /** 字体，默认 Ink.font */
   fontFamily?: string;
   /** 字号，默认 56 */
   fontSize?: number;
@@ -65,7 +65,7 @@ export class PoemIntro extends Node {
       poem,
       width,
       height,
-      fontFamily = '"Zhi Mang Xing", KaiTi, STKaiti, serif',
+      fontFamily = Ink.font,
       fontSize = 56,
       fill = Ink.paper,
       background = Ink.bg,

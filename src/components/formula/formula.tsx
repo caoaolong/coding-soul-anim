@@ -7,7 +7,9 @@ import {
   easeInOutCubic,
   easeOutCubic,
 } from "@motion-canvas/core";
+import { Highlight } from "../../theme/highlight";
 import { Ink } from "../../theme/ink";
+import { Annotation } from "../annotation/annotation";
 
 export type FormulaMode = "stack" | "morph";
 
@@ -90,6 +92,7 @@ export class Formula extends Node {
   private readonly stepCount: number;
   private readonly rows = createRefArray<Node>();
   private readonly morphLatex = createRef<Latex>();
+  private readonly annotation = createRef<Annotation>();
   /** 已显示到的步骤下标；-1 表示尚未显示任何内容 */
   private cursor = -1;
 
@@ -116,6 +119,8 @@ export class Formula extends Node {
     this.mode = mode;
     this.stepsData = steps;
     this.stepCount = steps.length;
+
+    this.add(<Annotation ref={this.annotation} zIndex={30} />);
 
     if (mode === "morph") {
       this.add(
@@ -241,6 +246,7 @@ export class Formula extends Node {
 
   /** 淡出并重置 */
   public *hideAll(duration = 0.3): ThreadGenerator {
+    yield* this.clearHighlight(Math.min(0.25, duration));
     if (this.mode === "morph") {
       if (this.cursor < 0) {
         return;
@@ -261,6 +267,60 @@ export class Formula extends Node {
       ),
     );
     this.cursor = -1;
+  }
+
+  /**
+   * 科技感 HUD 锁定当前/指定步骤（stack 行或 morph 整式）。
+   */
+  public *highlight(
+    index?: number,
+    options: {
+      duration?: number;
+      color?: string;
+      phase?: "enter" | "move" | "leave";
+    } = {},
+  ): ThreadGenerator {
+    const {
+      duration = Highlight.hud.duration as number,
+      color = Highlight.hud.color,
+      phase,
+    } = options;
+
+    if (phase === "leave") {
+      yield* this.annotation().focusBox([], {
+        style: "hud",
+        phase: "leave",
+        duration,
+      });
+      return;
+    }
+
+    const target =
+      this.mode === "morph"
+        ? this.morphLatex()
+        : this.rows[index ?? Math.max(0, this.cursor)];
+    if (!target) {
+      return;
+    }
+
+    yield* this.annotation().focusBox(target, {
+      style: "hud",
+      color,
+      lineWidth: Highlight.hud.lineWidth,
+      padding: Highlight.hud.padding,
+      fillOpacity: Highlight.hud.fillOpacity,
+      duration,
+      phase,
+    });
+  }
+
+  /** 清除 HUD 高亮 */
+  public *clearHighlight(duration = 0.3): ThreadGenerator {
+    yield* this.annotation().focusBox([], {
+      style: "hud",
+      phase: "leave",
+      duration,
+    });
   }
 
   private *nextMorph(duration: number): ThreadGenerator {

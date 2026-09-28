@@ -1,4 +1,4 @@
-import { Layout, Line, Node, NodeProps, Txt } from "@motion-canvas/2d";
+﻿import { Layout, Line, Node, NodeProps, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   Vector2,
@@ -12,7 +12,7 @@ import {
 import { Ink } from "../../theme/ink";
 import { brushLine, inkReveal } from "../../theme/ink_anim";
 
-const AXIS_FONT = '"SimFang", FangSong, STFangsong, serif';
+const AXIS_FONT = Ink.font;
 const READOUT_FONT = "JetBrains Mono, Consolas, monospace";
 
 export interface Axes2DProps extends NodeProps {

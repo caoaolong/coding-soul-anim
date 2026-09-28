@@ -140,7 +140,7 @@ export class Palette extends Node {
           height={size}
           fill={null}
           radius={4}
-          stroke={Ink.goldSoft}
+          stroke={Ink.blue}
           lineWidth={2}
         />
       </Node>,
@@ -154,7 +154,7 @@ export class Palette extends Node {
         height={size}
         fill={hueGradient}
         radius={4}
-        stroke={Ink.goldSoft}
+        stroke={Ink.blue}
         lineWidth={2}
       />,
     );
@@ -168,7 +168,7 @@ export class Palette extends Node {
         width={hueWidth + 14}
         height={5}
         fill={Ink.paper}
-        stroke={Ink.goldSoft}
+        stroke={Ink.gold}
         lineWidth={1.5}
         radius={2}
       />,

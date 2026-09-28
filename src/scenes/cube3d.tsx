@@ -32,7 +32,7 @@ export default makeScene2D(function* (view) {
         text={"3D 坐标轴 · 数轴与网格"}
         fill={Ink.paperSoft}
         fontSize={36}
-        fontFamily={"Noto Serif SC, Songti SC, serif"}
+        fontFamily={Ink.font}
         y={420}
         opacity={0}
       />

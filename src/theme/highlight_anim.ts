@@ -5,6 +5,7 @@ import {
   easeInOutCubic,
 } from "@motion-canvas/core";
 import { Highlight } from "./highlight";
+import { Ink } from "./ink";
 
 export interface HighlightShapeOptions {
   /** 高亮填充色，默认 Highlight.fill */
@@ -170,7 +171,7 @@ export function* pulseTxt(
 
   const {
     color = Highlight.accent,
-    restore = "#E8E0D0",
+    restore = Ink.paper,
     duration = Highlight.duration,
     scalePeak = 1.06,
   } = options;

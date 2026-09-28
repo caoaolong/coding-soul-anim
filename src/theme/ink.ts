@@ -1,41 +1,58 @@
 /**
- * 水墨画风色板与尺寸约定。
- * 封面、正文、高亮统一从这里取，避免琥珀科技风与太极背景割裂。
+ * Manim 风格色板与尺寸约定（3Blue1Brown / ManimCE 观感）。
+ * 全项目 UI 从此取色，避免组件硬编码。
  */
 export const Ink = {
-  /** 宣纸墨底（场景 view.fill） */
-  bg: "#0E0E10",
-  /** 更深的底纱 / 遮罩 */
-  veil: "#0A0A0C",
-  /** 正文浅墨（奶油墨色） */
-  paper: "#E8E0D0",
+  /** 场景底色（Manim 深灰黑） */
+  bg: "#1C1C1C",
+  /** 更深遮罩 */
+  veil: "#0A0A0A",
+  /** 主文字 / 主图形（白） */
+  paper: "#FFFFFF",
   /** 次级文字 */
-  paperSoft: "#C4B8A8",
+  paperSoft: "#BBBBBB",
   /** 弱化 / 未选中 */
-  muted: "#7A7368",
-  /** 深墨块（节点底、格底） */
-  deep: "#1C1B19",
-  /** 深墨块变体（层次递进、隔行） */
-  deepAlt: "#242220",
-  /** 结构墨线 */
-  line: "#5C564C",
-  /** 强调淡金（与太极光晕同系） */
-  gold: "#C9A227",
-  /** 描边金 */
-  goldSoft: "#D4AF37",
-  /** 脉冲亮金（少用） */
-  goldBright: "#E8D48B",
-  /** 警示淡赭（占用、警告描边） */
-  warn: "#9A7A5C",
-  /** 警示深赭（占用块底） */
-  warnDeep: "#5C4030",
-  /** 淡朱砂（圈点/批注，非交通灯红） */
-  seal: "#A85A48",
+  muted: "#888888",
+  /** 面板 / 节点底 */
+  deep: "#2A2A2A",
+  /** 面板变体（隔行、层次） */
+  deepAlt: "#333333",
+  /** 结构线 */
+  line: "#888888",
+  /** 主强调（Manim YELLOW） */
+  gold: "#FFFF00",
+  /** 描边强调（略暖黄） */
+  goldSoft: "#F4D345",
+  /** 脉冲亮黄 */
+  goldBright: "#FFFFAA",
+  /** 警示 / 占用（Manim RED） */
+  warn: "#FC6255",
+  /** 警示深底 */
+  warnDeep: "#8B3A3A",
+  /** 批注 / 焦点（Manim RED） */
+  seal: "#FC6255",
+
+  /** Manim BLUE */
+  blue: "#58C4DD",
+  /** Manim BLUE_E */
+  blueDeep: "#1C758A",
+  /** Manim TEAL */
+  teal: "#5CD0B3",
+  /** Manim GREEN */
+  green: "#83C167",
+  /** Manim PURPLE */
+  purple: "#9A72AC",
+  /** Manim ORANGE */
+  orange: "#FF862F",
+
+  /** UI 无衬线字体（中英） */
+  font: '"Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif',
+
   /** 默认细线宽 */
   lineWidth: 2,
-  /** 默认小圆角 */
-  radius: 4,
-  /** 墨意显现默认时长（秒） */
+  /** 默认小圆角（Manim 偏直角，略留一点） */
+  radius: 2,
+  /** 显现默认时长（秒） */
   duration: 0.45,
   /** 书写/底线展开默认时长 */
   brushDuration: 0.55,

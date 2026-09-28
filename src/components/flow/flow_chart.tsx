@@ -16,10 +16,9 @@ import {
 import { Ink } from "../../theme/ink";
 import { brushLine, inkReveal } from "../../theme/ink_anim";
 
-const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
-/** 无图标节点：芝麻行楷（global.css @font-face） */
-const TITLE_FONT =
-  '"Zhi Mang Xing", KaiTi, STKaiti, SF Pro Text, Microsoft YaHei, serif';
+const LABEL_FONT = Ink.font;
+/** 无图标节点标题字体 */
+const TITLE_FONT = Ink.font;
 
 export interface FlowStep {
   /** 图标资源（Img src）；省略则只显示文案 */

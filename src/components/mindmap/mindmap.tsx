@@ -1,4 +1,4 @@
-import {
+﻿import {
   CubicBezier,
   Img,
   Layout,
@@ -20,7 +20,7 @@ import {
 import { Ink } from "../../theme/ink";
 import { inkReveal } from "../../theme/ink_anim";
 
-const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
+const LABEL_FONT = Ink.font;
 
 export interface MindMapNodeData {
   /** 节点文案 */

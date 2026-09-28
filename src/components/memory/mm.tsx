@@ -1,4 +1,4 @@
-import { Img, Layout, Line, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
+﻿import { Img, Layout, Line, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
@@ -15,7 +15,7 @@ import { brushLine, inkReveal } from "../../theme/ink_anim";
 import exeIcon from "../../assets/binary/exe.svg";
 import ppIcon from "../../assets/binary/pp.svg";
 
-const LABEL_FONT = '"SimFang", FangSong, STFangsong, serif';
+const LABEL_FONT = Ink.font;
 const PAGE_FONT = "SF Mono, Consolas, monospace";
 
 export interface MMProps extends NodeProps {
