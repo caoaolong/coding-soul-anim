@@ -23,6 +23,7 @@ import { PopupPanel } from "../components/panel/popup_panel";
 import { NumberAxis } from "../components/axis/number_axis";
 import { BTree } from "../components/tree/b_tree";
 import { FlowChart } from "../components/flow/flow_chart";
+import { Question } from "../components/question/question";
 import { Timeline } from "../components/timeline/timeline";
 import { MakeSum } from "../components/assemble/make_sum";
 import { BaseNumber } from "../components/number/base";
@@ -52,6 +53,7 @@ import algoIcon from "../assets/binary/算法.svg";
  */
 type SegmentId =
   | "cover"
+  | "question"
   | "introduction"
   | "number_detail"
   | "make_sum"
@@ -80,7 +82,7 @@ type SegmentId =
   | "analogy";
 
 /** 改这一行切换要导出的素材段 */
-const ACTIVE = "make_sum" as SegmentId;
+const ACTIVE = "question" as SegmentId;
 
 /** 片头：CourseCover */
 function* playCover(view: View2D): ThreadGenerator {
@@ -95,6 +97,17 @@ function* playCover(view: View2D): ThreadGenerator {
   );
 
   yield* cover().play();
+}
+
+/** 提问：2026 = 71410 = 11111101010 */
+function* playQuestion(view: View2D): ThreadGenerator {
+  const question = createRef<Question>();
+  view.add(
+    <Question ref={question} tex={String.raw`2026 = 71410 = 11111101010\,?`} />,
+  );
+
+  yield* question().play();
+  yield* waitFor(1.2);
 }
 
 /** 引言：时间轴五节点（ENIAC → 无处不在） */
@@ -169,12 +182,21 @@ function* playNumberDetail(view: View2D): ThreadGenerator {
   yield* waitFor(1.2);
 }
 
-/** 凑数：用 1000/100/10/1 凑出 2026（超则丢） */
+/** 凑数：第一象限坐标轴 + 柱状图表示 2026（base=10） */
 function* playMakeSum(view: View2D): ThreadGenerator {
   const make = createRef<MakeSum>();
-  view.add(<MakeSum ref={make} target={2026} />);
+  view.add(<MakeSum ref={make} base={10} target={2026} />);
 
-  yield* make().play();
+  yield* make().show(0.6);
+  yield* waitFor(0.3);
+  yield* make().showNumber(2026);
+  yield* make().showValueLabel();
+  yield* waitFor(1.2);
+  yield* make().updateBase(16);
+  yield* make().showValueLabel();
+  yield* waitFor(1.2);
+  yield* make().updateBase(2);
+  yield* make().showValueLabel();
   yield* waitFor(1.2);
 }
 
@@ -190,14 +212,7 @@ function* playBase10(view: View2D): ThreadGenerator {
   yield* waitFor(0.25);
 
   // 屏幕偏上点题：基数
-  view.add(
-    <InkFormula
-      ref={concept}
-      tex={"\\,"}
-      fontSize={48}
-      y={-280}
-    />,
-  );
+  view.add(<InkFormula ref={concept} tex={"\\,"} fontSize={48} y={-280} />);
   yield* concept().writePlain("基数", 0.55);
   yield* waitFor(1.2);
 }
@@ -289,14 +304,7 @@ function* playStorage(view: View2D): ThreadGenerator {
   const title = createRef<InkFormula>();
 
   view.add(<BitCell ref={cell} y={-20} iconSize={168} bitFontSize={56} />);
-  view.add(
-    <InkFormula
-      ref={title}
-      tex={"\\,"}
-      fontSize={40}
-      y={280}
-    />,
-  );
+  view.add(<InkFormula ref={title} tex={"\\,"} fontSize={40} y={280} />);
 
   yield* cell().show(0.55);
   yield* waitFor(0.35);
@@ -456,11 +464,7 @@ function* playO(view: View2D): ThreadGenerator {
 function* playBuddyTitle(view: View2D): ThreadGenerator {
   const page = createRef<TransitionTitle>();
   view.add(
-    <TransitionTitle
-      ref={page}
-      title={"Buddy System"}
-      subtitle={"伙伴系统"}
-    />,
+    <TransitionTitle ref={page} title={"Buddy System"} subtitle={"伙伴系统"} />,
   );
   yield* page().play();
 }
@@ -487,22 +491,12 @@ function* playBuddyConceptPreview(
   yield* waitFor(0.3);
 
   // 框选完成后再出现「伙伴系统」
-  view.add(
-    <InkFormula
-      ref={title}
-      tex={"\\,"}
-      fontSize={40}
-      y={-320}
-    />,
-  );
+  view.add(<InkFormula ref={title} tex={"\\,"} fontSize={40} y={-320} />);
   yield* title().writePlain("伙伴系统", 0.55);
   yield* waitFor(0.35);
 
   // 标题出现即预演结束：直接恢复，不再二次框选
-  yield* all(
-    root.demoRestore(1.6, false),
-    title().hide(0.35),
-  );
+  yield* all(root.demoRestore(1.6, false), title().hide(0.35));
   yield* waitFor(0.15);
 }
 
@@ -591,14 +585,7 @@ function* playCycle(view: View2D): ThreadGenerator {
   yield* ring().play();
   yield* waitFor(0.35);
 
-  view.add(
-    <InkFormula
-      ref={formula}
-      tex={"\\,"}
-      fontSize={40}
-      y={-380}
-    />,
-  );
+  view.add(<InkFormula ref={formula} tex={"\\,"} fontSize={40} y={-380} />);
   yield* formula().writePlain("伙伴寻址", 0.6);
   yield* waitFor(1.0);
 }
@@ -727,14 +714,7 @@ function* playAddress(view: View2D): ThreadGenerator {
   });
   yield* waitFor(0.5);
 
-  view.add(
-    <InkFormula
-      ref={formula}
-      tex={"\\,"}
-      fontSize={36}
-      y={-460}
-    />,
-  );
+  view.add(<InkFormula ref={formula} tex={"\\,"} fontSize={36} y={-460} />);
 
   // 第一遍：addr + size = buddy
   yield* playAddressPairPass(table(), formula(), pairs, "+");
@@ -800,14 +780,7 @@ function* playBtree(view: View2D): ThreadGenerator {
   const formula = createRef<InkFormula>();
   const L = 4;
 
-  view.add(
-    <BTree
-      ref={tree}
-      L={L}
-      nodeSize={90}
-      spacing={40}
-    />,
-  );
+  view.add(<BTree ref={tree} L={L} nodeSize={90} spacing={40} />);
 
   yield* tree().create(0.45);
   yield* waitFor(0.35);
@@ -818,14 +791,7 @@ function* playBtree(view: View2D): ThreadGenerator {
   yield* tree().highlightHeight(0.55);
   yield* waitFor(0.3);
 
-  view.add(
-    <InkFormula
-      ref={formula}
-      tex={"\\,"}
-      fontSize={34}
-      y={-460}
-    />,
-  );
+  view.add(<InkFormula ref={formula} tex={"\\,"} fontSize={34} y={-460} />);
 
   // 逐行：横线 enter/move + 高亮该行节点 + 顶部公式局部更新
   for (let i = 0; i < L; i++) {
@@ -844,22 +810,12 @@ function* playBtree(view: View2D): ThreadGenerator {
     yield* waitFor(0.28);
   }
 
-  yield* all(
-    tree().annotateRow(0, "leave", 0.4),
-    formula().hide(0.35),
-  );
+  yield* all(tree().annotateRow(0, "leave", 0.4), formula().hide(0.35));
   yield* waitFor(0.35);
 
   // 顶部：依次高亮 i=x，累加 2^i，最后闭合为等比求和公式
   const sumFormula = createRef<InkFormula>();
-  view.add(
-    <InkFormula
-      ref={sumFormula}
-      tex={"\\,"}
-      fontSize={30}
-      y={-460}
-    />,
-  );
+  view.add(<InkFormula ref={sumFormula} tex={"\\,"} fontSize={30} y={-460} />);
 
   for (let i = 0; i < L; i++) {
     yield* tree().pulseRowNumber(i, 0.45);
@@ -877,23 +833,13 @@ function* playBtree(view: View2D): ThreadGenerator {
   yield* waitFor(0.8);
 
   // 收起标注与公式，重建一棵无标注的满二叉树
-  yield* all(
-    inkFade(tree(), { duration: 0.45 }),
-    sumFormula().hide(0.4),
-  );
+  yield* all(inkFade(tree(), { duration: 0.45 }), sumFormula().hide(0.4));
   tree().remove();
   sumFormula().remove();
   yield* waitFor(0.2);
 
   const fresh = createRef<BTree>();
-  view.add(
-    <BTree
-      ref={fresh}
-      L={L}
-      nodeSize={90}
-      spacing={40}
-    />,
-  );
+  view.add(<BTree ref={fresh} L={L} nodeSize={90} spacing={40} />);
   yield* fresh().create(0.45);
   yield* waitFor(1.0);
 }
@@ -994,14 +940,7 @@ function* playBtreeAddress(view: View2D): ThreadGenerator {
   yield* tree().rowNumber(0.4);
   yield* waitFor(0.35);
 
-  view.add(
-    <InkFormula
-      ref={formula}
-      tex={"\\,"}
-      fontSize={32}
-      y={-360}
-    />,
-  );
+  view.add(<InkFormula ref={formula} tex={"\\,"} fontSize={32} y={-360} />);
 
   // 从根起依次高亮「父 + 左右子」，顶部局部更新 n_左=2n+1 / n_右=2n+2
   const nonLeaves = tree().nonLeafCount;
@@ -1047,13 +986,7 @@ function* playFloat(view: View2D): ThreadGenerator {
   const code = createRef<InkFormula>();
   const radix = createRef<InkFormula>();
 
-  view.add(
-    <Float
-      ref={f}
-      value={0}
-      opacity={0}
-    />,
-  );
+  view.add(<Float ref={f} value={0} opacity={0} />);
   yield* inkReveal(f(), { duration: 0.6, fromY: 16 });
   yield* waitFor(0.35);
   yield* f().showLabels(0.45);
@@ -1065,50 +998,27 @@ function* playFloat(view: View2D): ThreadGenerator {
   yield* f().highlight("mantissa", true, 0.5);
   yield* waitFor(0.35);
 
-  view.add(
-    <InkFormula
-      ref={code}
-      tex={"\\,"}
-      fontSize={36}
-      y={-320}
-    />,
-  );
+  view.add(<InkFormula ref={code} tex={"\\,"} fontSize={36} y={-320} />);
   yield* code().writeFloatAssign(-12.75, 0.9);
   yield* waitFor(0.35);
   yield* code().highlightFloatPart("sign", 0.8);
   yield* f().setBit(0, 1, 0.35);
   yield* waitFor(0.25);
 
-  view.add(
-    <InkFormula
-      ref={radix}
-      tex={"\\,"}
-      fontSize={32}
-      y={220}
-    />,
-  );
+  view.add(<InkFormula ref={radix} tex={"\\,"} fontSize={32} y={220} />);
 
   // 整数 12 → 二进制
   yield* code().highlightFloatPart("int", 0.8);
-  yield* radix().writeTex(
-    String.raw`12_{(10)} = 1100_{(2)}`,
-    0.75,
-  );
+  yield* radix().writeTex(String.raw`12_{(10)} = 1100_{(2)}`, 0.75);
   yield* waitFor(0.45);
 
   // 小数 0.75 → 二进制
   yield* code().highlightFloatPart("frac", 0.8);
-  yield* radix().rewrite(
-    String.raw`0.75_{(10)} = 0.11_{(2)}`,
-    0.95,
-  );
+  yield* radix().rewrite(String.raw`0.75_{(10)} = 0.11_{(2)}`, 0.95);
   yield* waitFor(0.45);
 
   // 合并绝对值
-  yield* radix().rewrite(
-    String.raw`12.75_{(10)} = 1100.11_{(2)}`,
-    0.95,
-  );
+  yield* radix().rewrite(String.raw`12.75_{(10)} = 1100.11_{(2)}`, 0.95);
   yield* waitFor(0.5);
 
   // 规格化：小数点左移 → 1.xxxx，记下真指数 e（10011 可单独圈选为 M）
@@ -1142,12 +1052,7 @@ function* playFloat(view: View2D): ThreadGenerator {
         headerTextColor={Ink.goldSoft}
         stroke={Ink.line}
       />
-      <InkFormula
-        ref={biasEq}
-        tex={"\\,"}
-        fontSize={34}
-        underline={false}
-      />
+      <InkFormula ref={biasEq} tex={"\\,"} fontSize={34} underline={false} />
       <NumberAxis
         ref={axis}
         origin={127}
@@ -1161,10 +1066,7 @@ function* playFloat(view: View2D): ThreadGenerator {
     </PopupPanel>,
   );
   yield* panel().show(0.55);
-  yield* biasEq().writeTex(
-    String.raw`E = e + \mathrm{bias}`,
-    0.7,
-  );
+  yield* biasEq().writeTex(String.raw`E = e + \mathrm{bias}`, 0.7);
   yield* waitFor(0.35);
   // 游标沿真指数来回：E = 127 + e
   yield* axis().travel([130, 122, 135, 127, 130], 0.65, 0.25);
@@ -1340,11 +1242,9 @@ function* playAnalogy(view: View2D): ThreadGenerator {
   yield* waitFor(1.2);
 }
 
-const segments: Record<
-  SegmentId,
-  (view: View2D) => ThreadGenerator
-> = {
+const segments: Record<SegmentId, (view: View2D) => ThreadGenerator> = {
   cover: playCover,
+  question: playQuestion,
   introduction: playIntroduction,
   number_detail: playNumberDetail,
   make_sum: playMakeSum,

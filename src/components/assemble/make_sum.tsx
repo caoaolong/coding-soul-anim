@@ -1,504 +1,492 @@
-import { Img, Layout, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
+import { Latex, Line, Node, NodeProps, Rect, Txt } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   Vector2,
   all,
   createRef,
-  createRefArray,
-  delay,
-  easeInCubic,
-  easeInOutCubic,
   easeOutCubic,
   waitFor,
 } from "@motion-canvas/core";
-import moneyIcon from "../../assets/binary/money.svg";
 import { Ink } from "../../theme/ink";
 import { inkFade, inkReveal } from "../../theme/ink_anim";
 
-/** 单次放入：面值 + 是否因超过目标而丢弃 */
-export interface MakeSumStep {
-  weight: number;
-  /** true：放入后总和大于目标，随后丢掉 */
-  discard: boolean;
-}
-
 export interface MakeSumProps extends NodeProps {
-  /** 目标数，默认 2026 */
-  target?: number;
+  /** 进制，决定横纵轴刻度。默认 10 */
+  base?: number;
   /**
-   * 凑数脚本。默认对应 2026：
-   * 1000×3（末次丢）、100×1（丢）、10×3（末次丢）、1×6（不丢）
+   * 目标数，仅用于预置横轴列数（按 base 拆出的位数）。
+   * showNumber 的值位数不同时会自动重建横轴。默认 2026
    */
-  script?: MakeSumStep[];
-  /** 主字号，默认 42 */
-  fontSize?: number;
-  /** 钞票图标边长，默认 56 */
-  iconSize?: number;
+  target?: number;
+  /** 坐标轴总宽，默认 1240 */
+  axisWidth?: number;
+  /** 坐标轴总高，默认 620 */
+  axisHeight?: number;
+  /** 柱子填充色，默认 Ink.teal */
+  barFill?: string;
+  /** 是否显示坐标轴网格，默认 true */
+  showGrid?: boolean;
+  /** 柱状图上方 LaTeX 值标签的字号，默认 40 */
+  valueFontSize?: number;
 }
 
-/** 2026 的默认凑数剧本 */
-export const MAKE_SUM_2026: MakeSumStep[] = [
-  { weight: 1000, discard: false },
-  { weight: 1000, discard: false },
-  { weight: 1000, discard: true },
-  { weight: 100, discard: true },
-  { weight: 10, discard: false },
-  { weight: 10, discard: false },
-  { weight: 10, discard: true },
-  { weight: 1, discard: false },
-  { weight: 1, discard: false },
-  { weight: 1, discard: false },
-  { weight: 1, discard: false },
-  { weight: 1, discard: false },
-  { weight: 1, discard: false },
-];
-
-const BOX_FILL = "#2A2A2A";
-
-type Relation = "lt" | "gt" | "eq";
-
-function relationOf(sum: number, target: number): Relation {
-  if (sum < target) {
-    return "lt";
+/** 按基数拆出整数各位数字（高位在前），0 → [0] */
+function digitsInBase(value: number, base: number): number[] {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error("MakeSum: value 须为非负整数");
   }
-  if (sum > target) {
-    return "gt";
+  if (value === 0) {
+    return [0];
   }
-  return "eq";
-}
-
-function relationLabel(r: Relation): string {
-  if (r === "lt") {
-    return "小于";
+  const digits: number[] = [];
+  let x = value;
+  while (x > 0) {
+    digits.unshift(x % base);
+    x = Math.floor(x / base);
   }
-  if (r === "gt") {
-    return "大于";
-  }
-  return "等于";
-}
-
-function relationColor(r: Relation): string {
-  if (r === "gt") {
-    return Ink.warn;
-  }
-  if (r === "eq") {
-    return Ink.gold;
-  }
-  return Ink.teal;
+  return digits;
 }
 
 /**
- * 凑数演示：用钞票面值（1000 / 100 / 10 / 1）往空盒里放，
- * 实时比较与目标的大小；超过则警告并丢掉该项。
- * 完整场景片段，挂在 assemble 分类下。
+ * 凑数演示（重构版）：屏幕中央第一象限坐标轴 + 柱状图 + 网格。
+ *
+ * - 横轴刻度为 base^power（左高位 → 右低位，如 base=10 时 10^3…10^0）；
+ * - 纵轴刻度为 0…base-1（base=2 时为 0、1；base=10 时为 0…9）；
+ * - 网格横向对齐纵轴刻度、纵向对齐每根柱中心；
+ * - showNumber(value) 按 base 拆位，从左起依次从 0 升起柱子，
+ *   柱间留有间距，每根柱顶显示该位数字；
+ * - updateBase(newBase) 保持当前值不变，按新 base 重建刻度/网格/柱列。
+ * - showValueLabel() 在柱状图上方用 LaTeX 显示当前值在当前 base 下的表示。
  */
 export class MakeSum extends Node {
-  private readonly targetBox = createRef<Rect>();
-  private readonly sumBox = createRef<Rect>();
-  private readonly targetTxt = createRef<Txt>();
-  private readonly sumTxt = createRef<Txt>();
-  private readonly relationTxt = createRef<Txt>();
-  private readonly hintTxt = createRef<Txt>();
+  private readonly frame = createRef<Node>();
+  private readonly xAxis = createRef<Line>();
+  private readonly yAxis = createRef<Line>();
+  private readonly gridLayer = createRef<Node>();
+  private readonly xTickLayer = createRef<Node>();
+  private readonly yTickLayer = createRef<Node>();
+  private readonly barsLayer = createRef<Node>();
+  private readonly valueLabel = createRef<Latex>();
 
-  /** 每种面值一个源节点（图标上、面值下），放钞时从这里复制 */
-  private readonly noteSources = createRefArray<Layout>();
-  private readonly denominations: number[];
-  private readonly noteByWeight = new Map<number, Layout>();
+  private baseValue: number;
+  private readonly targetValue: number;
+  private readonly axisW: number;
+  private readonly axisH: number;
+  private readonly barFill: string;
+  private readonly showGrid: boolean;
+  private readonly valueFontSize: number;
 
-  private readonly target: number;
-  private readonly script: MakeSumStep[];
-  private readonly iconSize: number;
+  private columnCount = 0;
+  private slotW = 0;
+  private barW = 0;
+  private unitY = 0;
+  private origin = new Vector2(0, 0);
 
-  private sum = 0;
-  private nextStep = 0;
+  private bars: Rect[] = [];
+  private barLabels: Txt[] = [];
+  private xTickNodes: Node[] = [];
+  private yTickNodes: Node[] = [];
+  private gridNodes: Node[] = [];
+
+  private currentValue: number | null = null;
 
   public constructor(props: MakeSumProps) {
     const {
+      base = 10,
       target = 2026,
-      script = MAKE_SUM_2026,
-      fontSize = 42,
-      iconSize = 56,
+      axisWidth = 1240,
+      axisHeight = 620,
+      barFill = Ink.teal,
+      showGrid = true,
+      valueFontSize = 40,
       ...nodeProps
     } = props;
 
     super(nodeProps);
 
+    if (!Number.isInteger(base) || base < 2) {
+      throw new Error("MakeSum: base 须为 ≥2 的整数");
+    }
     if (!Number.isInteger(target) || target < 0) {
       throw new Error("MakeSum: target 须为非负整数");
     }
-    if (script.length === 0) {
-      throw new Error("MakeSum: script 不能为空");
-    }
 
-    this.target = target;
-    this.script = script;
-    this.iconSize = iconSize;
-    this.denominations = [...new Set(script.map((s) => s.weight))].sort(
-      (a, b) => b - a,
-    );
-
-    const root = createRef<Layout>();
-    this.add(
-      <Layout
-        ref={root}
-        layout
-        direction={"column"}
-        gap={40}
-        alignItems={"center"}
-      />,
-    );
-
-    // —— 上方：钞票面值（同面值只显示一个）——
-    const pool = createRef<Layout>();
-    root().add(
-      <Layout
-        ref={pool}
-        layout
-        direction={"row"}
-        gap={48}
-        alignItems={"center"}
-        justifyContent={"center"}
-      />,
-    );
-
-    for (const den of this.denominations) {
-      pool().add(
-        <Layout
-          ref={this.noteSources}
-          layout
-          direction={"column"}
-          gap={8}
-          alignItems={"center"}
-          opacity={0}
-        >
-          <Img src={moneyIcon} width={iconSize} height={iconSize * 0.8} />
-          <Txt
-            text={`${den}`}
-            fontFamily={Ink.font}
-            fontSize={26}
-            fill={Ink.paper}
-            fontWeight={600}
-          />
-        </Layout>,
-      );
-      this.noteByWeight.set(den, this.noteSources[this.noteSources.length - 1]);
-    }
-
-    // —— 中央：目标盒 | 关系 | 凑数盒 ——
-    const stage = createRef<Layout>();
-    root().add(
-      <Layout
-        ref={stage}
-        layout
-        direction={"row"}
-        gap={36}
-        alignItems={"center"}
-      />,
-    );
-
-    stage().add(
-      <Rect
-        ref={this.targetBox}
-        layout
-        direction={"column"}
-        gap={12}
-        padding={28}
-        width={220}
-        height={180}
-        fill={BOX_FILL}
-        stroke={Ink.line}
-        lineWidth={2}
-        radius={Ink.radius}
-        alignItems={"center"}
-        justifyContent={"center"}
-        opacity={0}
-      >
-        <Txt
-          text={"目标"}
-          fontFamily={Ink.font}
-          fontSize={22}
-          fill={Ink.paperSoft}
-        />
-        <Txt
-          ref={this.targetTxt}
-          text={`${target}`}
-          fontFamily={Ink.font}
-          fontSize={fontSize + 8}
-          fill={Ink.paper}
-          fontWeight={700}
-        />
-      </Rect>,
-    );
-
-    stage().add(
-      <Layout layout direction={"column"} gap={8} alignItems={"center"}>
-        <Txt
-          ref={this.relationTxt}
-          text={"？"}
-          fontFamily={Ink.font}
-          fontSize={36}
-          fill={Ink.muted}
-          opacity={0}
-        />
-        <Txt
-          ref={this.hintTxt}
-          text={""}
-          fontFamily={Ink.font}
-          fontSize={20}
-          fill={Ink.muted}
-          opacity={0}
-        />
-      </Layout>,
-    );
-
-    stage().add(
-      <Rect
-        ref={this.sumBox}
-        layout
-        direction={"column"}
-        gap={12}
-        padding={24}
-        width={280}
-        height={180}
-        fill={BOX_FILL}
-        stroke={Ink.line}
-        lineWidth={2}
-        radius={Ink.radius}
-        alignItems={"center"}
-        justifyContent={"center"}
-        opacity={0}
-      >
-        <Txt
-          text={"凑数盒"}
-          fontFamily={Ink.font}
-          fontSize={22}
-          fill={Ink.paperSoft}
-        />
-        <Txt
-          ref={this.sumTxt}
-          text={"0"}
-          fontFamily={Ink.font}
-          fontSize={fontSize + 4}
-          fill={Ink.gold}
-          fontWeight={700}
-        />
-      </Rect>,
-    );
-  }
-
-  public get stepCount(): number {
-    return this.script.length;
-  }
-
-  public get currentSum(): number {
-    return this.sum;
-  }
-
-  /** 入场：面值 → 两盒 → 关系 */
-  public *show(duration = 0.55): ThreadGenerator {
-    yield* all(
-      ...this.noteSources.map((n, i) =>
-        delay(0.06 * i, inkReveal(n, { duration, fromY: 12 })),
-      ),
-    );
-    yield* waitFor(0.15);
-    yield* all(
-      inkReveal(this.targetBox(), { duration, fromY: 16 }),
-      inkReveal(this.sumBox(), { duration, fromY: 16 }),
-    );
-    yield* waitFor(0.1);
-    yield* inkReveal(this.relationTxt(), { duration: 0.35, fromY: 8 });
-  }
-
-  private refreshSum(): void {
-    this.sumTxt().text(`${this.sum}`);
-  }
-
-  private *setRelation(sum: number, duration = 0.35): ThreadGenerator {
-    const r = relationOf(sum, this.target);
-    const label = relationLabel(r);
-    const color = relationColor(r);
-
-    this.relationTxt().text(label);
-    this.hintTxt().text(
-      r === "gt" ? "超过目标，丢掉！" : r === "eq" ? "刚好凑成！" : "还不够",
-    );
-
-    yield* all(
-      this.relationTxt().fill(color, duration, easeOutCubic),
-      this.relationTxt().opacity(1, duration * 0.5),
-      this.hintTxt().fill(color, duration, easeOutCubic),
-      this.hintTxt().opacity(1, duration * 0.5),
-      this.sumBox().stroke(
-        r === "gt" ? Ink.warn : r === "eq" ? Ink.gold : Ink.line,
-        duration,
-        easeOutCubic,
-      ),
-      this.sumTxt().fill(
-        r === "gt" ? Ink.warn : Ink.gold,
-        duration,
-        easeOutCubic,
-      ),
-    );
-  }
-
-  /** 从源面值处复制一张钞票（图标 + 面值） */
-  private spawnFlyer(weight: number): { flyer: Layout; valueTxt: Txt } {
-    const source = this.noteByWeight.get(weight);
-    if (!source) {
-      throw new Error(`MakeSum: 未找到面值 ${weight} 的源节点`);
-    }
-    const pos = source.absolutePosition();
-    const flyerRef = createRef<Layout>();
-    const valueRef = createRef<Txt>();
+    this.baseValue = base;
+    this.targetValue = target;
+    this.axisW = axisWidth;
+    this.axisH = axisHeight;
+    this.barFill = barFill;
+    this.showGrid = showGrid;
+    this.valueFontSize = valueFontSize;
+    this.origin = new Vector2(-axisWidth / 2, axisHeight / 2);
+    this.unitY = axisHeight / (base - 1);
 
     this.add(
-      <Layout
-        ref={flyerRef}
-        layout
-        direction={"column"}
-        gap={8}
-        alignItems={"center"}
-        zIndex={30}
-      >
-        <Img
-          src={moneyIcon}
-          width={this.iconSize}
-          height={this.iconSize * 0.8}
+      <Node ref={this.frame} opacity={0}>
+        <Node ref={this.gridLayer} />
+        <Line
+          ref={this.xAxis}
+          points={[
+            new Vector2(this.origin.x, this.origin.y),
+            new Vector2(this.origin.x + this.axisW, this.origin.y),
+          ]}
+          stroke={Ink.line}
+          lineWidth={Ink.lineWidth}
+          lineCap={"round"}
+          endArrow
+          arrowSize={12}
         />
-        <Txt
-          ref={valueRef}
-          text={`${weight}`}
-          fontFamily={Ink.font}
-          fontSize={26}
+        <Line
+          ref={this.yAxis}
+          points={[
+            new Vector2(this.origin.x, this.origin.y),
+            new Vector2(this.origin.x, this.origin.y - this.axisH),
+          ]}
+          stroke={Ink.line}
+          lineWidth={Ink.lineWidth}
+          lineCap={"round"}
+          endArrow
+          arrowSize={12}
+        />
+        <Node ref={this.yTickLayer} />
+        <Node ref={this.xTickLayer} />
+        <Node ref={this.barsLayer} />
+        <Latex
+          ref={this.valueLabel}
+          tex={"{}"}
           fill={Ink.paper}
-          fontWeight={600}
+          fontSize={valueFontSize}
+          x={0}
+          y={this.origin.y - this.axisH - 130}
+          opacity={0}
         />
-      </Layout>,
+      </Node>,
     );
 
-    const flyer = flyerRef();
-    flyer.layout(false);
-    flyer.absolutePosition(new Vector2(pos.x, pos.y));
-    return { flyer, valueTxt: valueRef() };
+    this.buildYTicks();
+    this.ensureColumns(digitsInBase(target, base).length);
+    this.rebuildGrid();
+  }
+
+  public get base(): number {
+    return this.baseValue;
+  }
+
+  public get value(): number | null {
+    return this.currentValue;
+  }
+
+  /** 轴线墨晕入场（坐标轴位于屏幕中央第一象限） */
+  public *show(duration = 0.6): ThreadGenerator {
+    yield* inkReveal(this.frame(), { duration, fromY: 12 });
   }
 
   /**
-   * 执行下一步：从上方面值复制钞票飞入 → 更新和 → 显示关系；
-   * 若超标则警告并丢掉该钞。
+   * 在坐标轴上用柱状图表示数字。
+   * 柱子从左侧起依次从 0 升高，柱顶显示该位数字。
    */
-  public *playStep(
-    options: {
-      flyDuration?: number;
-      hold?: number;
-      discardDuration?: number;
-    } = {},
+  public *showNumber(
+    value: number,
+    options: { growDuration?: number; gap?: number } = {},
   ): ThreadGenerator {
-    if (this.nextStep >= this.script.length) {
+    const { growDuration = 0.5, gap = 0.15 } = options;
+    const digits = digitsInBase(value, this.baseValue);
+    this.ensureColumns(digits.length);
+    this.rebuildGrid();
+    this.currentValue = value;
+
+    // 归零：柱高 0，标签隐藏
+    for (let i = 0; i < this.bars.length; i++) {
+      const cx = this.barCenterX(i);
+      this.bars[i].height(0);
+      this.bars[i].position(new Vector2(cx, this.origin.y));
+      this.bars[i].opacity(1);
+      this.barLabels[i].opacity(0);
+      this.barLabels[i].position(new Vector2(cx, this.origin.y - 30));
+      this.barLabels[i].text(`${digits[i]}`);
+    }
+
+    // 从左依次升起
+    for (let i = 0; i < digits.length; i++) {
+      const h = digits[i] * this.unitY;
+      const cx = this.barCenterX(i);
+      const bar = this.bars[i];
+      const label = this.barLabels[i];
+      label.position(new Vector2(cx, this.origin.y - h - 32));
+      yield* all(
+        bar.height(h, growDuration, easeOutCubic),
+        bar.position(
+          new Vector2(cx, this.origin.y - h / 2),
+          growDuration,
+          easeOutCubic,
+        ),
+        label.opacity(1, growDuration * 0.6, easeOutCubic),
+      );
+      if (gap > 0 && i < digits.length - 1) {
+        yield* waitFor(gap);
+      }
+    }
+
+    yield* waitFor(0.4);
+  }
+
+  /**
+   * 用新的 base 重绘当前的柱状图，值不变。
+   * 横/纵轴刻度、网格与柱列均按新 base 重建，再把当前值按新 base
+   * 拆位并从左依次升起；尚未 showNumber 时仅重建空轴。
+   */
+  public *updateBase(
+    newBase: number,
+    options: { growDuration?: number; gap?: number } = {},
+  ): ThreadGenerator {
+    if (!Number.isInteger(newBase) || newBase < 2) {
+      throw new Error("MakeSum.updateBase: base 须为 ≥2 的整数");
+    }
+    if (newBase === this.baseValue) {
+      return;
+    }
+    const { growDuration = 0.5, gap = 0.15 } = options;
+    this.baseValue = newBase;
+    this.unitY = this.axisH / (newBase - 1);
+
+    this.buildYTicks();
+    const value = this.currentValue ?? this.targetValue;
+    const digits = digitsInBase(value, newBase);
+    // base 变化后刻度文案必然变化，强制重建横轴
+    this.ensureColumns(digits.length, true);
+    this.rebuildGrid();
+
+    if (this.currentValue === null) {
       return;
     }
 
-    const {
-      flyDuration = 0.55,
-      hold = 0.35,
-      discardDuration = 0.55,
-    } = options;
+    for (let i = 0; i < this.bars.length; i++) {
+      const cx = this.barCenterX(i);
+      this.bars[i].height(0);
+      this.bars[i].position(new Vector2(cx, this.origin.y));
+      this.bars[i].opacity(1);
+      this.barLabels[i].opacity(0);
+      this.barLabels[i].position(new Vector2(cx, this.origin.y - 30));
+      this.barLabels[i].text(`${digits[i]}`);
+    }
 
-    const step = this.script[this.nextStep];
-    this.nextStep += 1;
-
-    const { flyer, valueTxt } = this.spawnFlyer(step.weight);
-    const targetPos = this.sumBox().absolutePosition();
-
-    yield* all(
-      flyer.absolutePosition(targetPos, flyDuration, easeInOutCubic),
-      flyer.scale(1.1, flyDuration * 0.45, easeOutCubic).to(0.95, flyDuration * 0.55),
-    );
-
-    this.sum += step.weight;
-    this.refreshSum();
-    flyer.opacity(0);
-
-    yield* this.setRelation(this.sum, 0.3);
-    yield* waitFor(hold);
-
-    if (step.discard) {
+    for (let i = 0; i < digits.length; i++) {
+      const h = digits[i] * this.unitY;
+      const cx = this.barCenterX(i);
+      const bar = this.bars[i];
+      const label = this.barLabels[i];
+      label.position(new Vector2(cx, this.origin.y - h - 32));
       yield* all(
-        this.sumBox().stroke(Ink.warn, 0.15).to(Ink.warn, 0.2),
-        this.relationTxt().scale(1.15, 0.2, easeOutCubic).to(1, 0.2),
+        bar.height(h, growDuration, easeOutCubic),
+        bar.position(
+          new Vector2(cx, this.origin.y - h / 2),
+          growDuration,
+          easeOutCubic,
+        ),
+        label.opacity(1, growDuration * 0.6, easeOutCubic),
       );
-
-      flyer.opacity(1);
-      valueTxt.fill(Ink.warn);
-
-      const throwTo = new Vector2(targetPos.x + 280, targetPos.y + 160);
-      yield* all(
-        flyer.absolutePosition(throwTo, discardDuration, easeInCubic),
-        flyer.opacity(0, discardDuration, easeInCubic),
-        flyer.rotation(28, discardDuration, easeInCubic),
-        flyer.scale(0.7, discardDuration, easeInCubic),
-      );
-      flyer.remove();
-
-      this.sum -= step.weight;
-      this.refreshSum();
-      yield* this.setRelation(this.sum, 0.3);
-      yield* waitFor(hold * 0.6);
-    } else {
-      flyer.remove();
-      if (relationOf(this.sum, this.target) === "eq") {
-        yield* all(
-          this.sumBox().stroke(Ink.gold, 0.35),
-          this.relationTxt().scale(1.2, 0.25, easeOutCubic).to(1, 0.25),
-          this.targetBox().stroke(Ink.gold, 0.35),
-        );
+      if (gap > 0 && i < digits.length - 1) {
+        yield* waitFor(gap);
       }
     }
+
+    yield* waitFor(0.4);
   }
 
-  /** 完整播放全部凑数步骤 */
-  public *play(
-    options: {
-      showDuration?: number;
-      pauseAfterShow?: number;
-      flyDuration?: number;
-      hold?: number;
-      discardDuration?: number;
-      stepGap?: number;
-    } = {},
-  ): ThreadGenerator {
-    const {
-      showDuration = 0.55,
-      pauseAfterShow = 0.45,
-      flyDuration = 0.5,
-      hold = 0.28,
-      discardDuration = 0.5,
-      stepGap = 0.12,
-    } = options;
-
-    yield* this.show(showDuration);
-    yield* waitFor(pauseAfterShow);
-
-    while (this.nextStep < this.script.length) {
-      yield* this.playStep({ flyDuration, hold, discardDuration });
-      if (this.nextStep < this.script.length && stepGap > 0) {
-        yield* waitFor(stepGap);
-      }
+  /**
+   * 在柱状图上方用 LaTeX 显示当前值在当前 base 下的表示，
+   * 如 2026_{(10)}、3752_{(8)}、11111101010_{(2)}。
+   * 供 showNumber / updateBase 之后调用；重复调用时更新文案。
+   */
+  public *showValueLabel(duration = 0.5): ThreadGenerator {
+    const value = this.currentValue ?? this.targetValue;
+    const digits = digitsInBase(value, this.baseValue).join("");
+    const label = this.valueLabel();
+    if (label.opacity() > 0.05) {
+      yield* label.opacity(0, duration * 0.4, easeOutCubic);
     }
-
-    yield* waitFor(0.6);
+    label.tex(`{${digits}_{(${this.baseValue})}}`);
+    label.fill(Ink.paper);
+    yield* inkReveal(label, { duration: duration * 0.6, fromY: 12 });
   }
 
   public *hide(duration = 0.4): ThreadGenerator {
-    yield* inkFade(
-      [
-        ...this.noteSources,
-        this.targetBox(),
-        this.sumBox(),
-        this.relationTxt(),
-        this.hintTxt(),
-      ],
-      { duration },
-    );
+    yield* inkFade([this.frame()], { duration });
+  }
+
+  private barCenterX(i: number): number {
+    return this.origin.x + (i + 0.5) * this.slotW;
+  }
+
+  /** 纵轴刻度：0 … base-1 */
+  private buildYTicks(): void {
+    for (const node of this.yTickNodes) {
+      node.remove();
+    }
+    this.yTickNodes = [];
+    const layer = this.yTickLayer();
+    const fontSize = this.unitY < 28 ? 18 : 22;
+    for (let d = 0; d < this.baseValue; d++) {
+      const y = this.origin.y - d * this.unitY;
+      const tick = (
+        <Line
+          points={[
+            new Vector2(this.origin.x - 7, y),
+            new Vector2(this.origin.x + 7, y),
+          ]}
+          stroke={Ink.line}
+          lineWidth={Ink.lineWidth}
+        />
+      ) as unknown as Node;
+      const label = (
+        <Txt
+          text={`${d}`}
+          fontFamily={Ink.font}
+          fontSize={fontSize}
+          fill={Ink.muted}
+          x={this.origin.x - 30}
+          y={y}
+        />
+      ) as unknown as Node;
+      layer.add(tick);
+      layer.add(label);
+      this.yTickNodes.push(tick, label);
+    }
+  }
+
+  /** 第一象限网格：横向对齐纵轴刻度，纵向对齐每根柱中心 */
+  private rebuildGrid(): void {
+    for (const node of this.gridNodes) {
+      node.remove();
+    }
+    this.gridNodes = [];
+    if (!this.showGrid || this.columnCount <= 0) {
+      return;
+    }
+    const layer = this.gridLayer();
+    // 横向网格线（d=0 与 X 轴重合，跳过）
+    for (let d = 1; d < this.baseValue; d++) {
+      const y = this.origin.y - d * this.unitY;
+      const line = (
+        <Line
+          points={[
+            new Vector2(this.origin.x, y),
+            new Vector2(this.origin.x + this.axisW, y),
+          ]}
+          stroke={Ink.line}
+          lineWidth={1}
+          opacity={0.25}
+        />
+      ) as unknown as Node;
+      layer.add(line);
+      this.gridNodes.push(line);
+    }
+    // 纵向网格线（每根柱中心一条）
+    for (let i = 0; i < this.columnCount; i++) {
+      const cx = this.barCenterX(i);
+      const line = (
+        <Line
+          points={[
+            new Vector2(cx, this.origin.y),
+            new Vector2(cx, this.origin.y - this.axisH),
+          ]}
+          stroke={Ink.line}
+          lineWidth={1}
+          opacity={0.25}
+        />
+      ) as unknown as Node;
+      layer.add(line);
+      this.gridNodes.push(line);
+    }
+  }
+
+  /**
+   * 按列数重建横轴刻度与柱子。
+   * 横轴刻度为 base^power，左高位 → 右低位；
+   * 每列槽宽 slotW，柱宽 barW（< slotW，柱间留白）。
+   */
+  private ensureColumns(n: number, force = false): void {
+    if (n <= 0) {
+      throw new Error("MakeSum: 列数须为正整数");
+    }
+    if (!force && n === this.columnCount && this.bars.length > 0) {
+      return;
+    }
+    this.columnCount = n;
+    this.slotW = this.axisW / n;
+    this.barW = this.slotW * 0.55;
+
+    // 清掉旧横轴刻度与柱子
+    for (const node of this.xTickNodes) {
+      node.remove();
+    }
+    this.xTickNodes = [];
+    for (const bar of this.bars) {
+      bar.remove();
+    }
+    for (const label of this.barLabels) {
+      label.remove();
+    }
+    this.bars = [];
+    this.barLabels = [];
+
+    const xLayer = this.xTickLayer();
+    const barsLayer = this.barsLayer();
+
+    for (let i = 0; i < n; i++) {
+      const power = n - 1 - i;
+      const cx = this.barCenterX(i);
+      const tick: Node = (
+        <Line
+          points={[
+            new Vector2(cx, this.origin.y - 7),
+            new Vector2(cx, this.origin.y + 7),
+          ]}
+          stroke={Ink.line}
+          lineWidth={Ink.lineWidth}
+        />
+      ) as unknown as Node;
+      const label: Node = (
+        <Latex
+          tex={`{${this.baseValue}^{${power}}}`}
+          fill={Ink.muted}
+          fontSize={28}
+          x={cx}
+          y={this.origin.y + 44}
+        />
+      ) as unknown as Node;
+      xLayer.add(tick);
+      xLayer.add(label);
+      this.xTickNodes.push(tick, label);
+
+      const barRef = createRef<Rect>();
+      const labelRef = createRef<Txt>();
+      barsLayer.add(
+        <Rect
+          ref={barRef}
+          width={this.barW}
+          height={0}
+          fill={this.barFill}
+          radius={4}
+          x={cx}
+          y={this.origin.y}
+        />,
+      );
+      barsLayer.add(
+        <Txt
+          ref={labelRef}
+          text={"0"}
+          fontFamily={Ink.font}
+          fontSize={30}
+          fontWeight={700}
+          fill={Ink.paper}
+          x={cx}
+          y={this.origin.y - 30}
+          opacity={0}
+        />,
+      );
+      this.bars.push(barRef());
+      this.barLabels.push(labelRef());
+    }
   }
 }
