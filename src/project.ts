@@ -1,10 +1,15 @@
-import { makeProject } from "@motion-canvas/core";
+import {makeProject} from '@motion-canvas/core';
 
-import binary from "./scenes/binary?scene";
-import vector from "./scenes/vector?scene";
+import cover from './scenes/cover?scene';
+import byteInc from './scenes/byte_inc?scene';
+import mindmap from './scenes/mindmap?scene';
+import transistorSwitch from './scenes/transistor_switch?scene';
+import logicGates from './scenes/logic_gates?scene';
+import lplPlayoffs from './scenes/lpl_playoffs?scene';
+import macWindowDemo from './scenes/mac_window_demo?scene';
 
-import "./global.css";
+import './global.css';
 
 export default makeProject({
-  scenes: [binary],
+  scenes: [macWindowDemo],
 });

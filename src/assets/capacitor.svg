@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="can" x1="60" y1="36" x2="150" y2="150" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#243040"/>
+      <stop offset="0.45" stop-color="#1a2430"/>
+      <stop offset="1" stop-color="#0f151c"/>
+    </linearGradient>
+    <linearGradient id="sleeve" x1="60" y1="36" x2="60" y2="70" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3dd6c6" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#3dd6c6" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M78 168 V138" stroke="#3dd6c6" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M122 168 V138" stroke="#3dd6c6" stroke-width="3.5" stroke-linecap="round"/>
+
+  <rect
+    x="58"
+    y="36"
+    width="84"
+    height="102"
+    rx="14"
+    fill="url(#can)"
+    stroke="#3dd6c6"
+    stroke-width="2.5"
+  />
+
+  <rect x="58" y="36" width="84" height="22" rx="14" fill="url(#sleeve)"/>
+  <path d="M58 52 H142" stroke="#3dd6c6" stroke-width="1.5" opacity="0.6"/>
+
+  <path d="M130 62 V122" stroke="#5a6a7e" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+  <path d="M130 70 V114" stroke="#3dd6c6" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+
+  <path d="M70 78 H118" stroke="#5a6a7e" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <path d="M70 92 H118" stroke="#5a6a7e" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+  <path d="M70 106 H118" stroke="#5a6a7e" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
+
+  <path d="M82 118 V128" stroke="#3dd6c6" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+  <path d="M118 118 V128" stroke="#3dd6c6" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+  <path d="M74 118 H90" stroke="#3dd6c6" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <path d="M110 118 H126" stroke="#3dd6c6" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+
+  <circle cx="78" cy="172" r="4" fill="#0a0e14" stroke="#3dd6c6" stroke-width="2"/>
+  <circle cx="122" cy="172" r="4" fill="#0a0e14" stroke="#3dd6c6" stroke-width="2"/>
+</svg>
