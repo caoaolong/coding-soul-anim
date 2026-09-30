@@ -12,6 +12,7 @@ import {
 import transistorIcon from '../assets/transistor.svg';
 import lightOn from '../assets/light_light.svg';
 import lightOff from '../assets/light_dark.svg';
+import {SceneTitle} from '../components/title/scene_title';
 
 const BG = '#0a0e14';
 const PAPER = '#e8eef7';
@@ -28,19 +29,8 @@ const COL = [-580, 0, 580];
 export default makeScene2D(function* (view) {
   view.fill(BG);
 
-  const title = createRef<Txt>();
-  view.add(
-    <Txt
-      ref={title}
-      text={'基础门电路'}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
-      fontSize={40}
-      fontWeight={700}
-      fill={PAPER}
-      y={-480}
-      opacity={0}
-    />,
-  );
+  const title = createRef<SceneTitle>();
+  view.add(<SceneTitle ref={title} text={'基础门电路'} />);
 
   const colNot = createRef<Node>();
   const colAnd = createRef<Node>();
@@ -53,7 +43,7 @@ export default makeScene2D(function* (view) {
   const andGate = buildAnd(colAnd());
   const orGate = buildOr(colOr());
 
-  yield* title().opacity(1, 0.4, easeOutCubic);
+  yield* title().show();
 
   // 左列：非门
   yield* colNot().opacity(1, 0.35, easeOutCubic);

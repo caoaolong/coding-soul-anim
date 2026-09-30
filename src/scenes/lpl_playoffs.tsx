@@ -19,6 +19,7 @@ import logoTES from '../assets/LPL/TES.png';
 import logoNIP from '../assets/LPL/NIP.png';
 import logoTT from '../assets/LPL/TT.png';
 import logoEDG from '../assets/LPL/EDG.png';
+import {SceneTitle, SCENE_TITLE_X, SCENE_TITLE_Y} from '../components/title/scene_title';
 
 const BG = '#0a0e14';
 const PAPER = '#e8eef7';
@@ -145,25 +146,14 @@ function botY(id: string) {
 export default makeScene2D(function* (view) {
   view.fill(BG);
 
-  const title = createRef<Txt>();
+  const title = createRef<SceneTitle>();
   const subtitle = createRef<Txt>();
   const tags = createRefArray<Txt>();
   const wires = createRefArray<Line>();
   const cards: Layout[] = [];
   const champ = createRef<Txt>();
 
-  view.add(
-    <Txt
-      ref={title}
-      text={'2026 LPL 第三赛段 · 淘汰赛'}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
-      fontSize={36}
-      fontWeight={700}
-      fill={PAPER}
-      y={-500}
-      opacity={0}
-    />,
-  );
+  view.add(<SceneTitle ref={title} text={'2026 LPL 第三赛段 · 淘汰赛'} />);
   view.add(
     <Txt
       ref={subtitle}
@@ -171,7 +161,10 @@ export default makeScene2D(function* (view) {
       fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
       fontSize={20}
       fill={ACCENT}
-      y={-455}
+      x={SCENE_TITLE_X}
+      y={SCENE_TITLE_Y + 42}
+      offset={[-1, 0]}
+      textAlign={'left'}
       opacity={0}
     />,
   );
@@ -308,7 +301,7 @@ export default makeScene2D(function* (view) {
   );
 
   yield* all(
-    title().opacity(1, 0.35, easeOutCubic),
+    title().show(0.35),
     delay(0.08, subtitle().opacity(1, 0.3, easeOutCubic)),
   );
   yield* all(...tags.map((t, i) => delay(i * 0.05, t.opacity(0.95, 0.25))));

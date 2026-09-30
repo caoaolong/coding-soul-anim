@@ -24,7 +24,7 @@ export interface MacWindowProps extends NodeProps {
   title?: string;
   /** 内容模式：纯文本 / 纯图片 / 左图右文 */
   mode?: MacWindowMode;
-  /** 正文（text / both） */
+  /** 正文（text / both）；支持 **加粗** 与换行 */
   text?: string;
   /** 图片路径（image / both） */
   image?: string;
@@ -177,7 +177,7 @@ export class MacWindow extends Node {
     );
   }
 
-  /** 按 \\n 拆成多行，避免 textWrap=true 时换行被折叠 */
+  /** 按 \\n 拆行，并解析 **加粗** 片段 */
   private buildTextBlock(
     width: number | `${number}%`,
     fontSize: number,
@@ -197,18 +197,43 @@ export class MacWindow extends Node {
         gap={Math.max(4, lineHeight - fontSize)}
         alignItems={'start'}
       >
-        {lines.map(line => (
-          <Txt
-            text={line.length > 0 ? line : ' '}
-            fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
-            fontSize={fontSize}
-            fill={PAPER}
-            textWrap={true}
-            width={width}
-            lineHeight={lineHeight}
-          />
-        ))}
+        {lines.map(line => this.buildRichLine(line, width, fontSize, lineHeight))}
       </Layout>
+    );
+  }
+
+  /** 单行：普通文字 + **加粗** → 嵌套 Txt */
+  private buildRichLine(
+    line: string,
+    width: number | `${number}%`,
+    fontSize: number,
+    lineHeight: number,
+  ) {
+    const segments = parseBoldSegments(line.length > 0 ? line : ' ');
+    const fontFamily = '"Microsoft YaHei", "PingFang SC", sans-serif';
+
+    return (
+      <Txt
+        fontFamily={fontFamily}
+        fontSize={fontSize}
+        fill={PAPER}
+        textWrap={true}
+        width={width}
+        lineHeight={lineHeight}
+      >
+        {segments.map(seg =>
+          seg.bold ? (
+            <Txt
+              text={seg.text}
+              fontFamily={fontFamily}
+              fontWeight={700}
+              fill={PAPER}
+            />
+          ) : (
+            seg.text
+          ),
+        )}
+      </Txt>
     );
   }
 
@@ -225,4 +250,28 @@ export class MacWindow extends Node {
       this.scale(0.96, duration, easeOutCubic),
     );
   }
+}
+
+type BoldSegment = {text: string; bold: boolean};
+
+/** 解析 `**加粗**`；未闭合的 `**` 按普通文本处理 */
+function parseBoldSegments(raw: string): BoldSegment[] {
+  const segments: BoldSegment[] = [];
+  const re = /\*\*(.+?)\*\*/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(raw)) !== null) {
+    if (match.index > last) {
+      segments.push({text: raw.slice(last, match.index), bold: false});
+    }
+    segments.push({text: match[1], bold: true});
+    last = match.index + match[0].length;
+  }
+  if (last < raw.length) {
+    segments.push({text: raw.slice(last), bold: false});
+  }
+  if (segments.length === 0) {
+    segments.push({text: raw || ' ', bold: false});
+  }
+  return segments;
 }

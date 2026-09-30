@@ -10,6 +10,8 @@ import {
 import transistorIcon from '../assets/transistor.svg';
 import lightOn from '../assets/light_light.svg';
 import lightOff from '../assets/light_dark.svg';
+import {Question} from '../components/question/question';
+import {SceneTitle} from '../components/title/scene_title';
 
 const BG = '#0a0e14';
 const PAPER = '#e8eef7';
@@ -41,7 +43,7 @@ const GND_X = 220;
 export default makeScene2D(function* (view) {
   view.fill(BG);
 
-  const title = createRef<Txt>();
+  const title = createRef<SceneTitle>();
   const device = createRef<Img>();
   const baseWire = createRef<Line>();
   const baseDot = createRef<Circle>();
@@ -60,18 +62,7 @@ export default makeScene2D(function* (view) {
   const tagB = createRef<Txt>();
   const tagE = createRef<Txt>();
 
-  view.add(
-    <Txt
-      ref={title}
-      text={'晶体管 = 开关'}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
-      fontSize={36}
-      fontWeight={700}
-      fill={PAPER}
-      y={-320}
-      opacity={0}
-    />,
-  );
+  view.add(<SceneTitle ref={title} text={'晶体管 = 开关'} />);
 
   // 晶体管（引脚朝下）
   view.add(
@@ -333,7 +324,7 @@ export default makeScene2D(function* (view) {
 
   // —— 入场 ——
   yield* all(
-    title().opacity(1, 0.4, easeOutCubic),
+    title().show(0.4),
     device().opacity(1, 0.5, easeOutCubic),
     device().scale(1, 0.55, easeOutCubic),
   );
@@ -365,6 +356,30 @@ export default makeScene2D(function* (view) {
   yield* all(tagE().opacity(1, 0.3, easeOutCubic), tagE().scale(1, 0.3, easeOutCubic));
   yield* waitFor(0.45);
 
+  // 全部显现后依次高亮：B → C → E，每个间隔 1 秒
+  const pinTags = [tagB, tagC, tagE];
+  for (let i = 0; i < pinTags.length; i++) {
+    if (i > 0) {
+      const prev = pinTags[i - 1];
+      yield* all(
+        prev().fill(PAPER, 0.25, easeOutCubic),
+        prev().scale(1, 0.25, easeOutCubic),
+      );
+    }
+    const cur = pinTags[i];
+    yield* all(
+      cur().fill(ACCENT, 0.3, easeOutCubic),
+      cur().scale(1.35, 0.3, easeOutCubic),
+    );
+    yield* waitFor(1);
+  }
+  // 收束：最后一脚回到常态
+  yield* all(
+    tagE().fill(PAPER, 0.3, easeOutCubic),
+    tagE().scale(1, 0.3, easeOutCubic),
+  );
+  yield* waitFor(0.25);
+
   const switchRefs = {
     baseDot,
     baseWire,
@@ -382,6 +397,19 @@ export default makeScene2D(function* (view) {
   yield* setSwitch(false, switchRefs);
   yield* waitFor(0.55);
   yield* setSwitch(true, switchRefs);
+  yield* waitFor(0.8);
+
+  // 顶层追问
+  const question = createRef<Question>();
+  view.add(
+    <Question
+      ref={question}
+      text={'那么仅凭 0 和 1 这两个数字能实现计算吗？'}
+      top={-440}
+      zIndex={100}
+    />,
+  );
+  yield* question().ask();
   yield* waitFor(1.0);
 });
 

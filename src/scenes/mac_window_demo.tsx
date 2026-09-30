@@ -16,9 +16,8 @@ export default makeScene2D(function* (view) {
       image={georgeBoole}
       text={
         `
-乔治·布尔（George Boole）生于英格兰的林肯郡。
-在备课的时候，布尔不满意当时的数学课本，便决定阅读伟大数学家的论文。在阅读法国数学家拉格朗日的论文时，布尔有了变分法方面的新发现。变分法是数学分析的分支，它处理的是寻求优化某些参数的曲线和曲面。
-1847年，布尔出版了《逻辑的数学分析》（The Mathematical Analysis of Logic），这是他对符号逻辑诸多贡献中的第一次。
+威廉·肖克利（William Shockley）、约翰·巴丁（John Bardeen）和沃尔特·布拉顿（Walter Brattain）供职于美国新泽西州的**贝尔实验室**。
+1947年，巴丁和布拉顿成功演示了**点接触晶体管**，随后肖克利完善了结型晶体管理论，这是他们对微电子学与整个现代计算机产业诸多贡献中的第一次。
         `
       }
       windowWidth={1480}
