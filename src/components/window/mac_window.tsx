@@ -145,13 +145,18 @@ export class MacWindow extends Node {
           alignItems={'center'}
         >
           {mode === 'image' && image ? (
-            <Img
-              src={image}
+            <Rect
               width={'100%'}
               height={bodyH}
               radius={8}
-              fit={'cover'}
-            />
+              clip
+              layout
+              alignItems={'center'}
+              justifyContent={'center'}
+            >
+              {/* 只定高度，宽度按原图比例，避免拉伸 */}
+              <Img src={image} height={bodyH} radius={8} />
+            </Rect>
           ) : null}
 
           {mode === 'text'
@@ -161,13 +166,18 @@ export class MacWindow extends Node {
           {mode === 'both' ? (
             <>
               {image ? (
-                <Img
-                  src={image}
+                <Rect
                   width={imgW}
-                  height={Math.min(bodyH, imgW * 1.25)}
+                  height={bodyH}
                   radius={8}
-                  fit={'cover'}
-                />
+                  clip
+                  layout
+                  alignItems={'center'}
+                  justifyContent={'center'}
+                >
+                  {/* 只定宽度，高度按原图比例，超出区域裁切 */}
+                  <Img src={image} width={imgW} radius={8} />
+                </Rect>
               ) : null}
               {this.buildTextBlock(winW - imgW - 24 * 2 - 28, 32, 50)}
             </>
