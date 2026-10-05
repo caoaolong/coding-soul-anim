@@ -1,4 +1,4 @@
-import {Layout, Rect, Txt, makeScene2D} from '@motion-canvas/2d';
+import { Layout, Rect, Txt, makeScene2D } from "@motion-canvas/2d";
 import {
   ThreadGenerator,
   all,
@@ -8,17 +8,17 @@ import {
   easeInOutCubic,
   easeOutCubic,
   waitFor,
-} from '@motion-canvas/core';
+} from "@motion-canvas/core";
 
 /** 演示步数：每步最低位落一次「+1」并按二进制进位更新 */
 const STEPS = 16;
 
-const BG = '#0a0e14';
-const PAPER = '#e8eef7';
-const MUTED = '#5a6a7e';
-const ACCENT = '#3dd6c6';
-const DEEP = '#121820';
-const LINE = '#2a3a4c';
+const BG = "#0a0e14";
+const PAPER = "#e8eef7";
+const MUTED = "#5a6a7e";
+const ACCENT = "#3dd6c6";
+const DEEP = "#121820";
+const LINE = "#2a3a4c";
 
 const BITS = 8;
 const CELL = 72;
@@ -41,8 +41,8 @@ export default makeScene2D(function* (view) {
   view.add(
     <Txt
       ref={label}
-      text={'1 Byte'}
-      fontFamily={'Consolas, Menlo, monospace'}
+      text={"1 Byte"}
+      fontFamily={"Consolas, Menlo, monospace"}
       fontSize={22}
       fill={MUTED}
       letterSpacing={4}
@@ -56,18 +56,16 @@ export default makeScene2D(function* (view) {
     <Layout
       ref={row}
       layout
-      direction={'row'}
+      direction={"row"}
       gap={GAP}
-      alignItems={'center'}
+      alignItems={"center"}
       y={0}
     />,
   );
 
   for (let i = 0; i < BITS; i++) {
     const cell = createRef<Layout>();
-    row().add(
-      <Layout ref={cell} layout width={CELL} height={CELL} />,
-    );
+    row().add(<Layout ref={cell} layout width={CELL} height={CELL} />);
     cell().add(
       <Rect
         ref={frames}
@@ -87,8 +85,8 @@ export default makeScene2D(function* (view) {
         <Txt
           ref={digits}
           layout={false}
-          text={'0'}
-          fontFamily={'Consolas, Menlo, monospace'}
+          text={"0"}
+          fontFamily={"Consolas, Menlo, monospace"}
           fontSize={36}
           fontWeight={700}
           fill={PAPER}
@@ -101,8 +99,8 @@ export default makeScene2D(function* (view) {
   view.add(
     <Txt
       ref={plusOne}
-      text={'+1'}
-      fontFamily={'Consolas, Menlo, monospace'}
+      text={"+1"}
+      fontFamily={"Consolas, Menlo, monospace"}
       fontSize={28}
       fontWeight={700}
       fill={ACCENT}
@@ -175,7 +173,10 @@ function* applyByte(
     ...flips.map((bit, k) => {
       const ui = BITS - 1 - bit;
       const newBit = (next >> bit) & 1;
-      return delay(k * step * 0.85, flipDigit(frames[ui], digits[ui], newBit, step * 1.15));
+      return delay(
+        k * step * 0.85,
+        flipDigit(frames[ui], digits[ui], newBit, step * 1.15),
+      );
     }),
   );
 }

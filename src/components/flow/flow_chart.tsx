@@ -39,7 +39,7 @@ export interface FlowChartProps extends NodeProps {
   colGap?: number;
   /** 行间距，默认 260 */
   rowGap?: number;
-  /** 图片边长，默认 96 */
+  /** 图片宽度，默认 96（只定宽、高度按原图比例，避免拉伸） */
   imageSize?: number;
   /** 是否绘制节点间直角连线，默认 true */
   showWires?: boolean;
@@ -132,9 +132,7 @@ export class FlowChart extends Node {
             <Img
               src={n.image}
               width={imageSize}
-              height={imageSize}
               radius={8}
-              fit={'cover'}
             />
           ) : (
             <Rect

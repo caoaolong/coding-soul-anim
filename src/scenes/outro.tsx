@@ -9,10 +9,10 @@ import {
   waitFor,
 } from "@motion-canvas/core";
 
-/** 每集只改这一处副标 */
-const EPISODE_TITLE = "计算机为什么是二进制？";
+/** 片尾大字 */
+const OUTRO_TITLE = "感谢观看";
 
-/** 系列通用封面：抽象节点网络 + 系列主标题 */
+/** 系列通用片尾：同封面的抽象节点网络 + 系列名 + 收束大字 */
 export default makeScene2D(function* (view) {
   const bg = "#0a0e14";
   const paper = "#e8eef7";
@@ -25,7 +25,7 @@ export default makeScene2D(function* (view) {
 
   const grid = createRef<Grid>();
   const seriesTitle = createRef<Txt>();
-  const episodeTitle = createRef<Txt>();
+  const outroTitle = createRef<Txt>();
   const accentLine = createRef<Line>();
   const nodes = createRefArray<Circle>();
   const edges = createRefArray<Line>();
@@ -44,7 +44,7 @@ export default makeScene2D(function* (view) {
     />,
   );
 
-  // 背景抽象图：节点坐标（避开中心标题区）
+  // 背景抽象图：与封面同一套节点网络（避开中心标题区）
   const nodePos: [number, number][] = [
     [-480, -260],
     [-300, -180],
@@ -123,8 +123,8 @@ export default makeScene2D(function* (view) {
 
   view.add(
     <Txt
-      ref={episodeTitle}
-      text={EPISODE_TITLE}
+      ref={outroTitle}
+      text={OUTRO_TITLE}
       fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
       fontSize={96}
       fontWeight={700}
@@ -168,11 +168,11 @@ export default makeScene2D(function* (view) {
   // 系列名小字先行
   yield* seriesTitle().opacity(0.9, 0.35, easeOutCubic);
 
-  // 本集大标题入场
+  // 片尾大字入场
   yield* all(
-    episodeTitle().opacity(1, 0.55, easeOutCubic),
-    episodeTitle().scale(1, 0.65, easeOutCubic),
-    episodeTitle().y(-4, 0.65, easeOutCubic),
+    outroTitle().opacity(1, 0.55, easeOutCubic),
+    outroTitle().scale(1, 0.65, easeOutCubic),
+    outroTitle().y(-4, 0.65, easeOutCubic),
   );
 
   // 点缀线

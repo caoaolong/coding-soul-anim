@@ -24,7 +24,7 @@ const DEEP = '#121820';
 const TRACK = '#2a3a4c';
 const MUTED = '#8a9bb0';
 const CARD_STROKE = '#3dd6c6';
-const IMG_SIZE = 120;
+const IMG_SIZE = 200;
 
 /** 进度条上的事件节点 */
 export interface ProgressMilestone {
@@ -50,7 +50,7 @@ export interface ProgressBarProps extends NodeProps {
   /** 左侧/右侧刻度文案，默认用 start/end */
   leftLabel?: string;
   rightLabel?: string;
-  /** 卡片图片边长，默认 120 */
+  /** 卡片图片宽度，默认 200（只定宽、高度按原图比例自适应，避免拉伸） */
   imageSize?: number;
 }
 
@@ -178,27 +178,21 @@ export class ProgressBar extends Node {
           layout
           direction={'column'}
           alignItems={'center'}
-          gap={10}
+          gap={14}
           x={x}
           y={above ? barY - 28 : barY + 28}
           offset={above ? [0, 1] : [0, -1]}
-          padding={[14, 16]}
+          padding={[22, 26]}
           fill={DEEP}
           stroke={CARD_STROKE}
           lineWidth={2}
-          radius={12}
+          radius={16}
           opacity={0}
           scale={0.5}
         >
-          {/* 上图：有图用 Img，暂无图用占位块 */}
+          {/* 上图：只定宽、高度按原图比例自适应（Img 无 fit 属性，定宽高会拉伸） */}
           {m.image ? (
-            <Img
-              src={m.image}
-              width={imageSize}
-              height={imageSize}
-              radius={8}
-              fit={'cover'}
-            />
+            <Img src={m.image} width={imageSize} radius={8} />
           ) : (
             <Rect
               width={imageSize}
@@ -223,7 +217,7 @@ export class ProgressBar extends Node {
           <Txt
             text={String(m.year)}
             fontFamily={'Consolas, Menlo, monospace'}
-            fontSize={20}
+            fontSize={24}
             fontWeight={700}
             fill={ACCENT}
           />
@@ -231,10 +225,10 @@ export class ProgressBar extends Node {
             ref={this.cardTxts}
             text={m.title}
             fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
-            fontSize={22}
+            fontSize={26}
             fill={PAPER}
             textWrap={true}
-            width={Math.max(imageSize, 200)}
+            width={imageSize + 120}
             textAlign={'center'}
           />
         </Rect>,

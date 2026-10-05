@@ -26,9 +26,9 @@ export default makeScene2D(function* (view) {
         {id: 'p', tex: 'p'},
       ]}
       annotations={[
-        {id: 'I', label: 'I　信息量（比特）'},
-        {id: 'p', label: 'p　事件发生的概率'},
-        {id: 'log2', label: 'log₂　以 2 为底的对数'},
+        {id: 'I', label: '信息量（比特）'},
+        {id: 'p', label: '事件发生的概率'},
+        {id: 'log2', label: '以 2 为底的对数'},
       ]}
     />,
   );

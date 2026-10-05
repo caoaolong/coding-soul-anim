@@ -1,25 +1,27 @@
-import {makeScene2D} from '@motion-canvas/2d';
-import {createRef, waitFor} from '@motion-canvas/core';
-import {MacWindow} from '../components/window/mac_window';
-import georgeBoole from '../assets/Person/GeorgeBoole.jpg';
+import { makeScene2D } from "@motion-canvas/2d";
+import { createRef, waitFor } from "@motion-canvas/core";
+import { MacWindow } from "../components/window/mac_window";
+import image from "../assets/Person/C.E.Shannon.jpg";
 
 export default makeScene2D(function* (view) {
-  view.fill('#0a0e14');
+  view.fill("#0a0e14");
 
   const win = createRef<MacWindow>();
 
   view.add(
     <MacWindow
       ref={win}
-      title={'George Boole · 1847'}
-      mode={'both'}
-      image={georgeBoole}
-      text={
-        `
-威廉·肖克利（William Shockley）、约翰·巴丁（John Bardeen）和沃尔特·布拉顿（Walter Brattain）供职于美国新泽西州的**贝尔实验室**。
-1947年，巴丁和布拉顿成功演示了**点接触晶体管**，随后肖克利完善了结型晶体管理论，这是他们对微电子学与整个现代计算机产业诸多贡献中的第一次。
-        `
-      }
+      title={"克劳德·香农 · 1916—2001"}
+      mode={"both"}
+      image={image}
+      text={`
+**克劳德·香农（Claude Shannon）**，
+美国数学家、**信息论**之父。
+1937年硕士论文证明**布尔代数与开关电路**的一致性：
+**与、或、非** 都可以用**电路通断**实现。
+1948年发表**《通信的数学理论》**，
+提出**比特**概念，奠定了**数字通信**的基础。
+        `}
       windowWidth={1480}
       contentHeight={720}
       imageWidth={480}
@@ -27,5 +29,10 @@ export default makeScene2D(function* (view) {
   );
 
   yield* win().show(0.55);
-  yield* waitFor(3);
+  // 名字与图片初始即模糊：先高亮模糊处，再讲其余加粗，最后揭晓变清晰
+  yield* win().highlightSecrets();
+  yield* win().emphasizeBolds(1.3, 0.25, 0.12, 0.3, '#ffd166', 1, true);
+  yield* waitFor(0.4);
+  yield* win().revealSecrets();
+  yield* waitFor(1);
 });
