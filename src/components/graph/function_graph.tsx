@@ -207,7 +207,8 @@ export class FunctionGraph extends Node {
     this.rebuildDecorations();
   }
 
-  public get view(): GraphViewRange {
+  /** 当前可见数据区间（勿命名为 view：会与 Node.view / View2D 冲突） */
+  public get viewRange(): GraphViewRange {
     return {
       xMin: this.xMin,
       xMax: this.xMax,

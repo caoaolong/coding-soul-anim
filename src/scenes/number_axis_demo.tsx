@@ -13,7 +13,7 @@ const INIT_MAX = 10;
 const INIT_STEP = 1;
 
 /** 要标注的数（据此自动生成逐级放大动画） */
-const MARK_VALUE = 0.2345;
+const MARK_VALUE = 0.25;
 
 /** 第一轮放大的细分进制 */
 const SUBDIVIDE_BASE = 10;
@@ -23,7 +23,7 @@ const RETURN_BASE = 2;
 
 /**
  * 第二轮最大放大次数（精度上限）。
- * base=2 时不一定能精确落到刻度上，用此参数截断查找深度。
+ * 若中途已精确落到刻度上会提前停止（如 0.25）；否则最多放大这么多次。
  */
 const MAX_ZOOM_LEVELS = 8;
 // ──────────────────────────

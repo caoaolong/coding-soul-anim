@@ -1,4 +1,4 @@
-﻿import { makeProject } from "@motion-canvas/core";
+import { makeProject } from "@motion-canvas/core";
 
 import cover from "./scenes/cover?scene";
 import outro from "./scenes/outro?scene";
@@ -24,9 +24,10 @@ import numberAxisDemo from "./scenes/number_axis_demo?scene";
 import errorDecayDemo from "./scenes/error_decay_demo?scene";
 import pixelZoomDemo from "./scenes/pixel_zoom_demo?scene";
 import table from "./scenes/table?scene";
+import chatDemo from "./scenes/chat_demo?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [table],
+  scenes: [numberAxisDemo],
 });

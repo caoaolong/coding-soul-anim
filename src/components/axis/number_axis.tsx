@@ -51,11 +51,21 @@ export interface ZoomStep {
   max: number;
 }
 
+/** 目标值是否落在 step 网格的刻度点上（含浮点容差） */
+function isOnGrid(value: number, step: number): boolean {
+  if (step <= 0 || !Number.isFinite(value) || !Number.isFinite(step)) {
+    return false;
+  }
+  const n = value / step;
+  return Math.abs(n - Math.round(n)) < 1e-9;
+}
+
 /**
  * 按进制 base 生成逐级放大区间，最多 maxLevels 次。
+ * 若某级细分后目标值已精确落在刻度上，则提前停止（不再继续切）。
  * 例：value=0.2345, base=10, maxLevels=4
  *   → [0,1] → [0.2,0.3] → [0.23,0.24] → [0.234,0.235]
- * 例：base=2 时每次将含目标值的区间对半切开。
+ * 例：value=0.25, base=2 → [0,1] → [0,0.5]（细分后刻度为 0.25，已命中）
  */
 export function buildZoomSteps(
   value: number,
@@ -72,6 +82,8 @@ export function buildZoomSteps(
     const max = addWidth(min, width);
     steps.push({min, max});
     width = width / base;
+    // 下一档刻度间距 = width；已能精确表示则不必再放大
+    if (isOnGrid(value, width)) break;
   }
 
   return steps;
@@ -482,8 +494,8 @@ export class NumberAxis extends Node {
    * 完整演示：
    * 1) 按 base（默认 10）逐级放大并精确标出
    * 2) 记录 → 缩回原点 → 按 returnBase（默认 2）细分
-   * 3) 再按 returnBase 查找同一数字，最多放大 maxLevels 次（控制精度；
-   *    不一定落在刻度上）
+   * 3) 再按 returnBase 查找同一数字，最多放大 maxLevels 次；
+   *    若中途已精确落到刻度上则提前停止（如 0.25 在 base=2 时）
    *
    * @param value 目标数，如 0.2345
    * @param base 第一轮细分进制，默认 10
@@ -513,7 +525,7 @@ export class NumberAxis extends Node {
     yield* this.subdivide(returnBase);
     yield* waitFor(0.55);
 
-    // ── 第二轮：有限精度查找（可能无法精确落在刻度上）──
+    // ── 第二轮：按 returnBase 查找；命中精确刻度则 buildZoomSteps 会提前截断 ──
     const stepsApprox = buildZoomSteps(value, returnBase, maxLevels);
     for (const step of stepsApprox) {
       yield* this.zoomInto(step.min, step.max, returnBase, 1.35);

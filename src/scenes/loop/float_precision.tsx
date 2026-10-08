@@ -7,6 +7,7 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {Question} from '../../components/question/question';
 import {SceneTitle} from '../../components/title/scene_title';
 import computerIcon from '../../assets/icons/计算机.svg';
 import {FONT} from '../../theme/fonts';
@@ -50,6 +51,7 @@ export default makeScene2D(function* (view) {
   view.fill(BG);
 
   const title = createRef<SceneTitle>();
+  const question = createRef<Question>();
   const computer = createRef<Img>();
   const hint = createRef<Txt>();
   const labelIn = createRef<Txt>();
@@ -63,6 +65,13 @@ export default makeScene2D(function* (view) {
   const outTxt = createRef<Txt>();
 
   view.add(<SceneTitle ref={title} text={'浮点精度'} />);
+  view.add(
+    <Question
+      ref={question}
+      text={'计算机是如何处理这个**精度问题**的呢？'}
+      zIndex={100}
+    />,
+  );
 
   // 左半屏裁剪：卡片只能出现在计算机左侧
   view.add(
@@ -252,7 +261,9 @@ export default makeScene2D(function* (view) {
     yield* waitFor(0.15);
   }
 
-  yield* waitFor(0.8);
+  yield* waitFor(0.5);
+  yield* question().ask();
+  yield* waitFor(1.0);
 });
 
 function worldToLocal(maskX: number, worldX: number): number {
