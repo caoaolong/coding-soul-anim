@@ -25,9 +25,10 @@ import errorDecayDemo from "./scenes/error_decay_demo?scene";
 import pixelZoomDemo from "./scenes/pixel_zoom_demo?scene";
 import table from "./scenes/table?scene";
 import chatDemo from "./scenes/chat_demo?scene";
+import blockStackDemo from "./scenes/block_stack_demo?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [numberAxisDemo],
+  scenes: [blockStackDemo],
 });
