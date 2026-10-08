@@ -15,13 +15,13 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 const PAPER = '#e8eef7';
 const DEEP = '#121820';
 const LINE = '#2a3a4c';
 const ACCENT = '#7aa2ff';
 const REM = '#ffb454';
-const FONT = '"Microsoft YaHei", "PingFang SC", sans-serif';
 
 export interface IntDivStep {
   /** 被除数 */
@@ -188,7 +188,7 @@ export class IntToBinaryBoard extends Node {
             <Txt
               ref={this.resultSlots}
               text={ch}
-              fontFamily={'"Consolas", "Menlo", monospace'}
+              fontFamily={FONT}
               fontSize={fontSize}
               fontWeight={700}
               fill={this.accent}
@@ -199,7 +199,7 @@ export class IntToBinaryBoard extends Node {
           <Txt
             ref={this.resultSub}
             text={'(2)'}
-            fontFamily={'"Consolas", "Menlo", monospace'}
+            fontFamily={FONT}
             fontSize={fontSize * 0.55}
             fill={this.accent}
             opacity={0}
@@ -292,7 +292,7 @@ export class IntToBinaryBoard extends Node {
       <Txt
         ref={flyer}
         text={text}
-        fontFamily={'"Consolas", "Menlo", monospace'}
+        fontFamily={FONT}
         fontSize={this.fontSize}
         fontWeight={700}
         fill={color}

@@ -10,6 +10,7 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 const PAPER = '#e8eef7';
 const ACCENT = '#3dd6c6';
@@ -182,7 +183,7 @@ function makeNode(
       <Img src={item.icon} width={88} height={88} />
       <Txt
         text={item.label}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={28}
         fontWeight={700}
         fill={PAPER}

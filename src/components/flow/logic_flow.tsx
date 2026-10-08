@@ -18,6 +18,7 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 export type LogicOp = 'AND' | 'OR' | 'NOT';
 
@@ -110,7 +111,7 @@ export class LogicFlow extends Node {
       <Txt
         ref={this.titleTxt}
         text={() => this.title() || opTitle(this.op())}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={34}
         fontWeight={700}
         fill={PAPER}
@@ -147,7 +148,7 @@ export class LogicFlow extends Node {
         <Txt
           ref={this.opLabels}
           text={op}
-          fontFamily={'Consolas, Menlo, monospace'}
+          fontFamily={FONT}
           fontSize={22}
           fontWeight={700}
           fill={MUTED}
@@ -174,7 +175,7 @@ export class LogicFlow extends Node {
           <Txt
             ref={this.inTxts}
             text={'0'}
-            fontFamily={'Consolas, Menlo, monospace'}
+            fontFamily={FONT}
             fontSize={32}
             fontWeight={700}
             fill={PAPER}
@@ -199,7 +200,7 @@ export class LogicFlow extends Node {
         <Txt
           ref={this.outTxt}
           text={'0'}
-          fontFamily={'Consolas, Menlo, monospace'}
+          fontFamily={FONT}
           fontSize={32}
           fontWeight={700}
           fill={PAPER}

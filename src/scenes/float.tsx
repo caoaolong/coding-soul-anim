@@ -13,6 +13,7 @@ import {
 import {Brace} from '../components/brace/brace';
 import {FloatSample, ieeeSignBit} from '../components/float/float_sample';
 import {SceneTitle} from '../components/title/scene_title';
+import {FONT} from '../theme/fonts';
 
 const BG = '#0a0e14';
 const PAPER = '#e8eef7';
@@ -125,7 +126,7 @@ export default makeScene2D(function* (view) {
         <Txt
           ref={bitTxts}
           text={bits[i] ?? '0'}
-          fontFamily={'Consolas, Menlo, monospace'}
+          fontFamily={FONT}
           fontSize={20}
           fontWeight={700}
           fill={PAPER}
@@ -141,7 +142,7 @@ export default makeScene2D(function* (view) {
       <Txt
         ref={byteTags}
         text={`Byte ${b}`}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={18}
         fill={MUTED}
         x={cx}
@@ -216,7 +217,7 @@ export default makeScene2D(function* (view) {
       <Txt
         ref={rowLabels}
         text={`${row.key} (${row.len})`}
-        fontFamily={'Consolas, Menlo, monospace'}
+        fontFamily={FONT}
         fontSize={32}
         fontWeight={700}
         fill={colorOf(row.key)}
@@ -349,7 +350,7 @@ function* flyPartToBit(
     <Txt
       ref={flyer}
       text={text}
-      fontFamily={'"Consolas", "Times New Roman", serif'}
+      fontFamily={FONT}
       fontSize={56}
       fontWeight={700}
       fill={color}

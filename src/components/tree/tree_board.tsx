@@ -9,6 +9,7 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 const PAPER = '#e8eef7';
 const ACCENT = '#3dd6c6';
@@ -177,7 +178,7 @@ export class TreeBoard extends Node {
           <Txt
             ref={this.nodeTxts}
             text={f.label}
-            fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+            fontFamily={FONT}
             fontSize={fontSize}
             fontWeight={700}
             fill={PAPER}

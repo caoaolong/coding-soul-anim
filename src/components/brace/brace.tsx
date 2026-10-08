@@ -7,6 +7,7 @@ import {
   easeInOutCubic,
   easeOutCubic,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 export type BraceSide = 'up' | 'down';
 
@@ -90,7 +91,7 @@ export class Brace extends Node {
       <Txt
         ref={this.labelTxt}
         text={label}
-        fontFamily={'"Consolas", "Microsoft YaHei", monospace'}
+        fontFamily={FONT}
         fontSize={labelSize}
         fontWeight={700}
         fill={stroke}

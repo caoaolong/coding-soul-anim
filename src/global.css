@@ -1,1 +1,8 @@
-/* 全局样式占位：按需注册字体或覆盖编辑器样式 */
+/* Computer Modern Roman — 全站默认（封面场景仍用各自指定的中文字体） */
+@font-face {
+  font-family: 'CMU Roman';
+  src: url('./assets/fonts/cmunrm.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}

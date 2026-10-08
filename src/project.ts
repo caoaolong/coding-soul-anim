@@ -20,9 +20,13 @@ import floatPrecision from "./scenes/loop/float_precision?scene";
 import ieeeFloat from "./scenes/float?scene";
 import binConvertDemo from "./scenes/bin_convert_demo?scene";
 import formulaDerive from "./scenes/formula_derive?scene";
+import numberAxisDemo from "./scenes/number_axis_demo?scene";
+import errorDecayDemo from "./scenes/error_decay_demo?scene";
+import pixelZoomDemo from "./scenes/pixel_zoom_demo?scene";
+import table from "./scenes/table?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [formulaDerive],
+  scenes: [table],
 });

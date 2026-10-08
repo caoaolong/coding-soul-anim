@@ -14,6 +14,7 @@ import iconFlip from '../assets/抛硬币.svg';
 import iconHeads from '../assets/硬币正面.svg';
 import iconTails from '../assets/硬币反面.svg';
 import {SceneTitle} from '../components/title/scene_title';
+import {FONT} from '../theme/fonts';
 
 const BG = '#0a0e14';
 const PAPER = '#e8eef7';
@@ -180,7 +181,7 @@ function makeNode(
       <Img src={item.icon} width={88} height={88} />
       <Txt
         text={item.label}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={28}
         fontWeight={700}
         fill={PAPER}

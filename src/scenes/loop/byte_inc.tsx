@@ -9,6 +9,7 @@ import {
   easeOutCubic,
   waitFor,
 } from "@motion-canvas/core";
+import {FONT} from '../../theme/fonts';
 
 /** 演示步数：每步最低位落一次「+1」并按二进制进位更新 */
 const STEPS = 16;
@@ -42,7 +43,7 @@ export default makeScene2D(function* (view) {
     <Txt
       ref={label}
       text={"1 Byte"}
-      fontFamily={"Consolas, Menlo, monospace"}
+      fontFamily={FONT}
       fontSize={22}
       fill={MUTED}
       letterSpacing={4}
@@ -86,7 +87,7 @@ export default makeScene2D(function* (view) {
           ref={digits}
           layout={false}
           text={"0"}
-          fontFamily={"Consolas, Menlo, monospace"}
+          fontFamily={FONT}
           fontSize={36}
           fontWeight={700}
           fill={PAPER}
@@ -100,7 +101,7 @@ export default makeScene2D(function* (view) {
     <Txt
       ref={plusOne}
       text={"+1"}
-      fontFamily={"Consolas, Menlo, monospace"}
+      fontFamily={FONT}
       fontSize={28}
       fontWeight={700}
       fill={ACCENT}

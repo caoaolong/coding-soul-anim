@@ -11,6 +11,7 @@ import {
   waitFor,
 } from "@motion-canvas/core";
 import { SceneTitle } from "../components/title/scene_title";
+import {FONT} from '../theme/fonts';
 
 /** —— 可配置：根节点、二级节点、三级节点 —— */
 const ROOT = "💻计算机";
@@ -256,7 +257,7 @@ export default makeScene2D(function* (view) {
         <Txt
           ref={childTxts}
           text={CHILDREN[i].label}
-          fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+          fontFamily={FONT}
           fontSize={32}
           fill={PAPER}
         />
@@ -306,7 +307,7 @@ export default makeScene2D(function* (view) {
         <Txt
           ref={subTxts}
           text={GRANDS[g].label}
-          fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+          fontFamily={FONT}
           fontSize={26}
           fill={PAPER}
         />
@@ -330,7 +331,7 @@ export default makeScene2D(function* (view) {
       <Txt
         ref={rootTxt}
         text={ROOT}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={44}
         fontWeight={700}
         fill={PAPER}

@@ -20,6 +20,7 @@ import logoNIP from '../assets/LPL/NIP.png';
 import logoTT from '../assets/LPL/TT.png';
 import logoEDG from '../assets/LPL/EDG.png';
 import {SceneTitle, SCENE_TITLE_X, SCENE_TITLE_Y} from '../components/title/scene_title';
+import {FONT} from '../theme/fonts';
 
 const BG = '#0a0e14';
 const PAPER = '#e8eef7';
@@ -158,7 +159,7 @@ export default makeScene2D(function* (view) {
     <Txt
       ref={subtitle}
       text={'完整双败对阵'}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+      fontFamily={FONT}
       fontSize={20}
       fill={ACCENT}
       x={SCENE_TITLE_X}
@@ -174,7 +175,7 @@ export default makeScene2D(function* (view) {
       <Txt
         ref={tags}
         text={s.text}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={18}
         fill={MUTED}
         x={s.x}
@@ -290,7 +291,7 @@ export default makeScene2D(function* (view) {
     <Txt
       ref={champ}
       text={'冠军 AL'}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+      fontFamily={FONT}
       fontSize={26}
       fontWeight={700}
       fill={GOLD}
@@ -334,7 +335,7 @@ function buildMatchCard(m: MatchData): Layout {
     <Layout layout direction={'column'} gap={3} alignItems={'center'}>
       <Txt
         text={m.label}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={11}
         fill={m.final ? GOLD : MUTED}
       />
@@ -352,18 +353,18 @@ function buildMatchCard(m: MatchData): Layout {
         <Layout layout direction={'row'} gap={4} alignItems={'center'} justifyContent={'space-between'} width={'100%'}>
           <Layout layout direction={'row'} gap={4} alignItems={'center'}>
             <Img src={LOGOS[m.a]} width={22} height={22} />
-            <Txt text={m.a} fontFamily={'Consolas, Menlo, monospace'} fontSize={14} fontWeight={700} fill={aWin ? WIN : LOSE} />
+            <Txt text={m.a} fontFamily={FONT} fontSize={14} fontWeight={700} fill={aWin ? WIN : LOSE} />
           </Layout>
-          <Txt text={`${m.scoreA}`} fontFamily={'Consolas, Menlo, monospace'} fontSize={15} fontWeight={700} fill={aWin ? WIN : LOSE} />
+          <Txt text={`${m.scoreA}`} fontFamily={FONT} fontSize={15} fontWeight={700} fill={aWin ? WIN : LOSE} />
         </Layout>
         <Layout layout direction={'row'} gap={4} alignItems={'center'} justifyContent={'space-between'} width={'100%'}>
           <Layout layout direction={'row'} gap={4} alignItems={'center'}>
             <Img src={LOGOS[m.b]} width={22} height={22} />
-            <Txt text={m.b} fontFamily={'Consolas, Menlo, monospace'} fontSize={14} fontWeight={700} fill={!aWin ? WIN : LOSE} />
+            <Txt text={m.b} fontFamily={FONT} fontSize={14} fontWeight={700} fill={!aWin ? WIN : LOSE} />
           </Layout>
-          <Txt text={`${m.scoreB}`} fontFamily={'Consolas, Menlo, monospace'} fontSize={15} fontWeight={700} fill={!aWin ? WIN : LOSE} />
+          <Txt text={`${m.scoreB}`} fontFamily={FONT} fontSize={15} fontWeight={700} fill={!aWin ? WIN : LOSE} />
         </Layout>
-        <Txt text={m.date} fontFamily={'Consolas, Menlo, monospace'} fontSize={11} fill={MUTED} />
+        <Txt text={m.date} fontFamily={FONT} fontSize={11} fill={MUTED} />
       </Rect>
     </Layout>
   ) as Layout;

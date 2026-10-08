@@ -15,6 +15,7 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 const PAPER = '#e8eef7';
 const ACCENT = '#3dd6c6';
@@ -148,7 +149,7 @@ export class FlowChart extends Node {
             >
               <Txt
                 text={String(i + 1)}
-                fontFamily={'Consolas, Menlo, monospace'}
+                fontFamily={FONT}
                 fontSize={28}
                 fill={MUTED}
               />
@@ -156,7 +157,7 @@ export class FlowChart extends Node {
           )}
           <Txt
             text={n.label}
-            fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+            fontFamily={FONT}
             fontSize={24}
             fontWeight={700}
             fill={PAPER}

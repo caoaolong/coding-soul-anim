@@ -8,6 +8,7 @@ import {
   easeOutCubic,
   waitFor,
 } from "@motion-canvas/core";
+import {FONT} from '../theme/fonts';
 
 /** 片尾大字 */
 const OUTRO_TITLE = "感谢观看";
@@ -111,7 +112,7 @@ export default makeScene2D(function* (view) {
     <Txt
       ref={seriesTitle}
       text={"重铸编程之魂"}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+      fontFamily={FONT}
       fontSize={24}
       fontWeight={500}
       fill={muted}
@@ -125,7 +126,7 @@ export default makeScene2D(function* (view) {
     <Txt
       ref={outroTitle}
       text={OUTRO_TITLE}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+      fontFamily={FONT}
       fontSize={96}
       fontWeight={700}
       fill={paper}

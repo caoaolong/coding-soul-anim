@@ -20,6 +20,7 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 export type MacWindowMode = 'text' | 'image' | 'both';
 
@@ -137,7 +138,7 @@ export class MacWindow extends Node {
           <Txt
             ref={this.titleTxt}
             text={() => this.title()}
-            fontFamily={'"SF Pro Text", "Helvetica Neue", "Microsoft YaHei", sans-serif'}
+            fontFamily={FONT}
             fontSize={22}
             fontWeight={600}
             fill={MUTED}
@@ -246,11 +247,10 @@ export class MacWindow extends Node {
     lineHeight: number,
   ) {
     const segments = parseBoldSegments(line.length > 0 ? line : ' ');
-    const fontFamily = '"Microsoft YaHei", "PingFang SC", sans-serif';
 
     return (
       <Txt
-        fontFamily={fontFamily}
+        fontFamily={FONT}
         fontSize={fontSize}
         fill={PAPER}
         textWrap={true}
@@ -269,7 +269,7 @@ export class MacWindow extends Node {
             <Txt
               ref={boldRef}
               text={seg.text}
-              fontFamily={fontFamily}
+              fontFamily={FONT}
               fontWeight={700}
               fill={PAPER}
               scale={1}

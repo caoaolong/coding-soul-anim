@@ -17,6 +17,7 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 const PAPER = '#e8eef7';
 const ACCENT = '#3dd6c6';
@@ -131,7 +132,7 @@ export class ProgressBar extends Node {
     this.add(
       <Txt
         text={leftLabel ?? String(start)}
-        fontFamily={'Consolas, Menlo, monospace'}
+        fontFamily={FONT}
         fontSize={28}
         fill={MUTED}
         x={left}
@@ -142,7 +143,7 @@ export class ProgressBar extends Node {
     this.add(
       <Txt
         text={rightLabel ?? String(end)}
-        fontFamily={'Consolas, Menlo, monospace'}
+        fontFamily={FONT}
         fontSize={28}
         fill={MUTED}
         x={right}
@@ -207,7 +208,7 @@ export class ProgressBar extends Node {
             >
               <Txt
                 text={'IMG'}
-                fontFamily={'Consolas, Menlo, monospace'}
+                fontFamily={FONT}
                 fontSize={18}
                 fill={MUTED}
               />
@@ -216,7 +217,7 @@ export class ProgressBar extends Node {
           {/* 下文：年份 + 说明 */}
           <Txt
             text={String(m.year)}
-            fontFamily={'Consolas, Menlo, monospace'}
+            fontFamily={FONT}
             fontSize={24}
             fontWeight={700}
             fill={ACCENT}
@@ -224,7 +225,7 @@ export class ProgressBar extends Node {
           <Txt
             ref={this.cardTxts}
             text={m.title}
-            fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+            fontFamily={FONT}
             fontSize={26}
             fill={PAPER}
             textWrap={true}

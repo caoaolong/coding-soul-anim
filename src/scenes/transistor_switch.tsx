@@ -12,6 +12,7 @@ import lightOn from '../assets/light_light.svg';
 import lightOff from '../assets/light_dark.svg';
 import {Question} from '../components/question/question';
 import {SceneTitle} from '../components/title/scene_title';
+import {FONT} from '../theme/fonts';
 
 const BG = '#0a0e14';
 const PAPER = '#e8eef7';
@@ -101,7 +102,7 @@ export default makeScene2D(function* (view) {
       <Txt
         ref={sPanelLabel}
         text={'开关电路'}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={28}
         fontWeight={700}
         fill={PAPER}
@@ -119,7 +120,7 @@ export default makeScene2D(function* (view) {
       <Txt
         ref={sBulbLabel}
         text={'灯泡：灭'}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={24}
         fill={PAPER}
         y={-8}
@@ -127,9 +128,9 @@ export default makeScene2D(function* (view) {
       />
       {/* 左侧电源（盖住左右两段导线的电池端头） */}
       <Rect x={S.leftX} y={30} width={56} height={80} fill={DEEP} stroke={LINE} lineWidth={3} radius={8} opacity={0.95} />
-      <Txt text={'+'} fontFamily={'Consolas, Menlo, monospace'} fontSize={26} fontWeight={700} fill={PAPER} x={S.leftX} y={8} />
-      <Txt text={'−'} fontFamily={'Consolas, Menlo, monospace'} fontSize={26} fontWeight={700} fill={PAPER} x={S.leftX} y={52} />
-      <Txt text={'电源'} fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'} fontSize={20} fill={PAPER} x={S.leftX - 78} y={30} opacity={0.9} />
+      <Txt text={'+'} fontFamily={FONT} fontSize={26} fontWeight={700} fill={PAPER} x={S.leftX} y={8} />
+      <Txt text={'−'} fontFamily={FONT} fontSize={26} fontWeight={700} fill={PAPER} x={S.leftX} y={52} />
+      <Txt text={'电源'} fontFamily={FONT} fontSize={20} fill={PAPER} x={S.leftX - 78} y={30} opacity={0.9} />
       {/* 刀开关：触点盖住导线端头 */}
       <Circle ref={sDotL} x={S.swL} y={S.botY} size={16} fill={OFF} stroke={LINE} lineWidth={2} opacity={0} />
       <Circle ref={sDotR} x={S.swR} y={S.botY} size={16} fill={OFF} stroke={LINE} lineWidth={2} opacity={0} />
@@ -140,7 +141,7 @@ export default makeScene2D(function* (view) {
       <Txt
         ref={sSwitchLabel}
         text={'开关：断开'}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={24}
         fill={PAPER}
         y={188}
@@ -155,7 +156,7 @@ export default makeScene2D(function* (view) {
       <Txt
         ref={transLabel}
         text={'BJT'}
-        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontFamily={FONT}
         fontSize={28}
         fontWeight={700}
         fill={PAPER}
@@ -167,21 +168,21 @@ export default makeScene2D(function* (view) {
       <Circle ref={lampGlow} x={LAMP.x} y={LAMP.y - 8} size={110} fill={'#FFC807'} opacity={0} />
       <Img ref={lampOff} src={lightOff} width={72} height={72} x={LAMP.x} y={LAMP.y - 8} opacity={0} scale={0.85} />
       <Img ref={lampOn} src={lightOn} width={72} height={72} x={LAMP.x} y={LAMP.y - 8} opacity={0} scale={0.85} />
-      <Txt ref={pathLabel} text={'通路：断'} fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'} fontSize={22} fill={PAPER} x={LAMP.x} y={LAMP.y + 58} opacity={0} />
+      <Txt ref={pathLabel} text={'通路：断'} fontFamily={FONT} fontSize={22} fill={PAPER} x={LAMP.x} y={LAMP.y + 58} opacity={0} />
       <Line ref={baseWire} points={[[PIN_B.x, PIN_B.y], [PIN_B.x, BUS_Y + 90], [-200, BUS_Y + 90]]} stroke={OFF} lineWidth={3} lineCap={'round'} lineJoin={'round'} end={0} />
       <Circle ref={baseDot} x={-200} y={BUS_Y + 90} size={18} fill={OFF} stroke={LINE} lineWidth={2} opacity={0} scale={0.7} />
-      <Txt ref={baseLabel} text={'基极信号'} fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'} fontSize={20} fill={PAPER} x={-200} y={BUS_Y + 128} opacity={0} />
+      <Txt ref={baseLabel} text={'基极信号'} fontFamily={FONT} fontSize={20} fill={PAPER} x={-200} y={BUS_Y + 128} opacity={0} />
       <Line ref={emitterWire} points={[[PIN_E.x, PIN_E.y], [PIN_E.x, BUS_Y], [GND_X, BUS_Y], [GND_X, BUS_Y + 36]]} stroke={LINE} lineWidth={3} lineCap={'round'} lineJoin={'round'} end={0} opacity={0.95} />
       <Line ref={gndTop} points={[[GND_X - 30, BUS_Y + 36], [GND_X + 30, BUS_Y + 36]]} stroke={LINE} lineWidth={3} lineCap={'round'} end={0} />
       <Line points={[[GND_X - 20, BUS_Y + 46], [GND_X + 20, BUS_Y + 46]]} stroke={LINE} lineWidth={2.5} lineCap={'round'} opacity={0.75} />
       <Line points={[[GND_X - 10, BUS_Y + 56], [GND_X + 10, BUS_Y + 56]]} stroke={LINE} lineWidth={2} lineCap={'round'} opacity={0.55} />
-      <Txt ref={tagB} text={'B'} fontFamily={'Consolas, Menlo, monospace'} fontSize={22} fontWeight={700} fill={PAPER} x={PIN_B.x} y={PIN_B.y + 24} opacity={0} scale={0.8} />
-      <Txt ref={tagC} text={'C'} fontFamily={'Consolas, Menlo, monospace'} fontSize={22} fontWeight={700} fill={PAPER} x={PIN_C.x} y={PIN_C.y + 24} opacity={0} scale={0.8} />
-      <Txt ref={tagE} text={'E'} fontFamily={'Consolas, Menlo, monospace'} fontSize={22} fontWeight={700} fill={PAPER} x={PIN_E.x} y={PIN_E.y + 24} opacity={0} scale={0.8} />
+      <Txt ref={tagB} text={'B'} fontFamily={FONT} fontSize={22} fontWeight={700} fill={PAPER} x={PIN_B.x} y={PIN_B.y + 24} opacity={0} scale={0.8} />
+      <Txt ref={tagC} text={'C'} fontFamily={FONT} fontSize={22} fontWeight={700} fill={PAPER} x={PIN_C.x} y={PIN_C.y + 24} opacity={0} scale={0.8} />
+      <Txt ref={tagE} text={'E'} fontFamily={FONT} fontSize={22} fontWeight={700} fill={PAPER} x={PIN_E.x} y={PIN_E.y + 24} opacity={0} scale={0.8} />
       <Rect ref={bitBox} layout x={320} y={-80} padding={[14, 28]} fill={DEEP} stroke={LINE} lineWidth={2} radius={10} opacity={0} scale={0.9}>
-        <Txt ref={bitTxt} text={'0'} fontFamily={'Consolas, Menlo, monospace'} fontSize={48} fontWeight={700} fill={PAPER} />
+        <Txt ref={bitTxt} text={'0'} fontFamily={FONT} fontSize={48} fontWeight={700} fill={PAPER} />
       </Rect>
-      <Txt ref={stateTxt} text={'数字位'} fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'} fontSize={18} fill={PAPER} x={320} y={-20} opacity={0} />
+      <Txt ref={stateTxt} text={'数字位'} fontFamily={FONT} fontSize={18} fill={PAPER} x={320} y={-20} opacity={0} />
     </Node>,
   );
 

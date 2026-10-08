@@ -5,13 +5,13 @@ import {
   createRef,
   easeOutCubic,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 /** 1920×1080 下标题锚点（左上，左对齐） */
 export const SCENE_TITLE_X = -860;
 export const SCENE_TITLE_Y = -460;
 
 const PAPER = '#e8eef7';
-const FONT = '"Microsoft YaHei", "PingFang SC", sans-serif';
 
 export interface SceneTitleProps extends NodeProps {
   /** 标题文案 */

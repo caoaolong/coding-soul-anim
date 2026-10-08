@@ -1,4 +1,4 @@
-import {Img, Layout, Node, NodeProps, Rect, Txt} from '@motion-canvas/2d';
+import {Img, Latex, Layout, Node, NodeProps, Rect, Txt} from '@motion-canvas/2d';
 import {
   ThreadGenerator,
   all,
@@ -9,6 +9,7 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 const PAPER = '#e8eef7';
 const ACCENT = '#3dd6c6';
@@ -24,11 +25,24 @@ function tint(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+/** 论点：纯文本，或文本 + 下方 LaTeX 公式 */
+export type PaperPoint =
+  | string
+  | {
+      text: string;
+      /** 显示在论点下方的 LaTeX 公式（不含 $） */
+      formula?: string;
+    };
+
+function normalizePoint(point: PaperPoint): {text: string; formula?: string} {
+  return typeof point === 'string' ? {text: point} : point;
+}
+
 export interface PaperBoardProps extends NodeProps {
   /** 论文图片 */
   image: string;
   /** 右侧主要论点（有序列表，依次显示） */
-  points: string[];
+  points: PaperPoint[];
   /** 图片下方小字 caption，如出处 */
   caption?: string;
   /** 论文图高度（只定高、宽按比例），默认 640 */
@@ -43,6 +57,8 @@ export interface PaperBoardProps extends NodeProps {
   rowStep?: number;
   /** 论点字号，默认 30 */
   fontSize?: number;
+  /** 公式字号，默认 32 */
+  formulaSize?: number;
 }
 
 /**
@@ -69,6 +85,7 @@ export class PaperBoard extends Node {
       listX = 200,
       rowStep = 150,
       fontSize = 30,
+      formulaSize = 32,
       ...nodeProps
     } = props;
 
@@ -103,9 +120,13 @@ export class PaperBoard extends Node {
         {caption ? (
           <Txt
             text={caption}
-            fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
-            fontSize={24}
+            fontFamily={FONT}
+            fontSize={22}
             fill={MUTED}
+            // 宽度钳在图片同宽，避免长 caption 把卡片撑破左边界
+            width={paperHeight * 0.85}
+            textWrap={true}
+            textAlign={'center'}
           />
         ) : null}
       </Rect>,
@@ -113,15 +134,18 @@ export class PaperBoard extends Node {
 
     // 右侧有序列表：行位置固定，逐行滑入
     const topY = paperY - ((points.length - 1) / 2) * rowStep;
-    points.forEach((point, i) => {
+    points.forEach((raw, i) => {
+      const point = normalizePoint(raw);
       this.add(
         <Rect
           ref={this.rows}
           layout
           direction={'row'}
-          alignItems={'center'}
+          alignItems={'start'}
           gap={16}
-          x={listX + 80}
+          // 左对齐：listX 表示列表左缘，避免宽文本向左侵占论文卡片
+          offset={[-1, 0]}
+          x={listX + 100}
           y={topY + i * rowStep}
           opacity={0}
         >
@@ -138,22 +162,31 @@ export class PaperBoard extends Node {
           >
             <Txt
               text={String(i + 1)}
-              fontFamily={'Consolas, Menlo, monospace'}
+              fontFamily={FONT}
               fontSize={28}
               fontWeight={700}
               fill={ACCENT}
             />
           </Rect>
-          <Txt
-            ref={this.rowTxts}
-            text={point}
-            fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
-            fontSize={fontSize}
-            fill={PAPER}
-            lineHeight={48}
-            textWrap={true}
-            width={600}
-          />
+          <Layout direction={'column'} gap={14} alignItems={'start'}>
+            <Txt
+              ref={this.rowTxts}
+              text={point.text}
+              fontFamily={FONT}
+              fontSize={fontSize}
+              fill={PAPER}
+              lineHeight={48}
+              textWrap={true}
+              width={620}
+            />
+            {point.formula ? (
+              <Latex
+                tex={[point.formula]}
+                fill={ACCENT}
+                fontSize={formulaSize}
+              />
+            ) : null}
+          </Layout>
         </Rect>,
       );
     });

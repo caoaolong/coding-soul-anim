@@ -9,6 +9,7 @@ import {
 } from '@motion-canvas/core';
 import {SceneTitle} from '../../components/title/scene_title';
 import computerIcon from '../../assets/icons/计算机.svg';
+import {FONT} from '../../theme/fonts';
 
 const BG = '#0a0e14';
 const PAPER = '#e8eef7';
@@ -93,7 +94,7 @@ export default makeScene2D(function* (view) {
         <Txt
           ref={inTxt}
           text={''}
-          fontFamily={'Consolas, Menlo, monospace'}
+          fontFamily={FONT}
           fontSize={34}
           fontWeight={700}
           fill={PAPER}
@@ -131,7 +132,7 @@ export default makeScene2D(function* (view) {
         <Txt
           ref={outTxt}
           text={''}
-          fontFamily={'Consolas, Menlo, monospace'}
+          fontFamily={FONT}
           fontSize={34}
           fontWeight={700}
           fill={WARN}
@@ -158,7 +159,7 @@ export default makeScene2D(function* (view) {
     <Txt
       ref={labelIn}
       text={'输入字符串'}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+      fontFamily={FONT}
       fontSize={20}
       fill={ACCENT}
       x={LABEL_IN_X}
@@ -170,7 +171,7 @@ export default makeScene2D(function* (view) {
     <Txt
       ref={labelOut}
       text={'浮点编码结果'}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+      fontFamily={FONT}
       fontSize={20}
       fill={WARN}
       x={LABEL_OUT_X}
@@ -182,7 +183,7 @@ export default makeScene2D(function* (view) {
     <Txt
       ref={hint}
       text={'IEEE 754 编码'}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+      fontFamily={FONT}
       fontSize={22}
       fill={ACCENT}
       y={260}

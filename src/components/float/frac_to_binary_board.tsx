@@ -15,13 +15,13 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
+import {FONT} from '../../theme/fonts';
 
 const PAPER = '#e8eef7';
 const DEEP = '#121820';
 const LINE = '#2a3a4c';
 const ACCENT = '#3dd6c6';
 const BIT = '#ff6b8a';
-const FONT = '"Microsoft YaHei", "PingFang SC", sans-serif';
 
 export interface FracMulStep {
   /** ×2 前的小数（展示用，已截断） */
@@ -228,7 +228,7 @@ export class FracToBinaryBoard extends Node {
           <Txt
             ref={this.resultPrefix}
             text={'0.'}
-            fontFamily={'"Consolas", "Menlo", monospace'}
+            fontFamily={FONT}
             fontSize={fontSize + 2}
             fontWeight={700}
             fill={this.accent}
@@ -238,7 +238,7 @@ export class FracToBinaryBoard extends Node {
             <Txt
               ref={this.resultSlots}
               text={ch}
-              fontFamily={'"Consolas", "Menlo", monospace'}
+              fontFamily={FONT}
               fontSize={fontSize + 2}
               fontWeight={700}
               fill={this.accent}
@@ -249,7 +249,7 @@ export class FracToBinaryBoard extends Node {
           <Txt
             ref={this.resultSub}
             text={'(2)'}
-            fontFamily={'"Consolas", "Menlo", monospace'}
+            fontFamily={FONT}
             fontSize={(fontSize + 2) * 0.55}
             fill={this.accent}
             opacity={0}
@@ -344,7 +344,7 @@ export class FracToBinaryBoard extends Node {
       <Txt
         ref={flyer}
         text={text}
-        fontFamily={'"Consolas", "Menlo", monospace'}
+        fontFamily={FONT}
         fontSize={this.fontSize + 2}
         fontWeight={700}
         fill={color}
