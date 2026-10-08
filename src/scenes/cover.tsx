@@ -1,4 +1,4 @@
-import { Circle, Grid, Line, Txt, makeScene2D } from "@motion-canvas/2d";
+import {Circle, Grid, Layout, Line, Txt, makeScene2D} from '@motion-canvas/2d';
 import {
   all,
   createRef,
@@ -7,34 +7,40 @@ import {
   easeInOutCubic,
   easeOutCubic,
   waitFor,
-} from "@motion-canvas/core";
+} from '@motion-canvas/core';
 
-/** 每集只改这一处副标 */
-const EPISODE_TITLE = "计算机为什么是二进制？";
+/** 每集只改这一处副标；可用 \\n 换行 */
+const EPISODE_TITLE = '浮点数\n为什么会丢失精度？';
 
 /** 系列通用封面：抽象节点网络 + 系列主标题 */
 export default makeScene2D(function* (view) {
-  const bg = "#0a0e14";
-  const paper = "#e8eef7";
-  const muted = "#5a6a7e";
-  const accent = "#3dd6c6";
-  const line = "#1c2836";
-  const edge = "#2a3a4c";
+  const bg = '#0a0e14';
+  const paper = '#e8eef7';
+  const muted = '#5a6a7e';
+  const accent = '#3dd6c6';
+  const line = '#1c2836';
+  const edge = '#2a3a4c';
 
   view.fill(bg);
 
   const grid = createRef<Grid>();
+  const hero = createRef<Layout>();
   const seriesTitle = createRef<Txt>();
-  const episodeTitle = createRef<Txt>();
+  const episodeBlock = createRef<Layout>();
   const accentLine = createRef<Line>();
   const nodes = createRefArray<Circle>();
   const edges = createRefArray<Line>();
 
+  const episodeLines = EPISODE_TITLE.replace(/\r\n/g, '\n')
+    .replace(/^\n+|\n+$/g, '')
+    .split('\n')
+    .map(line => line.trim());
+
   view.add(
     <Grid
       ref={grid}
-      width={"100%"}
-      height={"100%"}
+      width={'100%'}
+      height={'100%'}
       stroke={line}
       lineWidth={1}
       spacing={72}
@@ -84,7 +90,7 @@ export default makeScene2D(function* (view) {
         ]}
         stroke={edge}
         lineWidth={1.5}
-        lineCap={"round"}
+        lineCap={'round'}
         end={0}
         opacity={0.85}
       />,
@@ -107,45 +113,59 @@ export default makeScene2D(function* (view) {
     );
   }
 
+  // 系列名 + 本集标题纵向排布，换行时不会互相遮盖
   view.add(
-    <Txt
-      ref={seriesTitle}
-      text={"重铸编程之魂"}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
-      fontSize={24}
-      fontWeight={500}
-      fill={muted}
-      letterSpacing={8}
-      y={-78}
-      opacity={0}
-    />,
-  );
-
-  view.add(
-    <Txt
-      ref={episodeTitle}
-      text={EPISODE_TITLE}
-      fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
-      fontSize={96}
-      fontWeight={700}
-      fill={paper}
-      letterSpacing={16}
-      y={18}
-      opacity={0}
-      scale={0.94}
-    />,
+    <Layout
+      ref={hero}
+      layout
+      direction={'column'}
+      alignItems={'center'}
+      gap={28}
+      y={0}
+    >
+      <Txt
+        ref={seriesTitle}
+        text={'重铸编程之魂'}
+        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontSize={24}
+        fontWeight={500}
+        fill={muted}
+        letterSpacing={8}
+        opacity={0}
+      />
+      <Layout
+        ref={episodeBlock}
+        layout
+        direction={'column'}
+        alignItems={'center'}
+        gap={12}
+        opacity={0}
+        scale={0.94}
+      >
+        {episodeLines.map(line => (
+          <Txt
+            text={line.length > 0 ? line : ' '}
+            fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+            fontSize={96}
+            fontWeight={700}
+            fill={paper}
+            letterSpacing={16}
+          />
+        ))}
+      </Layout>
+    </Layout>,
   );
 
   view.add(
     <Line
       ref={accentLine}
       points={[
-        [-140, 78],
-        [140, 78],
+        [-140, 120],
+        [140, 120],
       ]}
       stroke={accent}
       lineWidth={2}
-      lineCap={"round"}
+      lineCap={'round'}
       end={0}
       opacity={0.9}
     />,
@@ -168,14 +188,18 @@ export default makeScene2D(function* (view) {
   // 系列名小字先行
   yield* seriesTitle().opacity(0.9, 0.35, easeOutCubic);
 
-  // 本集大标题入场
+  // 本集大标题入场（支持多行，始终在系列名下方）
   yield* all(
-    episodeTitle().opacity(1, 0.55, easeOutCubic),
-    episodeTitle().scale(1, 0.65, easeOutCubic),
-    episodeTitle().y(-4, 0.65, easeOutCubic),
+    episodeBlock().opacity(1, 0.55, easeOutCubic),
+    episodeBlock().scale(1, 0.65, easeOutCubic),
   );
 
-  // 点缀线
+  // 点缀线贴在整块标题下方
+  const barY = hero().y() + hero().height() / 2 + 28;
+  accentLine().points([
+    [-140, barY],
+    [140, barY],
+  ]);
   yield* accentLine().end(1, 0.4, easeInOutCubic);
 
   // 节点轻脉冲一轮后定格
