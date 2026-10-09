@@ -1,5 +1,12 @@
 import {Latex, Rect, makeScene2D} from '@motion-canvas/2d';
-import {all, createRef, easeOutCubic, waitFor} from '@motion-canvas/core';
+import {
+  Vector2,
+  all,
+  createRef,
+  easeOutCubic,
+  useRandom,
+  waitFor,
+} from '@motion-canvas/core';
 import {Magnifier, ViewCamera} from '../components/image/magnifier';
 import {PixelCanvas} from '../components/image/pixel_canvas';
 import {SceneTitle} from '../components/title/scene_title';
@@ -11,20 +18,42 @@ const PAPER = '#e8eef7';
 // ───────── 可配置 ─────────
 const IMAGE_SRC = natureImg;
 const DISPLAY_WIDTH = 1400;
-/** 目标像素（-1 = 按比例自动取） */
-const PIXEL_X = -1;
-const PIXEL_Y = -1;
-const PIXEL_U = 0.62;
-const PIXEL_V = 0.38;
+/** 随机聚焦次数 */
+const FOCUS_COUNT = 3;
 /** 圆形视野直径（屏幕空间） */
 const LENS_SIZE = 520;
 /** 视野最终倍率 */
 const FINAL_ZOOM = 80;
 // ──────────────────────────
 
+function pickDistinctPixels(
+  random: {nextFloat(): number},
+  nat: Vector2,
+  count: number,
+): Array<{x: number; y: number}> {
+  const minDist = Math.min(nat.x, nat.y) * 0.18;
+  const pts: Array<{x: number; y: number}> = [];
+  let guard = 0;
+  while (pts.length < count && guard < 400) {
+    guard++;
+    const x = Math.min(nat.x - 1, Math.floor(random.nextFloat() * nat.x));
+    const y = Math.min(nat.y - 1, Math.floor(random.nextFloat() * nat.y));
+    if (pts.every(p => Math.hypot(p.x - x, p.y - y) >= minDist)) {
+      pts.push({x, y});
+    }
+  }
+  while (pts.length < count) {
+    pts.push({
+      x: Math.floor((pts.length + 0.5) * (nat.x / (count + 1))),
+      y: Math.floor(nat.y * (0.3 + 0.2 * pts.length)),
+    });
+  }
+  return pts;
+}
+
 /**
  * 图像像素演示：
- * 淡入底图 → 圆形视野（放大镜）出现 → 推近到目标像素 → RGB
+ * 淡入底图 → 圆形视野出现 → 三次随机选像素并移动视角聚焦 → RGB
  *
  * 不用 Motion Canvas 自带 Camera：它对 Img 有缓存裁切 bug，
  * 半透明时会只露出一角，opacity=1 才突然全图。
@@ -39,6 +68,7 @@ export default makeScene2D(function* (view) {
   const lens = createRef<Magnifier>();
   const swatch = createRef<Rect>();
   const info = createRef<Latex>();
+  const random = useRandom();
 
   view.add(<SceneTitle ref={title} text={'离散的图像'} />);
 
@@ -90,14 +120,7 @@ export default makeScene2D(function* (view) {
   yield* canvas().prepare();
 
   const nat = canvas().naturalSize();
-  const px =
-    PIXEL_X >= 0
-      ? Math.min(Math.floor(PIXEL_X), nat.x - 1)
-      : Math.min(Math.floor(PIXEL_U * nat.x), nat.x - 1);
-  const py =
-    PIXEL_Y >= 0
-      ? Math.min(Math.floor(PIXEL_Y), nat.y - 1)
-      : Math.min(Math.floor(PIXEL_V * nat.y), nat.y - 1);
+  const targets = pickDistinctPixels(random, nat, FOCUS_COUNT);
 
   // 1) 底图淡入（全幅视野）
   yield* canvas().fadeIn(0.8);
@@ -107,22 +130,33 @@ export default makeScene2D(function* (view) {
   yield* lens().appear(0.55);
   yield* waitFor(0.2);
 
-  // 3) 视野对准目标像素并拉近
-  yield* cam().focusPixel(canvas(), px, py, {
-    duration: 2.4,
-    finalZoom: FINAL_ZOOM,
-    pixelate: true,
-    highlight: true,
-  });
-  yield* waitFor(0.25);
+  // 3) 三次随机像素：首次推近，之后平移视角到新像素
+  for (let i = 0; i < targets.length; i++) {
+    const {x: px, y: py} = targets[i];
 
-  // 4) HUD：色块 + 坐标/RGB
-  const sample = canvas().samplePixel(px, py);
-  swatch().fill(sample.color);
-  info().tex([`${sample.coordTex}\\quad ${sample.rgbTex}`]);
-  yield* all(
-    swatch().opacity(1, 0.4, easeOutCubic),
-    info().opacity(1, 0.4, easeOutCubic),
-  );
-  yield* waitFor(2.0);
+    if (i > 0) {
+      yield* all(
+        canvas().hideHighlight(0.18),
+        swatch().opacity(0, 0.18, easeOutCubic),
+        info().opacity(0, 0.18, easeOutCubic),
+      );
+    }
+
+    yield* cam().focusPixel(canvas(), px, py, {
+      duration: i === 0 ? 2.2 : 1.6,
+      finalZoom: FINAL_ZOOM,
+      pixelate: true,
+      highlight: true,
+    });
+    yield* waitFor(0.2);
+
+    const sample = canvas().samplePixel(px, py);
+    swatch().fill(sample.color);
+    info().tex([`${sample.coordTex}\\quad ${sample.rgbTex}`]);
+    yield* all(
+      swatch().opacity(1, 0.35, easeOutCubic),
+      info().opacity(1, 0.35, easeOutCubic),
+    );
+    yield* waitFor(i === targets.length - 1 ? 1.6 : 0.9);
+  }
 });

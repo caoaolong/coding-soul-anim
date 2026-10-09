@@ -148,6 +148,11 @@ export class PixelCanvas extends Node {
     );
   }
 
+  /** 收起像素高亮框 */
+  public *hideHighlight(duration = 0.2): ThreadGenerator {
+    yield* this.pixelBox().opacity(0, duration, easeOutCubic);
+  }
+
   public samplePixel(px: number, py: number): {
     color: Color;
     rgbTex: string;

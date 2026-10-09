@@ -1,5 +1,6 @@
-import {Latex, makeScene2D} from '@motion-canvas/2d';
+import {Latex, Layout, Rect, Txt, makeScene2D} from '@motion-canvas/2d';
 import {all, createRef, easeOutCubic, waitFor} from '@motion-canvas/core';
+import {FocusWord} from '../components/emphasis/focus_word';
 import {FunctionGraph, GraphPoint} from '../components/graph/function_graph';
 import {SceneTitle} from '../components/title/scene_title';
 
@@ -16,11 +17,6 @@ const TARGET = 0.2345;
 const BASE = 2;
 /** 最大位数 / 细分级数（x 轴 0…MAX_BITS） */
 const MAX_BITS = 32;
-/**
- * 四次递进放大的 x 区间左端（右端始终到 MAX_BITS）。
- * 逐步收紧到尾部，看清指数衰减细节。
- */
-const ZOOM_FROM = [8, 16, 24, 28] as const;
 // ──────────────────────────
 
 /** 位数 n 下，最近可表示点 k·base^{-n} 与真值的绝对误差 */
@@ -35,24 +31,6 @@ function errorBound(base: number, n: number): number {
   return Math.pow(base, -n) / 2;
 }
 
-/** 区间内两条曲线的共同 y 上界（含留白） */
-function yMaxInRange(
-  errorPts: GraphPoint[],
-  boundPts: GraphPoint[],
-  x0: number,
-  x1: number,
-  pad = 1.25,
-): number {
-  let m = 0;
-  for (const p of errorPts) {
-    if (p.x >= x0 && p.x <= x1) m = Math.max(m, p.y);
-  }
-  for (const p of boundPts) {
-    if (p.x >= x0 && p.x <= x1) m = Math.max(m, p.y);
-  }
-  return Math.max(m * pad, 1e-6);
-}
-
 /**
  * 误差随位数衰减：
  * 画出 E(n)=|x − round(x, base^{-n})| 与上界 base^{-n}/2，
@@ -64,7 +42,8 @@ export default makeScene2D(function* (view) {
   const title = createRef<SceneTitle>();
   const graph = createRef<FunctionGraph>();
   const caption = createRef<Latex>();
-  const legend = createRef<Latex>();
+  const legend = createRef<Layout>();
+  const focus = createRef<FocusWord>();
 
   const errorPts: GraphPoint[] = [];
   const boundPts: GraphPoint[] = [];
@@ -78,7 +57,7 @@ export default makeScene2D(function* (view) {
   }
   yMax *= 1.15;
 
-  view.add(<SceneTitle ref={title} text={'精度丢失 · 误差随位数衰减'} />);
+  view.add(<SceneTitle ref={title} text={'逼近0.2345的误差'} />);
   view.add(
     <FunctionGraph
       ref={graph}
@@ -108,15 +87,48 @@ export default makeScene2D(function* (view) {
     />,
   );
   view.add(
-    <Latex
+    <Layout
       ref={legend}
-      tex={[`\\text{虚线: 上界 }${BASE}^{-n}/2\\quad\\text{实线: 实际误差 }E(n)`]}
-      fill={MUTED}
-      fontSize={24}
-      y={-430}
+      layout
+      direction={'column'}
+      alignItems={'start'}
+      gap={8}
+      x={860}
+      y={-420}
+      offset={[1, 0]}
       opacity={0}
-    />,
+    >
+      <Layout layout direction={'row'} alignItems={'center'} gap={10}>
+        <Rect
+          width={28}
+          height={10}
+          radius={3}
+          fill={BOUND}
+          stroke={BOUND}
+          lineWidth={2}
+          lineDash={[6, 5]}
+        />
+        <Txt
+          text={'上界'}
+          fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+          fontSize={24}
+          fill={MUTED}
+        />
+        <Latex tex={[`${BASE}^{-n}/2`]} fill={PAPER} fontSize={24} />
+      </Layout>
+      <Layout layout direction={'row'} alignItems={'center'} gap={10}>
+        <Rect width={28} height={10} radius={3} fill={CURVE} />
+        <Txt
+          text={'实际误差'}
+          fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+          fontSize={24}
+          fill={MUTED}
+        />
+        <Latex tex={['E(n)']} fill={PAPER} fontSize={24} />
+      </Layout>
+    </Layout>,
   );
+  view.add(<FocusWord ref={focus} text={'逐次逼近法'} />);
 
   graph().addSeries('bound', boundPts, {
     color: BOUND,
@@ -131,34 +143,29 @@ export default makeScene2D(function* (view) {
   });
 
   yield* title().show();
-  yield* waitFor(0.2);
-  yield* graph().showAxes(0.6);
-  yield* waitFor(0.25);
+  yield* waitFor(0.15);
+  yield* graph().showAxes(0.4);
+  yield* waitFor(0.12);
 
   yield* all(
-    caption().opacity(1, 0.4, easeOutCubic),
-    legend().opacity(1, 0.4, easeOutCubic),
+    caption().opacity(1, 0.28, easeOutCubic),
+    legend().opacity(1, 0.28, easeOutCubic),
   );
-  yield* waitFor(0.35);
+  yield* waitFor(0.15);
 
   // 先画上界（虚线），再画实际误差并点亮采样点
-  yield* graph().drawSeries('bound', 1.2);
-  yield* waitFor(0.25);
-  yield* graph().drawSeries('error', 1.6);
-  yield* waitFor(0.15);
-  yield* graph().showDots('error', 0.035);
-  yield* waitFor(0.6);
+  yield* graph().drawSeries('bound', 0.45);
+  yield* waitFor(0.1);
+  yield* graph().drawSeries('error', 0.55);
+  yield* waitFor(0.08);
+  yield* graph().showDots('error', 0.012);
+  yield* waitFor(0.35);
+  yield* focus().play();
 
-  // 四次递进放大：每次收紧到更靠后的位数区间，Y 取双曲线共同值域
-  for (let i = 0; i < ZOOM_FROM.length; i++) {
-    const x0 = ZOOM_FROM[i];
-    const x1 = MAX_BITS;
-    const zoomY = yMaxInRange(errorPts, boundPts, x0, x1);
-    yield* graph().zoomIntoX(x0, x1, {
-      yMin: 0,
-      yMax: zoomY,
-      duration: 1.35,
-    });
-    yield* waitFor(i === ZOOM_FROM.length - 1 ? 1.5 : 0.55);
+  // 强调词结束后：对曲线末尾连续 3 次 1/2 放大
+  for (let i = 0; i < 3; i++) {
+    yield* waitFor(0.2);
+    yield* graph().zoomTail(0.8);
   }
+  yield* waitFor(0.8);
 });

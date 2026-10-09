@@ -7,6 +7,7 @@ import {
 } from '@motion-canvas/2d';
 import {
   ThreadGenerator,
+  Vector2,
   all,
   createRef,
   easeInOutCubic,
@@ -110,7 +111,7 @@ export interface FloatSampleProps extends NodeProps {
 
 /**
  * 带边框的演示浮点数（全程 LaTeX，边框随 layout 自适应）。
- * 规格化：右侧箭头 → 规格化结果 → 原式与箭头淡出，结果居中。
+ * 规格化：原值上移淡出，新值从下方上移淡入；入场后再在框外右侧显示 ×2^e。
  */
 export class FloatSample extends Node {
   private readonly stage = createRef<Layout>();
@@ -121,11 +122,17 @@ export class FloatSample extends Node {
   private readonly fracTex = createRef<Latex>();
 
   private readonly arrow = createRef<Latex>();
+  /** 非 layout 包裹层：规格化入场的位移在这里做，避免 Rect.layout 冲掉 y */
+  private readonly normWrap = createRef<Node>();
   private readonly normFrame = createRef<Rect>();
-  /** 规格化结果主体，如 -1.001\times 2 */
-  private readonly normBody = createRef<Latex>();
-  /** 指数部分 ^{N}，可单独呼吸高亮 */
-  private readonly normExp = createRef<Latex>();
+  private readonly normSignTex = createRef<Latex>();
+  private readonly normIntegerTex = createRef<Latex>();
+  private readonly normPointTex = createRef<Latex>();
+  private readonly normFracTex = createRef<Latex>();
+  /** 小数位拆成单字符，用于「保留位」方框标注 */
+  private readonly fracDigitRoot = createRef<Layout>();
+  /** 框外右侧 ×2^{N}（入场完成后再显示；绝对定位） */
+  private readonly suffixTex = createRef<Latex>();
 
   private readonly parsed: ParsedFloat;
   private readonly baseFill: string;
@@ -224,35 +231,68 @@ export class FloatSample extends Node {
       />,
     );
 
+    // 规格化数字框
     this.add(
-      <Rect
-        ref={this.normFrame}
-        layout
-        direction={'row'}
-        alignItems={'center'}
-        justifyContent={'center'}
-        padding={[padding[1], padding[0]]}
-        fill={background}
-        stroke={stroke}
-        lineWidth={2}
-        radius={10}
+      <Node ref={this.normWrap} opacity={0}>
+        <Rect
+          ref={this.normFrame}
+          layout
+          direction={'row'}
+          alignItems={'center'}
+          justifyContent={'center'}
+          padding={[padding[1], padding[0]]}
+          fill={background}
+          stroke={stroke}
+          lineWidth={2}
+          radius={10}
+          gap={2}
+        >
+          <Latex
+            ref={this.normSignTex}
+            tex={['']}
+            fill={fill}
+            fontSize={fontSize}
+          />
+          <Latex
+            ref={this.normIntegerTex}
+            tex={['']}
+            fill={fill}
+            fontSize={fontSize}
+          />
+          <Latex
+            ref={this.normPointTex}
+            tex={['.']}
+            fill={fill}
+            fontSize={fontSize}
+          />
+          <Latex
+            ref={this.normFracTex}
+            tex={['']}
+            fill={fill}
+            fontSize={fontSize}
+          />
+          <Layout
+            ref={this.fracDigitRoot}
+            layout
+            direction={'row'}
+            alignItems={'center'}
+            gap={0}
+          />
+        </Rect>
+      </Node>,
+    );
+
+    // ×2^e 整体挂在组件根上，绝对定位贴到框右缘
+    this.add(
+      <Latex
+        ref={this.suffixTex}
+        tex={['']}
+        fill={fill}
+        fontSize={fontSize}
         opacity={0}
-        scale={0.94}
-        gap={0}
-      >
-        <Latex
-          ref={this.normBody}
-          tex={['']}
-          fill={fill}
-          fontSize={fontSize * 0.85}
-        />
-        <Latex
-          ref={this.normExp}
-          tex={['']}
-          fill={fill}
-          fontSize={fontSize * 0.85}
-        />
-      </Rect>,
+        offset={[-1, 0]}
+        zIndex={5}
+      />,
     );
   }
 
@@ -276,10 +316,105 @@ export class FloatSample extends Node {
     return this.normMantissa;
   }
 
+  /**
+   * IEEE 754 尾数域：规格化形式 1.f… 中小数点后的位串，
+   * 截断/补零到 len 位（单精度 23）。
+   */
+  public mantissaFieldBits(len = 23): string {
+    const dot = this.normMantissa.indexOf('.');
+    let frac = dot >= 0 ? this.normMantissa.slice(dot + 1) : '';
+    frac = frac.replace(/[^01]/g, '');
+    if (frac.length < len) return frac.padEnd(len, '0');
+    return frac.slice(0, len);
+  }
+
   public part(id: FloatPartId): Latex {
     if (id === 'sign') return this.signTex();
     if (id === 'integer') return this.integerTex();
     return this.fracTex();
+  }
+
+  /** 规格化后数字框内的符号（原式 stage 已移除） */
+  public normalizedSign(): Latex {
+    return this.normSignTex();
+  }
+
+  /** 规格化后数字框内的小数位（尾数 f）；若已拆成单字符则返回 digit root */
+  public normalizedFrac(): Node {
+    if (this.fracDigitRoot().children().length > 0) {
+      return this.fracDigitRoot();
+    }
+    return this.normFracTex();
+  }
+
+  /** 规格化小数整段 LaTeX（裁切恢复后可直接改 fill） */
+  public normalizedFracTex(): Latex {
+    return this.normFracTex();
+  }
+
+  /**
+   * 将小数位拆成单字符：保留位正常色，要舍弃的位红色高亮。
+   * 注意：整段 frac Latex 会退出 layout，避免仍占宽导致大空隙。
+   */
+  public *markFracDiscard(
+    keepLen = 23,
+    discardColor = '#ff6b8a',
+    duration = 0.35,
+  ): ThreadGenerator {
+    const dot = this.normMantissa.indexOf('.');
+    const full = (dot >= 0 ? this.normMantissa.slice(dot + 1) : '').replace(
+      /[^01]/g,
+      '',
+    );
+    if (!full) return;
+
+    // 整段 frac 退出布局，否则 opacity=0 仍占位
+    this.normFracTex().opacity(0);
+    this.normFracTex().layout(false);
+
+    this.fracDigitRoot().removeChildren();
+    this.fracDigitRoot().layout(true);
+    const discardDigits: Latex[] = [];
+
+    for (let i = 0; i < full.length; i++) {
+      const discard = i >= keepLen;
+      const digitRef = createRef<Latex>();
+      // 与框内整数/小数点同字号的 Latex，避免 Txt 视觉上偏小
+      this.fracDigitRoot().add(
+        <Latex
+          ref={digitRef}
+          tex={[full[i]]}
+          fill={this.baseFill}
+          fontSize={this.fontSize}
+        />,
+      );
+      if (discard) {
+        discardDigits.push(digitRef());
+      }
+    }
+    yield;
+
+    if (discardDigits.length === 0) return;
+    yield* all(
+      ...discardDigits.map(t =>
+        t.fill(discardColor, duration, easeOutCubic),
+      ),
+    );
+  }
+
+  /** 删除已标红的舍弃位，保留前 len 位（就地删除，无淡入淡出） */
+  public cropFracToMantissa(len = 23) {
+    const bits = this.mantissaFieldBits(len);
+    const dot = this.normMantissa.indexOf('.');
+    const intPart =
+      dot >= 0 ? this.normMantissa.slice(0, dot) : this.normMantissa;
+    this.normMantissa = `${intPart}.${bits}`;
+
+    // 清掉单字符，恢复整段 LaTeX 并重新参与 layout
+    this.fracDigitRoot().removeChildren();
+    this.normFracTex().tex([bits]);
+    this.normFracTex().layout(true);
+    this.normFracTex().opacity(1);
   }
 
   public *show(duration = 0.4): ThreadGenerator {
@@ -293,9 +428,32 @@ export class FloatSample extends Node {
     yield* this.opacity(0, duration, easeOutCubic);
   }
 
-  /** 整数 / 小数改为二进制 LaTeX（小数点仍为独立节点） */
-  public *toBinary(duration = 0.5, fracBits = 10): ThreadGenerator {
+  /** 仅把整数部分换成二进制（小数先不动） */
+  public *toIntegerBinary(duration = 0.5): ThreadGenerator {
     this.binaryInteger = intToBinary(this.parsed.integer);
+    yield* this.integerTex().tex([this.binaryInteger], duration, easeOutCubic);
+  }
+
+  /** 仅把小数部分换成二进制（默认 23 位，对应单精度尾数） */
+  public *toFracBinary(duration = 0.5, fracBits = 23): ThreadGenerator {
+    this.binaryFrac = this.parsed.frac
+      ? fracToBinary(this.parsed.frac, fracBits)
+      : '';
+    const hasFrac = this.binaryFrac.length > 0;
+    yield* all(
+      this.pointTex().opacity(hasFrac ? 1 : 0, duration * 0.4, easeOutCubic),
+      this.fracTex().opacity(hasFrac ? 1 : 0, duration * 0.4, easeOutCubic),
+      hasFrac
+        ? this.fracTex().tex([this.binaryFrac], duration, easeOutCubic)
+        : this.fracTex().tex(['\\phantom{0}'], 0),
+    );
+  }
+
+  /** 整数 / 小数改为二进制 LaTeX（小数点仍为独立节点） */
+  public *toBinary(duration = 0.5, fracBits = 23): ThreadGenerator {
+    if (!this.binaryInteger) {
+      this.binaryInteger = intToBinary(this.parsed.integer);
+    }
     this.binaryFrac = this.parsed.frac
       ? fracToBinary(this.parsed.frac, fracBits)
       : '';
@@ -314,12 +472,9 @@ export class FloatSample extends Node {
 
   /**
    * 规格化演示：
-   * 1) 原式移到左侧
-   * 2) 再显示箭头
-   * 3) 再显示规格化结果（含 ×2^e）
-   * 4) 原式与箭头淡出，结果移到居中
+   * 原值向上移出并淡出，规格化结果同时从下方上移淡入。
    */
-  public *normalize(accent = '#ffb454', duration = 0.55): ThreadGenerator {
+  public *normalize(accent = '#ffb454', duration = 0.7): ThreadGenerator {
     if (!this.binaryInteger && !this.binaryFrac) return;
 
     const {mantissa, exponent} = normalizeBinary(
@@ -329,94 +484,75 @@ export class FloatSample extends Node {
     this.normMantissa = mantissa;
     this.normExponent = exponent;
 
-    // 拆成主体 + ^{N}，便于单独高亮指数
-    if (exponent === 0) {
-      this.normBody().tex([`${this.parsed.sign}${mantissa}`]);
-      this.normExp().tex(['']);
-      this.normExp().opacity(0);
+    // 只显示规格化尾数，不再带 ×2^e 后缀；拆成与原式相同的符号/整数/点/小数
+    const dot = mantissa.indexOf('.');
+    const intPart = dot >= 0 ? mantissa.slice(0, dot) : mantissa;
+    const fracPart = dot >= 0 ? mantissa.slice(dot + 1) : '';
+    this.normSignTex().tex([this.parsed.sign]);
+    this.normIntegerTex().tex([intPart]);
+    this.normFracTex().tex([fracPart || '\\phantom{0}']);
+    this.normPointTex().opacity(fracPart ? 1 : 0);
+    this.normFracTex().opacity(fracPart ? 1 : 0);
+    this.suffixTex().opacity(0);
+    if (exponent !== 0) {
+      this.suffixTex().tex([`\\times 2^{${exponent}}`]);
     } else {
-      this.normBody().tex([`${this.parsed.sign}${mantissa}\\times 2`]);
-      this.normExp().tex([`^{${exponent}}`]);
-      this.normExp().opacity(1);
+      this.suffixTex().tex(['']);
     }
-    this.normFrame().stroke(accent);
 
-    // 切到左锚定（无跳变），向右展开时原式不跟着挤
-    const srcW = this.srcFrame().width();
-    this.stage().offset([-1, 0]);
-    this.stage().x(-srcW / 2);
+    // 框尺寸与原式一致，中心对齐原式（不因后缀而整体居中）
+    yield;
+    const boxW = this.srcFrame().width();
+    const boxH = this.srcFrame().height();
+    this.normFrame().minWidth(boxW);
+    this.normFrame().minHeight(boxH);
+    this.normFrame().width(boxW);
+    this.normFrame().height(boxH);
+    this.normFrame().position(0, 0);
+
+    const slide = 80;
+    this.normWrap().y(slide);
+    this.normWrap().opacity(0);
     yield;
 
-    // 1) 原式先移到左侧
-    yield* this.stage().x(-560, 0.5, easeInOutCubic);
-    yield* waitFor(0.15);
-
-    // 2) 插入箭头并显示
-    this.stage().add(this.arrow());
-    yield;
     yield* all(
-      this.arrow().opacity(1, 0.35, easeOutCubic),
-      this.arrow().fill(accent, 0.35, easeOutCubic),
+      this.stage().y(-slide, duration, easeInOutCubic),
+      this.stage().opacity(0, duration, easeOutCubic),
+      this.normWrap().y(0, duration, easeInOutCubic),
+      this.normWrap().opacity(1, duration, easeOutCubic),
     );
+    this.stage().remove();
+    this.arrow().remove();
     yield* waitFor(0.2);
 
-    // 3) 插入规格化结果并显示
-    this.stage().add(this.normFrame());
-    yield;
-    yield* all(
-      this.normFrame().opacity(1, duration, easeOutCubic),
-      this.normFrame().scale(1, duration, easeOutCubic),
-    );
-
-    // 4) 原式 + 箭头 + 结果 作为整体居中
-    const leftX = this.stage().x();
-    const groupW = this.stage().width();
-    const visualCenter = leftX + groupW / 2;
-    this.stage().offset([0, 0]);
-    this.stage().x(visualCenter);
-    yield;
-    yield* this.stage().x(0, 0.5, easeInOutCubic);
-    yield* waitFor(0.55);
-
-    // 5) 先淡出原式与箭头；结果脱离 layout 后再平滑移到中间（避免 remove 导致突变）
-    const normWorld = this.normFrame().absolutePosition();
-    const center = this.absolutePosition();
-
-    yield* all(
-      this.srcFrame().opacity(0, 0.4, easeOutCubic),
-      this.arrow().opacity(0, 0.4, easeOutCubic),
-      this.normFrame().stroke(this.strokeColor, 0.4, easeOutCubic),
-    );
-
-    // 挂到根节点，保持当前世界坐标，不再受 stage layout 约束
-    this.add(this.normFrame());
-    this.normFrame().absolutePosition(normWorld);
-    this.srcFrame().remove();
-    this.arrow().remove();
-    this.stage().remove();
-    yield;
-
-    yield* this.normFrame().absolutePosition(center, 0.55, easeInOutCubic);
-    this.normFrame().position(0, 0);
-    yield* waitFor(0.25);
-
-    // 6) 指数 N 呼吸高亮两次
+    // 入场完成后：绝对定位到数字框右缘外侧，整体淡入并呼吸高亮
     if (exponent !== 0) {
-      yield* this.breatheExponent(accent, 2);
+      yield;
+      const gap = 16;
+      const frameAbs = this.normFrame().absolutePosition();
+      const frameW = this.normFrame().width();
+      this.suffixTex().absolutePosition(
+        new Vector2(frameAbs.x + frameW / 2 + gap, frameAbs.y),
+      );
+      yield* this.suffixTex().opacity(1, 0.4, easeOutCubic);
+      yield* waitFor(0.15);
+      yield* this.breatheSuffix(accent, 1);
+    } else {
+      yield* waitFor(0.25);
     }
   }
 
-  /** 对 2^N 中的 N（^{N} 节点）做呼吸高亮 */
-  public *breatheExponent(color: string, times = 2): ThreadGenerator {
-    const exp = this.normExp();
+  /** 对整段 ×2^e 做呼吸高亮 */
+  public *breatheSuffix(color: string, times = 2): ThreadGenerator {
+    const s = this.suffixTex();
     for (let i = 0; i < times; i++) {
       yield* all(
-        exp.fill(color, 0.32, easeOutCubic),
-        exp.scale(1.4, 0.32, easeOutCubic),
+        s.fill(color, 0.32, easeOutCubic),
+        s.scale(1.25, 0.32, easeOutCubic),
       );
       yield* all(
-        exp.fill(this.baseFill, 0.32, easeOutCubic),
-        exp.scale(1, 0.32, easeOutCubic),
+        s.fill(this.baseFill, 0.32, easeOutCubic),
+        s.scale(1, 0.32, easeOutCubic),
       );
       if (i < times - 1) {
         yield* waitFor(0.08);

@@ -1,4 +1,4 @@
-import {Node, Rect, Txt, View2D, makeScene2D} from '@motion-canvas/2d';
+import {Latex, Node, Rect, Txt, View2D, makeScene2D} from '@motion-canvas/2d';
 import {
   ThreadGenerator,
   Vector2,
@@ -22,9 +22,11 @@ const LINE = '#2a3a4c';
 const MUTED = '#8a9bb0';
 
 /** 本次演示用浮点数（改这里即可切换样例） */
-const DEMO_FLOAT = -9.32;
-/** 小数部分转二进制时保留的位数 */
-const FRAC_BIN_BITS = 10;
+const DEMO_FLOAT = 0.2345;
+/** 小数部分转二进制时保留的位数（单精度尾数 23） */
+const FRAC_BIN_BITS = 23;
+/** 单精度指数偏置 */
+const EXP_BIAS = 127;
 
 /** IEEE 754 单精度三段着色 */
 const COLOR_S = '#ff6b8a';
@@ -54,6 +56,7 @@ const colorOf = (p: 'S' | 'E' | 'M') =>
  * 1) 横向 4 字节（32 bit）
  * 2) 花括号标注 S / E / M 并着色
  * 3) 隐藏标注后改为纵向三行，左侧 Label
+ * 4) 写入 S/E/M 后回到横向，并恢复花括号
  */
 export default makeScene2D(function* (view) {
   view.fill(BG);
@@ -67,6 +70,11 @@ export default makeScene2D(function* (view) {
   const braceE = createRef<Brace>();
   const braceM = createRef<Brace>();
   const rowLabels = createRefArray<Txt>();
+  const expCalc = createRef<Rect>();
+  const expLineE = createRef<Latex>();
+  const expLineBias = createRef<Latex>();
+  const expLineSum = createRef<Latex>();
+  const expLineBin = createRef<Latex>();
 
   view.add(<SceneTitle ref={title} text={'IEEE 754'} />);
 
@@ -101,12 +109,7 @@ export default makeScene2D(function* (view) {
     return new Vector2(x, rowY);
   };
 
-  // 示例比特串（仅作视觉示意，可改）
-  const bits =
-    '0' + // S
-    '10000001' + // E
-    '10100000000000000000000'; // M (23)
-
+  // S / E / M 初始全 0，后续由动画写入真实比特
   for (let i = 0; i < BITS; i++) {
     const pos = bitPosH(i);
     view.add(
@@ -125,7 +128,7 @@ export default makeScene2D(function* (view) {
       >
         <Txt
           ref={bitTxts}
-          text={bits[i] ?? '0'}
+          text={'0'}
           fontFamily={FONT}
           fontSize={20}
           fontWeight={700}
@@ -236,6 +239,53 @@ export default makeScene2D(function* (view) {
     return new Vector2(x, row.y);
   };
 
+  // 指数偏置计算卡片（S 右侧 / E 行旁，先隐藏；数值在 normalize 后填入）
+  view.add(
+    <Rect
+      ref={expCalc}
+      layout
+      direction={'column'}
+      alignItems={'start'}
+      gap={10}
+      padding={[22, 28]}
+      fill={DEEP}
+      stroke={COLOR_E}
+      lineWidth={2}
+      radius={12}
+      x={420}
+      y={-80}
+      opacity={0}
+      scale={0.94}
+    >
+      <Txt
+        text={'指数偏置'}
+        fontFamily={'"Microsoft YaHei", "PingFang SC", sans-serif'}
+        fontSize={26}
+        fontWeight={700}
+        fill={COLOR_E}
+      />
+      <Latex ref={expLineE} tex={['e=\\,?']} fill={PAPER} fontSize={28} />
+      <Latex
+        ref={expLineBias}
+        tex={[`\\mathrm{bias}=${EXP_BIAS}`]}
+        fill={MUTED}
+        fontSize={26}
+      />
+      <Latex
+        ref={expLineSum}
+        tex={['E=e+\\mathrm{bias}=\\,?']}
+        fill={PAPER}
+        fontSize={28}
+      />
+      <Latex
+        ref={expLineBin}
+        tex={['']}
+        fill={COLOR_E}
+        fontSize={28}
+      />
+    </Rect>,
+  );
+
   // —— 动画 ——
   yield* title().show();
 
@@ -293,11 +343,25 @@ export default makeScene2D(function* (view) {
   yield* sample().show(0.45);
   yield* waitFor(0.35);
 
-  // 6) 用 S 色同时高亮符号 与 S 段比特 → 符号飞入比特位淡出 → 写入符号位
+  // 6) 整数部分直接换成二进制
+  yield* sample().highlight('integer', COLOR_M, 0.35);
+  yield* sample().toIntegerBinary(0.45);
+  yield* waitFor(0.35);
+
+  // 7) 小数部分直接换成 23 位二进制
+  yield* sample().highlight('frac', COLOR_M, 0.35);
+  yield* sample().toFracBinary(0.55, FRAC_BIN_BITS);
+  yield* waitFor(0.45);
+
+  // 8) 规格化：原值上移淡出，新值从下方上移淡入（含 ×2^e 高亮）
+  yield* sample().normalize('#ffb454');
+  yield* waitFor(2.35);
+
+  // 9) 归一化完成后：符号飞入 S 位
   const sBitIndices = Array.from({length: S_LEN}, (_, i) => i);
   const COLOR_S_FILL = '#5a1a28';
   yield* all(
-    sample().highlight('sign', COLOR_S, 0.4),
+    sample().normalizedSign().fill(COLOR_S, 0.4, easeOutCubic),
     ...sBitIndices.map(i =>
       all(
         bitBoxes[i].fill(COLOR_S_FILL, 0.4, easeOutCubic),
@@ -309,30 +373,150 @@ export default makeScene2D(function* (view) {
   );
   yield* waitFor(0.2);
 
-  // 符号副本飞入 S 位中心并淡出（原数字保留）
+  const signBit = ieeeSignBit(DEMO_FLOAT);
   yield* flyPartToBit(
     view,
-    sample().part('sign'),
+    sample().normalizedSign(),
     bitBoxes[0],
     sample().parts.sign,
     COLOR_S,
+    0.55,
+    56,
+    bitTxts[0].text(signBit, 0.25, easeOutCubic),
+  );
+  yield* waitFor(0.25);
+
+  // 10) S 右侧淡入指数偏置计算：E = e + bias
+  const trueExp = sample().normalizeExponent;
+  const storedE = trueExp + EXP_BIAS;
+  const eBin = storedE.toString(2).padStart(E_LEN, '0');
+  expLineE().tex([`e=${trueExp}`]);
+  expLineSum().tex([
+    `E=e+\\mathrm{bias}=${trueExp}+${EXP_BIAS}=${storedE}`,
+  ]);
+  expLineBin().tex([`=${eBin}_{2}`]);
+
+  yield* all(
+    expCalc().opacity(1, 0.45, easeOutCubic),
+    expCalc().scale(1, 0.5, easeOutCubic),
+  );
+  yield* waitFor(2.55);
+
+  // 11) 算出的 E 整串一起飞入 E 段中心，再一次性更新全部 E 比特
+  const eBitIndices = Array.from({length: E_LEN}, (_, i) => S_LEN + i);
+  const COLOR_E_FILL = '#152238';
+  const eLeft = bitBoxes[S_LEN].absolutePosition();
+  const eRight = bitBoxes[S_LEN + E_LEN - 1].absolutePosition();
+  const eMidAbs = new Vector2((eLeft.x + eRight.x) / 2, (eLeft.y + eRight.y) / 2);
+  yield* all(
+    expLineBin().fill('#fff0c8', 0.3, easeOutCubic),
+    ...eBitIndices.map(i =>
+      all(
+        bitBoxes[i].fill(COLOR_E_FILL, 0.35, easeOutCubic),
+        bitBoxes[i].lineWidth(3.5, 0.35, easeOutCubic),
+        bitBoxes[i].stroke(COLOR_E, 0.35, easeOutCubic),
+        bitTxts[i].fill(PAPER, 0.35, easeOutCubic),
+      ),
+    ),
+  );
+  yield* waitFor(0.15);
+
+  // 结果飞入比特位的同时隐藏偏置指数计算卡片
+  yield* all(
+    flyTextToPoint(
+      view,
+      expLineBin(),
+      eMidAbs,
+      eBin,
+      COLOR_E,
+      0.55,
+      34,
+      true,
+      all(
+        ...eBitIndices.map((i, k) =>
+          bitTxts[i].text(eBin[k], 0.25, easeOutCubic),
+        ),
+      ),
+    ),
+    expCalc().opacity(0, 0.45, easeOutCubic),
+    expCalc().scale(0.94, 0.45, easeOutCubic),
+  );
+  yield* waitFor(0.35);
+
+  // 12) 从顶部规格化框裁出尾数 M（小数点后 23 位）飞入并更新
+  const mBitIndices = Array.from(
+    {length: M_LEN},
+    (_, i) => S_LEN + E_LEN + i,
+  );
+  const COLOR_M_FILL = '#0f2a28';
+  const mLeft = bitBoxes[S_LEN + E_LEN].absolutePosition();
+  const mRight = bitBoxes[BITS - 1].absolutePosition();
+  const mMidAbs = new Vector2(
+    (mLeft.x + mRight.x) / 2,
+    (mLeft.y + mRight.y) / 2,
   );
 
-  const signBit = ieeeSignBit(DEMO_FLOAT);
-  yield* bitTxts[0].text(signBit, 0.3, easeOutCubic);
-  yield* waitFor(1);
+  // 要舍弃的位标红，再删除
+  yield* sample().markFracDiscard(M_LEN, COLOR_S, 0.4);
+  yield* waitFor(0.45);
+  sample().cropFracToMantissa(M_LEN);
+  const mBin = sample().mantissaFieldBits(M_LEN);
+  yield* waitFor(0.25);
 
-  // 7) 整数 / 小数转为二进制显示
-  yield* sample().toBinary(0.55, FRAC_BIN_BITS);
-  yield* waitFor(1);
+  yield* all(
+    ...mBitIndices.map(i =>
+      all(
+        bitBoxes[i].fill(COLOR_M_FILL, 0.35, easeOutCubic),
+        bitBoxes[i].lineWidth(3.5, 0.35, easeOutCubic),
+        bitBoxes[i].stroke(COLOR_M, 0.35, easeOutCubic),
+        bitTxts[i].fill(PAPER, 0.35, easeOutCubic),
+      ),
+    ),
+  );
+  yield* waitFor(0.1);
 
-  // 8) 规格化：原式左移 → 箭头 → 右侧结果 → 淡出并居中
-  yield* sample().normalize('#ffb454');
-  yield* waitFor(0.8);
+  yield* flyTextToPoint(
+    view,
+    sample().normalizedFrac(),
+    mMidAbs,
+    mBin,
+    COLOR_M,
+    0.6,
+    28,
+    true,
+    all(
+      ...mBitIndices.map((i, k) =>
+        bitTxts[i].text(mBin[k], 0.25, easeOutCubic),
+      ),
+      sample().normalizedFracTex().fill(PAPER, 0.25, easeOutCubic),
+    ),
+  );
+  yield* waitFor(0.45);
+
+  // 13) 全部写入完成后：纵排回横向四字节，并恢复花括号 / 字节标签
+  yield* all(
+    ...rowLabels.map(l => l.opacity(0, 0.3, easeOutCubic)),
+    sample().opacity(0, 0.35, easeOutCubic),
+    ...bitBoxes.map((box, i) => {
+      const p = bitPosH(i);
+      return box.position(p, 0.75, easeInOutCubic);
+    }),
+  );
+  yield* waitFor(0.15);
+  yield* all(
+    ...byteTags.map((t, i) =>
+      delay(i * 0.05, t.opacity(0.9, 0.3, easeOutCubic)),
+    ),
+    braceS().show(0.4),
+    delay(0.1, braceE().show(0.45)),
+    delay(0.2, braceM().show(0.5)),
+  );
+  yield* waitFor(1.2);
 });
 
 /**
  * 将案例数字某一部分的视觉副本，从源节点飞入目标比特格中心并淡出。
+ * onArrive 与飞入物淡出同时播放（用于立即更新比特）。
  */
 function* flyPartToBit(
   view: View2D,
@@ -341,17 +525,49 @@ function* flyPartToBit(
   text: string,
   color: string,
   duration = 0.55,
+  fontSize = 56,
+  onArrive?: ThreadGenerator,
+): ThreadGenerator {
+  yield* flyTextToPoint(
+    view,
+    from,
+    toBox.absolutePosition(),
+    text,
+    color,
+    duration,
+    fontSize,
+    true,
+    onArrive,
+  );
+}
+
+/** 文本从源节点飞到目标点；淡出时同步执行 onArrive */
+function* flyTextToPoint(
+  view: View2D,
+  from: Node,
+  target: Vector2,
+  text: string,
+  color: string,
+  duration = 0.55,
+  fontSize = 56,
+  targetIsAbsolute = false,
+  onArrive?: ThreadGenerator,
 ): ThreadGenerator {
   const flyer = createRef<Txt>();
   const start = from.absolutePosition();
-  const end = toBox.absolutePosition();
+  const end = targetIsAbsolute
+    ? target
+    : (() => {
+        const viewAbs = view.absolutePosition();
+        return new Vector2(viewAbs.x + target.x, viewAbs.y + target.y);
+      })();
 
   view.add(
     <Txt
       ref={flyer}
       text={text}
       fontFamily={FONT}
-      fontSize={56}
+      fontSize={fontSize}
       fontWeight={700}
       fill={color}
       opacity={1}
@@ -361,10 +577,17 @@ function* flyPartToBit(
   );
   flyer().absolutePosition(start);
 
+  const fadeDur = duration * 0.4;
   yield* all(
     flyer().absolutePosition(end, duration, easeInOutCubic),
-    flyer().scale(0.45, duration, easeInOutCubic),
-    delay(duration * 0.55, flyer().opacity(0, duration * 0.4, easeOutCubic)),
+    flyer().scale(0.55, duration, easeInOutCubic),
+    delay(
+      duration * 0.55,
+      all(
+        flyer().opacity(0, fadeDur, easeOutCubic),
+        ...(onArrive ? [onArrive] : []),
+      ),
+    ),
   );
 
   flyer().remove();

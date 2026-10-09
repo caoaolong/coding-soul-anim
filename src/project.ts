@@ -26,9 +26,11 @@ import pixelZoomDemo from "./scenes/pixel_zoom_demo?scene";
 import table from "./scenes/table?scene";
 import chatDemo from "./scenes/chat_demo?scene";
 import blockStackDemo from "./scenes/block_stack_demo?scene";
+import dualAxisDemo from "./scenes/dual_axis_demo?scene";
+import focusWordDemo from "./scenes/focus_word_demo?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [blockStackDemo],
+  scenes: [cover],
 });

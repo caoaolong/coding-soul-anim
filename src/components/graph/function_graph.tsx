@@ -13,18 +13,10 @@ const PAPER = '#e8eef7';
 const MUTED = '#8a9bb0';
 const AXIS = '#e8eef7';
 const GRID = 'rgba(138,155,176,0.18)';
-const HIGHLIGHT = '#7aa2ff';
 
 export interface GraphPoint {
   x: number;
   y: number;
-}
-
-export interface GraphViewRange {
-  xMin: number;
-  xMax: number;
-  yMin: number;
-  yMax: number;
 }
 
 export interface FunctionGraphProps extends NodeProps {
@@ -53,28 +45,31 @@ interface SeriesHandles {
   points: GraphPoint[];
   line: ReturnType<typeof createRef<Line>>;
   dots: Array<ReturnType<typeof createRef<Circle>>>;
-  /** 哪些散点已经入场（缩放时区间外隐藏、区间内恢复） */
-  dotRevealed: boolean[];
   color: string;
   lineWidth: number;
   dashed: boolean;
 }
 
 /**
- * 通用 2D 函数图像：坐标轴 + 多条曲线/散点，支持描线入场与区间放大。
+ * 通用 2D 函数图像：坐标轴 + 多条曲线/散点描线入场。
  */
 export class FunctionGraph extends Node {
   private readonly plotWidth: number;
   private readonly plotHeight: number;
-  private readonly initView: GraphViewRange;
   private readonly xTickCount: number;
   private readonly yTickCount: number;
   private readonly useGrid: boolean;
 
-  private xMin: number;
-  private xMax: number;
-  private yMin: number;
-  private yMax: number;
+  /** 初始数据范围（构造时锁定） */
+  private readonly xMin: number;
+  private readonly xMax: number;
+  private readonly yMin: number;
+  private readonly yMax: number;
+  /** 当前视野（zoomTail 会收窄） */
+  private vxMin: number;
+  private vxMax: number;
+  private vyMin: number;
+  private vyMax: number;
 
   private readonly axisX = createRef<Line>();
   private readonly axisY = createRef<Line>();
@@ -85,7 +80,6 @@ export class FunctionGraph extends Node {
   private readonly gridRoot = createRef<Node>();
   private readonly seriesRoot = createRef<Node>();
   private readonly ticksRoot = createRef<Node>();
-  private readonly highlight = createRef<Rect>();
 
   private readonly series = new Map<string, SeriesHandles>();
 
@@ -113,7 +107,10 @@ export class FunctionGraph extends Node {
     this.xMax = xMax;
     this.yMin = yMin;
     this.yMax = yMax;
-    this.initView = {xMin, xMax, yMin, yMax};
+    this.vxMin = xMin;
+    this.vxMax = xMax;
+    this.vyMin = yMin;
+    this.vyMax = yMax;
     this.xTickCount = xTicks;
     this.yTickCount = yTicks;
     this.useGrid = showGrid;
@@ -123,16 +120,15 @@ export class FunctionGraph extends Node {
     this.add(
       <Node>
         <Rect
-          ref={this.highlight}
-          height={plotHeight}
+          x={origin.x + plotWidth / 2}
           y={origin.y - plotHeight / 2}
-          fill={HIGHLIGHT}
-          opacity={0}
-          radius={4}
-          offset={[-1, 0]}
-          width={0}
-        />
-        <Node ref={this.gridRoot} opacity={0} />
+          width={plotWidth}
+          height={plotHeight}
+          clip
+        >
+          <Node ref={this.gridRoot} opacity={0} />
+          <Node ref={this.seriesRoot} />
+        </Rect>
         <Node ref={this.ticksRoot} opacity={0} />
         <Line
           ref={this.axisX}
@@ -200,31 +196,20 @@ export class FunctionGraph extends Node {
           y={origin.y - plotHeight - 36}
           opacity={0}
         />
-        <Node ref={this.seriesRoot} />
       </Node>,
     );
 
     this.rebuildDecorations();
   }
 
-  /** 当前可见数据区间（勿命名为 view：会与 Node.view / View2D 冲突） */
-  public get viewRange(): GraphViewRange {
-    return {
-      xMin: this.xMin,
-      xMax: this.xMax,
-      yMin: this.yMin,
-      yMax: this.yMax,
-    };
-  }
-
-  /** 数据坐标 → 本地像素 */
+  /** 数据坐标 → 本地像素（按当前视野） */
   public mapX(x: number): number {
-    const t = (x - this.xMin) / (this.xMax - this.xMin);
+    const t = (x - this.vxMin) / (this.vxMax - this.vxMin);
     return this.originLocal().x + t * this.plotWidth;
   }
 
   public mapY(y: number): number {
-    const t = (y - this.yMin) / (this.yMax - this.yMin);
+    const t = (y - this.vyMin) / (this.vyMax - this.vyMin);
     return this.originLocal().y - t * this.plotHeight;
   }
 
@@ -288,7 +273,6 @@ export class FunctionGraph extends Node {
       points,
       line,
       dots,
-      dotRevealed: points.map(() => false),
       color,
       lineWidth,
       dashed,
@@ -304,7 +288,7 @@ export class FunctionGraph extends Node {
       this.arrowY().end(1, duration, easeOutCubic),
     );
     yield* all(
-      this.gridRoot().opacity(1, 0.35, easeOutCubic),
+      this.gridRoot().opacity(this.useGrid ? 1 : 0, 0.35, easeOutCubic),
       this.ticksRoot().opacity(1, 0.35, easeOutCubic),
       this.xLabelRef().opacity(1, 0.35, easeOutCubic),
       this.yLabelRef().opacity(1, 0.35, easeOutCubic),
@@ -323,10 +307,7 @@ export class FunctionGraph extends Node {
     const s = this.series.get(id);
     if (!s) return;
     for (let i = 0; i < s.dots.length; i++) {
-      s.dotRevealed[i] = true;
-      if (this.isInView(s.points[i].x, s.points[i].y)) {
-        yield* s.dots[i]().opacity(1, beat * 0.8, easeOutCubic);
-      }
+      yield* s.dots[i]().opacity(1, beat * 0.8, easeOutCubic);
       yield* waitFor(beat * 0.35);
     }
   }
@@ -335,254 +316,62 @@ export class FunctionGraph extends Node {
   public *showDot(id: string, index: number, duration = 0.25): ThreadGenerator {
     const s = this.series.get(id);
     if (!s || !s.dots[index]) return;
-    s.dotRevealed[index] = true;
-    if (this.isInView(s.points[index].x, s.points[index].y)) {
-      yield* s.dots[index]().opacity(1, duration, easeOutCubic);
-    }
+    yield* s.dots[index]().opacity(1, duration, easeOutCubic);
   }
 
-  /**
-   * 高亮 x 方向区间 [x0, x1]：半透明矩形从左向右展开。
-   * 高度铺满绘图区。
-   */
-  public *highlightXRange(
-    x0: number,
-    x1: number,
-    duration = 0.45,
-  ): ThreadGenerator {
-    const lo = Math.min(x0, x1);
-    const hi = Math.max(x0, x1);
-    const left = this.mapX(lo);
-    const right = this.mapX(hi);
-    const hl = this.highlight();
-    hl.x(left);
-    hl.width(0);
-    hl.opacity(0.22);
-    yield* hl.width(Math.max(0, right - left), duration, easeOutCubic);
-  }
-
-  public *clearHighlight(duration = 0.3): ThreadGenerator {
-    yield* this.highlight().opacity(0, duration, easeOutCubic);
-  }
-
-  /**
-   * 将可见区间缩放到目标范围（类似数轴 zoomTo）。
-   * 曲线与散点随视野连续移动；刻度在放大结束后重建。
-   */
-  public *zoomTo(
-    range: Partial<GraphViewRange>,
-    duration = 1.5,
-  ): ThreadGenerator {
-    const to: GraphViewRange = {
-      xMin: range.xMin ?? this.xMin,
-      xMax: range.xMax ?? this.xMax,
-      yMin: range.yMin ?? this.yMin,
-      yMax: range.yMax ?? this.yMax,
-    };
-    const from: GraphViewRange = {
-      xMin: this.xMin,
-      xMax: this.xMax,
-      yMin: this.yMin,
-      yMax: this.yMax,
-    };
-    const hl = this.highlight();
-    const hadHl = hl.opacity() > 0.01;
-    // 高亮跟踪目标 x 区间，随放大铺满绘图区
-    const trackX0 = to.xMin;
-    const trackX1 = to.xMax;
-
-    yield* this.ticksRoot().opacity(0, 0.2, easeOutCubic);
-
-    yield* tween(duration, t => {
-      const e = easeInOutCubic(t);
-      this.xMin = from.xMin + (to.xMin - from.xMin) * e;
-      this.xMax = from.xMax + (to.xMax - from.xMax) * e;
-      this.yMin = from.yMin + (to.yMin - from.yMin) * e;
-      this.yMax = from.yMax + (to.yMax - from.yMax) * e;
-      this.layoutSeries();
-      if (hadHl) {
-        const left = this.mapX(trackX0);
-        const right = this.mapX(trackX1);
-        hl.x(Math.min(left, right));
-        hl.width(Math.abs(right - left));
-      }
-    });
-
-    this.xMin = to.xMin;
-    this.xMax = to.xMax;
-    this.yMin = to.yMin;
-    this.yMax = to.yMax;
-    this.layoutSeries();
-    this.rebuildDecorations();
-    this.ticksRoot().opacity(0);
-    yield* all(
-      this.ticksRoot().opacity(1, 0.35, easeOutCubic),
-      this.gridRoot().opacity(this.useGrid ? 1 : 0, 0.35, easeOutCubic),
-    );
-
-    if (hadHl) {
-      yield* this.clearHighlight(0.25);
-    }
-  }
-
-  /** 缩回初始视野 */
-  public *resetView(duration = 1.5): ThreadGenerator {
-    yield* this.zoomTo(this.initView, duration);
-  }
-
-  /**
-   * 高亮 x 区间后放大到该区间；可选同时收紧 y。
-   */
-  public *zoomIntoX(
-    x0: number,
-    x1: number,
-    options?: {yMin?: number; yMax?: number; duration?: number},
-  ): ThreadGenerator {
-    const duration = options?.duration ?? 1.5;
-    yield* this.highlightXRange(x0, x1, 0.45);
-    yield* waitFor(0.4);
-    yield* this.zoomTo(
-      {
-        xMin: Math.min(x0, x1),
-        xMax: Math.max(x0, x1),
-        yMin: options?.yMin,
-        yMax: options?.yMax,
-      },
-      duration,
-    );
-  }
-
-  private layoutSeries() {
+  /** 按当前视野重算曲线与散点像素位置 */
+  private remapAll() {
     for (const s of this.series.values()) {
-      // 按当前视野裁剪：区间外不进入折线，避免纵轴装不下时整条曲线被压扁变形
-      const clipped = this.clipPolylineToView(s.points);
-      const lineDrawn = s.line().end() > 0.01;
-      if (clipped.length >= 2) {
-        s.line().points(
-          clipped.map(
-            p => [this.mapX(p.x), this.mapY(p.y)] as [number, number],
-          ),
-        );
-        if (lineDrawn) s.line().opacity(1);
-      } else if (clipped.length === 1) {
-        const p = clipped[0];
-        const xy: [number, number] = [this.mapX(p.x), this.mapY(p.y)];
-        s.line().points([xy, xy]);
-        if (lineDrawn) s.line().opacity(1);
-      } else if (lineDrawn) {
-        s.line().opacity(0);
+      const pix = s.points.map(
+        p => [this.mapX(p.x), this.mapY(p.y)] as [number, number],
+      );
+      s.line().points(pix);
+      for (let i = 0; i < s.dots.length; i++) {
+        s.dots[i]().x(this.mapX(s.points[i].x));
+        s.dots[i]().y(this.mapY(s.points[i].y));
       }
-
-      s.dots.forEach((dot, i) => {
-        if (!s.dotRevealed[i]) return;
-        const p = s.points[i];
-        const inside = this.isInView(p.x, p.y);
-        if (inside) {
-          dot().position([this.mapX(p.x), this.mapY(p.y)]);
-          dot().opacity(1);
-        } else {
-          dot().opacity(0);
-        }
-      });
     }
-  }
-
-  private isInView(x: number, y: number): boolean {
-    return (
-      x >= this.xMin - 1e-9 &&
-      x <= this.xMax + 1e-9 &&
-      y >= this.yMin - 1e-9 &&
-      y <= this.yMax + 1e-9
-    );
   }
 
   /**
-   * 将折线裁剪到当前视野矩形内；跨越边界时插入交点，保证截断干净。
+   * 末尾 1/2 放大：x 保留右半区间，y 按可见点重标定（贴底轴）。
    */
-  private clipPolylineToView(points: GraphPoint[]): GraphPoint[] {
-    if (points.length === 0) return [];
-    const out: GraphPoint[] = [];
-
-    const push = (p: GraphPoint) => {
-      const last = out[out.length - 1];
-      if (
-        last &&
-        Math.abs(last.x - p.x) < 1e-12 &&
-        Math.abs(last.y - p.y) < 1e-12
-      ) {
-        return;
-      }
-      out.push(p);
-    };
-
-    for (let i = 0; i < points.length - 1; i++) {
-      const a = points[i];
-      const b = points[i + 1];
-      const seg = this.clipSegmentToView(a, b);
-      if (!seg) continue;
-      push(seg[0]);
-      push(seg[1]);
-    }
-
-    // 单点落在视野内
-    if (out.length === 0 && points.length === 1 && this.isInView(points[0].x, points[0].y)) {
-      return [points[0]];
-    }
-    return out;
-  }
-
-  /** Cohen–Sutherland 风格：线段与轴对齐矩形求交 */
-  private clipSegmentToView(
-    a: GraphPoint,
-    b: GraphPoint,
-  ): [GraphPoint, GraphPoint] | null {
-    const xmin = this.xMin;
-    const xmax = this.xMax;
-    const ymin = this.yMin;
-    const ymax = this.yMax;
-
-    const code = (p: GraphPoint) => {
-      let c = 0;
-      if (p.x < xmin - 1e-12) c |= 1;
-      else if (p.x > xmax + 1e-12) c |= 2;
-      if (p.y < ymin - 1e-12) c |= 4;
-      else if (p.y > ymax + 1e-12) c |= 8;
-      return c;
-    };
-
-    let p0 = {...a};
-    let p1 = {...b};
-    let c0 = code(p0);
-    let c1 = code(p1);
-
-    for (let iter = 0; iter < 8; iter++) {
-      if (!(c0 | c1)) return [p0, p1];
-      if (c0 & c1) return null;
-      const cOut = c0 ? c0 : c1;
-      let x = 0;
-      let y = 0;
-      if (cOut & 8) {
-        x = p0.x + ((p1.x - p0.x) * (ymax - p0.y)) / (p1.y - p0.y);
-        y = ymax;
-      } else if (cOut & 4) {
-        x = p0.x + ((p1.x - p0.x) * (ymin - p0.y)) / (p1.y - p0.y);
-        y = ymin;
-      } else if (cOut & 2) {
-        y = p0.y + ((p1.y - p0.y) * (xmax - p0.x)) / (p1.x - p0.x);
-        x = xmax;
-      } else {
-        y = p0.y + ((p1.y - p0.y) * (xmin - p0.x)) / (p1.x - p0.x);
-        x = xmin;
-      }
-      if (cOut === c0) {
-        p0 = {x, y};
-        c0 = code(p0);
-      } else {
-        p1 = {x, y};
-        c1 = code(p1);
+  public *zoomTail(duration = 0.85): ThreadGenerator {
+    const nxMin = this.vxMax - (this.vxMax - this.vxMin) * 0.5;
+    const nxMax = this.vxMax;
+    const nyMin = this.vyMin;
+    let nyMax = nyMin;
+    for (const s of this.series.values()) {
+      for (const p of s.points) {
+        if (p.x + 1e-9 >= nxMin && p.x - 1e-9 <= nxMax) {
+          nyMax = Math.max(nyMax, p.y);
+        }
       }
     }
-    return null;
+    nyMax = Math.max(nyMax * 1.15, nyMin + 1e-15);
+
+    const oxMin = this.vxMin;
+    const oxMax = this.vxMax;
+    const oyMin = this.vyMin;
+    const oyMax = this.vyMax;
+
+    yield* all(
+      this.ticksRoot().opacity(0, 0.12, easeOutCubic),
+      this.gridRoot().opacity(0, 0.12, easeOutCubic),
+    );
+    yield* tween(duration, value => {
+      const t = easeInOutCubic(value);
+      this.vxMin = oxMin + (nxMin - oxMin) * t;
+      this.vxMax = oxMax + (nxMax - oxMax) * t;
+      this.vyMin = oyMin + (nyMin - oyMin) * t;
+      this.vyMax = oyMax + (nyMax - oyMax) * t;
+      this.remapAll();
+    });
+    this.rebuildDecorations();
+    yield* all(
+      this.ticksRoot().opacity(1, 0.22, easeOutCubic),
+      this.gridRoot().opacity(this.useGrid ? 1 : 0, 0.22, easeOutCubic),
+    );
   }
 
   private rebuildDecorations() {
@@ -634,7 +423,7 @@ export class FunctionGraph extends Node {
     const o = this.originLocal();
     for (let i = 0; i < xTicks; i++) {
       const t = i / Math.max(1, xTicks - 1);
-      const xv = this.xMin + t * (this.xMax - this.xMin);
+      const xv = this.vxMin + t * (this.vxMax - this.vxMin);
       const x = o.x + t * this.plotWidth;
       this.ticksRoot().add(
         <Latex
@@ -648,7 +437,7 @@ export class FunctionGraph extends Node {
     }
     for (let i = 0; i < yTicks; i++) {
       const t = i / Math.max(1, yTicks - 1);
-      const yv = this.yMin + t * (this.yMax - this.yMin);
+      const yv = this.vyMin + t * (this.vyMax - this.vyMin);
       const y = o.y - t * this.plotHeight;
       if (i === 0) continue;
       this.ticksRoot().add(
