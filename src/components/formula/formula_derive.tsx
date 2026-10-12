@@ -11,14 +11,27 @@ import {
 
 const PAPER = '#e8eef7';
 
-/** 将一行拆成等号左右；无等号则整行进右侧 */
-export function splitAtEquals(line: string): {lhs: string; rhs: string} {
+/** 将一行拆成关系符左右；优先 \\approx，其次 =；皆无则整行进右侧 */
+export function splitAtEquals(line: string): {
+  lhs: string;
+  op: string;
+  rhs: string;
+} {
+  const approxIdx = line.indexOf('\\approx');
+  if (approxIdx >= 0) {
+    return {
+      lhs: line.slice(0, approxIdx).trim(),
+      op: '\\approx',
+      rhs: line.slice(approxIdx + '\\approx'.length).trim(),
+    };
+  }
   const idx = line.indexOf('=');
   if (idx < 0) {
-    return {lhs: '', rhs: line.trim()};
+    return {lhs: '', op: '=', rhs: line.trim()};
   }
   return {
     lhs: line.slice(0, idx).trim(),
+    op: '=',
     rhs: line.slice(idx + 1).trim(),
   };
 }
@@ -77,7 +90,7 @@ export class FormulaDerive extends Node {
         alignItems={'start'}
         gap={rowGap}
       >
-        {parsed.map(({lhs, rhs}) => (
+        {parsed.map(({lhs, op, rhs}) => (
           // 外层占位行距；内层 writer 做位移，避免和 column layout 抢 y
           <Layout ref={this.rows} layout direction={'row'}>
             <Layout
@@ -105,7 +118,7 @@ export class FormulaDerive extends Node {
                   opacity={lhs.length > 0 ? 1 : 0}
                 />
               </Layout>
-              <Latex tex={['=']} fill={fill} fontSize={fontSize} />
+              <Latex tex={[op]} fill={fill} fontSize={fontSize} />
               <Latex tex={[rhs]} fill={fill} fontSize={fontSize} />
             </Layout>
           </Layout>

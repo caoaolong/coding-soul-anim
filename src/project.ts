@@ -28,9 +28,14 @@ import chatDemo from "./scenes/chat_demo?scene";
 import blockStackDemo from "./scenes/block_stack_demo?scene";
 import dualAxisDemo from "./scenes/dual_axis_demo?scene";
 import focusWordDemo from "./scenes/focus_word_demo?scene";
+import dataCompressDemo from "./scenes/data_compress_demo?scene";
+import equalProbDemo from "./scenes/equal_prob_demo?scene";
+import compressLoop from "./scenes/loop/compress_loop?scene";
+import asciiEncodeDemo from "./scenes/ascii_encode_demo?scene";
+import terminalDemo from "./scenes/terminal_demo?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [cover],
+  scenes: [asciiEncodeDemo],
 });

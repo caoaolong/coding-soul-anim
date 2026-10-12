@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="900" height="600">
+  <rect width="900" height="600" fill="#FFFFFF"/>
+  <g fill="#000000" transform="translate(170,95) rotate(-33)">
+    <rect x="-55" y="-42" width="110" height="14"/>
+    <rect x="-55" y="-7" width="110" height="14"/>
+    <rect x="-55" y="28" width="110" height="14"/>
+  </g>
+  <g fill="#000000" transform="translate(730,95) rotate(33)">
+    <rect x="-55" y="-42" width="48" height="14"/>
+    <rect x="7" y="-42" width="48" height="14"/>
+    <rect x="-55" y="-7" width="48" height="14"/>
+    <rect x="7" y="-7" width="48" height="14"/>
+    <rect x="-55" y="28" width="48" height="14"/>
+    <rect x="7" y="28" width="48" height="14"/>
+  </g>
+  <g fill="#000000" transform="translate(170,505) rotate(33)">
+    <rect x="-55" y="-42" width="48" height="14"/>
+    <rect x="7" y="-42" width="48" height="14"/>
+    <rect x="-55" y="-7" width="110" height="14"/>
+    <rect x="-55" y="28" width="48" height="14"/>
+    <rect x="7" y="28" width="48" height="14"/>
+  </g>
+  <g fill="#000000" transform="translate(730,505) rotate(-33)">
+    <rect x="-55" y="-42" width="110" height="14"/>
+    <rect x="-55" y="-7" width="48" height="14"/>
+    <rect x="7" y="-7" width="48" height="14"/>
+    <rect x="-55" y="28" width="110" height="14"/>
+  </g>
+  <g transform="translate(450,300)">
+    <circle r="120" fill="#CD2E3A"/>
+    <path fill="#0047A0" d="M0,-120 A120,120 0 0,0 0,120 A60,60 0 0,0 0,0 A60,60 0 0,1 0,-120 Z"/>
+    <circle cy="-60" r="30" fill="#0047A0"/>
+    <circle cy="60" r="30" fill="#CD2E3A"/>
+  </g>
+</svg>
