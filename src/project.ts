@@ -32,6 +32,10 @@ import dataCompressDemo from "./scenes/data_compress_demo?scene";
 import equalProbDemo from "./scenes/equal_prob_demo?scene";
 import compressLoop from "./scenes/loop/compress_loop?scene";
 import asciiEncodeDemo from "./scenes/ascii_encode_demo?scene";
+import asciiCoordDemo from "./scenes/ascii_coord_demo?scene";
+import unicodeCoordDemo from "./scenes/unicode_coord_demo?scene";
+import utf8EncodeDemo from "./scenes/utf8_encode_demo?scene";
+import encodingDocsDemo from "./scenes/encoding_docs_demo?scene";
 import terminalDemo from "./scenes/terminal_demo?scene";
 import csvChartDemo from "./scenes/csv_chart_demo?scene";
 import lz77 from "./scenes/lz77?scene";
@@ -39,5 +43,5 @@ import lz77 from "./scenes/lz77?scene";
 import "./global.css";
 
 export default makeProject({
-  scenes: [lz77],
+  scenes: [encodingDocsDemo],
 });

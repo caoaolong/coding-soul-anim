@@ -1,0 +1,4 @@
+﻿label,file,disk_bytes,code_points,ascii_points,non_ascii_points,non_ascii_ratio,utf8_bytes,utf16_bytes,utf32_bytes,utf16_over_utf8,utf32_over_utf8
+英文长文 Alice in Wonderland (Project Gutenberg),alice_en.txt,151191,144696,141448,3248,0.0224,151191,289392,578784,1.9141,3.8282
+中英混合（西游记节选 + Alice 全文）,mixed_zh_en.txt,1483123,600774,159599,441175,0.7343,1483123,1201548,2403096,0.8101,1.6203
+偏中文 西游记 XYJ.txt,XYJ.txt,1999157,684043,26486,657557,0.9613,1999157,1368086,2736172,0.6843,1.3687
