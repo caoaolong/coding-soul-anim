@@ -33,9 +33,11 @@ import equalProbDemo from "./scenes/equal_prob_demo?scene";
 import compressLoop from "./scenes/loop/compress_loop?scene";
 import asciiEncodeDemo from "./scenes/ascii_encode_demo?scene";
 import terminalDemo from "./scenes/terminal_demo?scene";
+import csvChartDemo from "./scenes/csv_chart_demo?scene";
+import lz77 from "./scenes/lz77?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [asciiEncodeDemo],
+  scenes: [lz77],
 });
