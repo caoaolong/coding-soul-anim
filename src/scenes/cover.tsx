@@ -10,7 +10,7 @@ import {
 } from '@motion-canvas/core';
 
 /** 每集只改这一处副标；可用 \\n 换行 */
-const EPISODE_TITLE = '文本\n是如何被压缩的？';
+const EPISODE_TITLE = '二进制\n是如何表示文字的？';
 
 /** 系列通用封面：抽象节点网络 + 系列主标题 */
 export default makeScene2D(function* (view) {

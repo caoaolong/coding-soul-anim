@@ -48,5 +48,5 @@ import contentVsForm from "./scenes/content_vs_form?scene";
 import "./global.css";
 
 export default makeProject({
-  scenes: [endianDemo],
+  scenes: [cover],
 });
