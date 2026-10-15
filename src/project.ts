@@ -39,9 +39,10 @@ import encodingDocsDemo from "./scenes/encoding_docs_demo?scene";
 import terminalDemo from "./scenes/terminal_demo?scene";
 import csvChartDemo from "./scenes/csv_chart_demo?scene";
 import lz77 from "./scenes/lz77?scene";
+import bitstreamDemo from "./scenes/bitstream_demo?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [encodingDocsDemo],
+  scenes: [encodingDocsDemo, bitstreamDemo],
 });
