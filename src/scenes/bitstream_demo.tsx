@@ -17,7 +17,6 @@ const BG = '#0a0e14';
 const CARD = '#121820';
 const LINE = '#2a3a4c';
 const PAPER = '#e8eef7';
-const MUTED = '#6a7a8c';
 const ENCODE = '#3dd6c6';
 const DECODE = '#5ec8ff';
 const BIT = '#ffe08a';
@@ -25,12 +24,12 @@ const MONO = 'JetBrains Mono, Consolas, monospace';
 
 const LEFT_X = -640;
 const RIGHT_X = 640;
-/** 整体上移：PC / 传输线在上半屏，卡片在下半屏 */
+/** 整体上移：PC / 传输线在上半屏，卡片在下半屏（再上移，给底部字幕留空） */
 const PC_Y = -260;
 const PC_SIZE = 220;
-const CARD_Y = 285;
+const CARD_Y = 140;
 const CARD_W = 620;
-const CARD_H = 460;
+const CARD_H = 360;
 /** 传输线起止（PC 内沿之间） */
 const WIRE_X0 = -500;
 const WIRE_X1 = 500;
@@ -116,11 +115,9 @@ export default makeScene2D(function* (view) {
   const senderRows = createRefArray<Layout>();
   const senderCharTxts = createRefArray<Txt>();
   const senderBitTxts = createRefArray<Txt>();
-  const senderSub = createRef<Txt>();
   const receiverRows = createRefArray<Layout>();
   const receiverCharTxts = createRefArray<Txt>();
   const receiverBitTxts = createRefArray<Txt>();
-  const receiverSub = createRef<Txt>();
 
   view.add(<SceneTitle ref={title} text={'比特流传输'} />);
 
@@ -255,7 +252,7 @@ export default makeScene2D(function* (view) {
     );
   }
 
-  // ── 下半：左侧大卡片 = 待发送网格（字符 | 二进制）──
+  // ── 下半：左侧卡片 = 待发送网格（字符 | 二进制，无描述文案）──
   view.add(
     <Rect
       ref={leftCard}
@@ -273,58 +270,42 @@ export default makeScene2D(function* (view) {
       direction={'column'}
       alignItems={'center'}
       justifyContent={'center'}
-      gap={8}
-      padding={16}
+      gap={3}
+      padding={[18, 16]}
     >
-      <Txt
-        text={'待发送数据'}
-        fontFamily={FONT}
-        fontSize={24}
-        fill={MUTED}
-      />
-      <Rect width={540} height={2} fill={LINE} />
-      <Layout layout direction={'column'} gap={3}>
-        {[...SEND_TEXT].map((ch, i) => (
-          <Layout
-            ref={senderRows}
-            layout
-            direction={'row'}
-            gap={14}
-            alignItems={'center'}
-            width={540}
-            height={ROW_H}
-          >
-            <Layout width={64} alignItems={'center'} justifyContent={'center'}>
-              <Txt
-                ref={senderCharTxts}
-                text={ch}
-                fontFamily={FONT}
-                fontSize={30}
-                fontWeight={700}
-                fill={PAPER}
-              />
-            </Layout>
+      {[...SEND_TEXT].map((ch, i) => (
+        <Layout
+          ref={senderRows}
+          layout
+          direction={'row'}
+          gap={14}
+          alignItems={'center'}
+          width={540}
+          height={ROW_H}
+        >
+          <Layout width={64} alignItems={'center'} justifyContent={'center'}>
             <Txt
-              ref={senderBitTxts}
-              text={SEND_BYTES[i]}
-              fontFamily={MONO}
-              fontSize={20}
-              fill={ENCODE}
+              ref={senderCharTxts}
+              text={ch}
+              fontFamily={FONT}
+              fontSize={30}
+              fontWeight={700}
+              fill={PAPER}
             />
           </Layout>
-        ))}
-      </Layout>
-      <Txt
-        ref={senderSub}
-        text={'等待发送…'}
-        fontFamily={FONT}
-        fontSize={22}
-        fill={MUTED}
-      />
+          <Txt
+            ref={senderBitTxts}
+            text={SEND_BYTES[i]}
+            fontFamily={MONO}
+            fontSize={20}
+            fill={ENCODE}
+          />
+        </Layout>
+      ))}
     </Rect>,
   );
 
-  // ── 下半：右侧大卡片 = 已接收网格（字符 | 二进制）──
+  // ── 下半：右侧卡片 = 已接收网格（字符 | 二进制，无描述文案）──
   view.add(
     <Rect
       ref={rightCard}
@@ -342,55 +323,39 @@ export default makeScene2D(function* (view) {
       direction={'column'}
       alignItems={'center'}
       justifyContent={'center'}
-      gap={8}
-      padding={16}
+      gap={3}
+      padding={[18, 16]}
     >
-      <Txt
-        text={'已接收数据'}
-        fontFamily={FONT}
-        fontSize={24}
-        fill={MUTED}
-      />
-      <Rect width={540} height={2} fill={LINE} />
-      <Layout layout direction={'column'} gap={3}>
-        {[...SEND_TEXT].map((_, i) => (
-          <Layout
-            ref={receiverRows}
-            layout
-            direction={'row'}
-            gap={14}
-            alignItems={'center'}
-            width={540}
-            height={0}
-            opacity={0}
-          >
-            <Layout width={64} alignItems={'center'} justifyContent={'center'}>
-              <Txt
-                ref={receiverCharTxts}
-                text={''}
-                fontFamily={FONT}
-                fontSize={30}
-                fontWeight={700}
-                fill={PAPER}
-              />
-            </Layout>
+      {[...SEND_TEXT].map((_, i) => (
+        <Layout
+          ref={receiverRows}
+          layout
+          direction={'row'}
+          gap={14}
+          alignItems={'center'}
+          width={540}
+          height={0}
+          opacity={0}
+        >
+          <Layout width={64} alignItems={'center'} justifyContent={'center'}>
             <Txt
-              ref={receiverBitTxts}
+              ref={receiverCharTxts}
               text={''}
-              fontFamily={MONO}
-              fontSize={20}
-              fill={BIT}
+              fontFamily={FONT}
+              fontSize={30}
+              fontWeight={700}
+              fill={PAPER}
             />
           </Layout>
-        ))}
-      </Layout>
-      <Txt
-        ref={receiverSub}
-        text={'等待接收…'}
-        fontFamily={FONT}
-        fontSize={22}
-        fill={MUTED}
-      />
+          <Txt
+            ref={receiverBitTxts}
+            text={''}
+            fontFamily={MONO}
+            fontSize={20}
+            fill={BIT}
+          />
+        </Layout>
+      ))}
     </Rect>,
   );
 
@@ -466,7 +431,6 @@ export default makeScene2D(function* (view) {
 
   // 发送端：按发出节拍递减左侧网格
   function* senderAll() {
-    senderSub().text('正在发送…');
     for (let i = 0; i < BITS.length; i++) {
       const charIdx = BIT_CHAR[i];
       const posInChar = i - CHAR_START[charIdx];
@@ -480,13 +444,11 @@ export default makeScene2D(function* (view) {
       }
       if (!isLast) yield* waitFor(GAP);
     }
-    senderSub().text('已全部发出');
   }
 
   // 接收端：按到达节拍递增右侧网格
   function* receiveAll() {
     yield* waitFor(TRAVEL);
-    receiverSub().text('正在接收 0 / 1 …');
     let pending = '';
     for (let i = 0; i < BITS.length; i++) {
       const charIdx = BIT_CHAR[i];
@@ -503,7 +465,6 @@ export default makeScene2D(function* (view) {
         const ch = bitsToChar(pending);
         receiverCharTxts[charIdx].text(ch);
         receiverBitTxts[charIdx].text(pending);
-        receiverSub().text(`解析出「${ch}」（${charIdx + 1}/${SEND_TEXT.length}）`);
         pending = '';
         const pulse = (function* () {
           yield* all(
@@ -541,6 +502,5 @@ export default makeScene2D(function* (view) {
     decodeBox().scale(1, 0.15, easeOutCubic),
   );
 
-  receiverSub().text('接收完成，已还原原文');
   yield* waitFor(1.2);
 });

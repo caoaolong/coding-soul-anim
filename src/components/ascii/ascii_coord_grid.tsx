@@ -16,6 +16,10 @@ const LABEL = '#6a7a8c';
 const CHAR = '#e8eef7';
 const CHAR_CTRL = '#5a6a7c';
 const ACCENT = '#3dd6c6';
+/** 行/列高亮描边 */
+const BAND = '#5a9aaa';
+/** 交汇格强调 */
+const CROSS = '#ffe08a';
 const MONO = '"Cascadia Mono", "Consolas", "JetBrains Mono", monospace';
 
 /** 横轴：低 4 位 → 16 列 */
@@ -67,6 +71,8 @@ export class AsciiCoordGrid extends Node {
   private readonly yTicks = createRefArray<Txt>();
   private readonly cellRects = createRefArray<Rect>();
   private readonly cellTxts = createRefArray<Txt>();
+  private readonly rowBand = createRef<Rect>();
+  private readonly colBand = createRef<Rect>();
 
   private readonly cellSize: number;
   private readonly fontSize: number;
@@ -75,6 +81,10 @@ export class AsciiCoordGrid extends Node {
   private readonly showGrid: boolean;
   private readonly plotW: number;
   private readonly plotH: number;
+  private readonly originX: number;
+  private readonly originY: number;
+  /** 当前交汇高亮的码点，-1 表示无 */
+  private activeCode = -1;
 
   public constructor(props: AsciiCoordGridProps = {}) {
     const {
@@ -94,15 +104,39 @@ export class AsciiCoordGrid extends Node {
     this.showGrid = showGrid;
     this.plotW = COLS * cellSize;
     this.plotH = ROWS * cellSize;
-
-    const originX = -this.plotW / 2;
-    const originY = -this.plotH / 2;
+    this.originX = -this.plotW / 2;
+    this.originY = -this.plotH / 2;
+    const originX = this.originX;
+    const originY = this.originY;
     const overhang = 28;
 
     this.add(
       <Node ref={this.root} x={0} y={0}>
         <Node ref={this.gridRoot} opacity={0} />
-        <Node ref={this.cellsRoot} />
+        {/* 行/列光带，位于格子下方 */}
+        <Rect
+          ref={this.rowBand}
+          width={this.plotW}
+          height={cellSize}
+          x={originX + this.plotW / 2}
+          y={originY}
+          radius={4}
+          fill={BAND + '44'}
+          opacity={0}
+          zIndex={0}
+        />
+        <Rect
+          ref={this.colBand}
+          width={cellSize}
+          height={this.plotH}
+          x={originX}
+          y={originY + this.plotH / 2}
+          radius={4}
+          fill={BAND + '44'}
+          opacity={0}
+          zIndex={0}
+        />
+        <Node ref={this.cellsRoot} zIndex={1} />
         <Line
           ref={this.xAxis}
           points={[
@@ -213,6 +247,121 @@ export class AsciiCoordGrid extends Node {
       rect.scale(1.12, duration, easeOutCubic),
       txt.fill(ACCENT, duration, easeOutCubic),
     );
+  }
+
+  /**
+   * 行列交汇高亮：所在行、所在列整体提亮，交汇格更高亮。
+   * 若已有高亮，会与新高亮并行切换（只恢复旧行/列），适合快速扫字。
+   */
+  public *highlightCross(
+    code: number,
+    duration = 0.14,
+  ): ThreadGenerator {
+    if (code < 0 || code > 0x7f) return;
+
+    const prev = this.activeCode;
+    const low = code & 0xf;
+    const high = (code >> 4) & 0x7;
+    this.activeCode = code;
+
+    const rowY = this.originY + (high + 0.5) * this.cellSize;
+    const colX = this.originX + (low + 0.5) * this.cellSize;
+
+    const anims = [
+      this.rowBand().y(rowY, duration, easeOutCubic),
+      this.colBand().x(colX, duration, easeOutCubic),
+      this.rowBand().opacity(1, duration, easeOutCubic),
+      this.colBand().opacity(1, duration, easeOutCubic),
+    ];
+
+    // 恢复上一次行/列（与新高亮不重叠的格子）
+    if (prev >= 0 && prev !== code) {
+      const pLow = prev & 0xf;
+      const pHigh = (prev >> 4) & 0x7;
+      for (let h = 0; h < ROWS; h++) {
+        for (let l = 0; l < COLS; l++) {
+          const wasOn = h === pHigh || l === pLow;
+          const nowOn = h === high || l === low;
+          if (!wasOn || nowOn) continue;
+          const idx = h * COLS + l;
+          const cellCode = (h << 4) | l;
+          const printable = isPrintableAscii(cellCode);
+          anims.push(
+            this.cellRects[idx].stroke(GRID, duration, easeOutCubic),
+            this.cellRects[idx].lineWidth(1.5, duration, easeOutCubic),
+            this.cellRects[idx].scale(1, duration, easeOutCubic),
+            this.cellRects[idx].fill(DEEP, duration, easeOutCubic),
+            this.cellTxts[idx].fill(
+              printable ? CHAR : CHAR_CTRL,
+              duration,
+              easeOutCubic,
+            ),
+          );
+        }
+      }
+    }
+
+    for (let h = 0; h < ROWS; h++) {
+      for (let l = 0; l < COLS; l++) {
+        const idx = h * COLS + l;
+        const onRow = h === high;
+        const onCol = l === low;
+        if (!onRow && !onCol) continue;
+
+        if (onRow && onCol) {
+          anims.push(
+            this.cellRects[idx].stroke(CROSS, duration, easeOutCubic),
+            this.cellRects[idx].lineWidth(3.5, duration, easeOutCubic),
+            this.cellRects[idx].scale(1.16, duration, easeOutCubic),
+            this.cellRects[idx].fill('#3a3420', duration, easeOutCubic),
+            this.cellTxts[idx].fill(CROSS, duration, easeOutCubic),
+          );
+        } else {
+          anims.push(
+            this.cellRects[idx].stroke(BAND, duration, easeOutCubic),
+            this.cellRects[idx].lineWidth(2.5, duration, easeOutCubic),
+            this.cellRects[idx].scale(1, duration, easeOutCubic),
+            this.cellRects[idx].fill('#1a2830', duration, easeOutCubic),
+            this.cellTxts[idx].fill(ACCENT, duration, easeOutCubic),
+          );
+        }
+      }
+    }
+
+    yield* all(...anims);
+  }
+
+  /** 清除行列交汇高亮，仅恢复当前行/列格 */
+  public *clearCrossHighlight(duration = 0.12): ThreadGenerator {
+    const anims = [
+      this.rowBand().opacity(0, duration, easeOutCubic),
+      this.colBand().opacity(0, duration, easeOutCubic),
+    ];
+    if (this.activeCode >= 0) {
+      const low = this.activeCode & 0xf;
+      const high = (this.activeCode >> 4) & 0x7;
+      for (let h = 0; h < ROWS; h++) {
+        for (let l = 0; l < COLS; l++) {
+          if (h !== high && l !== low) continue;
+          const idx = h * COLS + l;
+          const cellCode = (h << 4) | l;
+          const printable = isPrintableAscii(cellCode);
+          anims.push(
+            this.cellRects[idx].stroke(GRID, duration, easeOutCubic),
+            this.cellRects[idx].lineWidth(1.5, duration, easeOutCubic),
+            this.cellRects[idx].scale(1, duration, easeOutCubic),
+            this.cellRects[idx].fill(DEEP, duration, easeOutCubic),
+            this.cellTxts[idx].fill(
+              printable ? CHAR : CHAR_CTRL,
+              duration,
+              easeOutCubic,
+            ),
+          );
+        }
+      }
+    }
+    this.activeCode = -1;
+    yield* all(...anims);
   }
 
   private codeToIndex(code: number): number {

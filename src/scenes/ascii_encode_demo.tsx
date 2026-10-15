@@ -1,4 +1,4 @@
-import {Img, Layout, Line, Node, Rect, Txt, makeScene2D} from '@motion-canvas/2d';
+import {Layout, Line, Node, Rect, Txt, makeScene2D} from '@motion-canvas/2d';
 import {
   all,
   createRef,
@@ -9,26 +9,14 @@ import {
   easeOutCubic,
   waitFor,
 } from '@motion-canvas/core';
-import {Brace} from '../components/brace/brace';
-import {BrowserWindow} from '../components/browser/browser_window';
-import {FocusWord} from '../components/emphasis/focus_word';
+import {AsciiCoordGrid} from '../components/ascii/ascii_coord_grid';
 import {Terminal} from '../components/terminal/terminal';
 import {SceneTitle} from '../components/title/scene_title';
-import flagCn from '../assets/flags/cn.svg';
-import flagFr from '../assets/flags/fr.svg';
-import flagGb from '../assets/flags/gb.svg';
-import flagKr from '../assets/flags/kr.svg';
-import flagUs from '../assets/flags/us.svg';
-import unicodeSite from '../assets/website/Unicode.png';
 
 const BG = '#0a0e14';
 /** 一屏高度（与 project.meta 一致） */
 const SCREEN_H = 1080;
 
-const FLAG_SRCS = [flagUs, flagCn, flagKr, flagFr, flagGb] as const;
-const FLAG_W = 112;
-const FLAG_H = 70;
-const FLAG_GAP = 64;
 const CARD = '#121820';
 const LINE = '#2a3a4c';
 const CHAR_COLOR = '#e8eef7';
@@ -54,6 +42,11 @@ const FONT = 'JetBrains Mono, Consolas, monospace';
 const TOP_Y = -300;
 const TABLE_Y = -10;
 const RESULT_Y = 290;
+
+/** 坐标屏：输入串上方字号与间距 */
+const COORD_TOP_SIZE = 36;
+const COORD_TOP_Y = -420;
+const COORD_TOP_STEP = 56;
 
 type TableCol =
   | {kind: 'gap'}
@@ -87,12 +80,9 @@ function buildTableColumns(text: string): TableCol[] {
 }
 
 /**
- * ASCII 编码演示：
- * 上：字符串原文顺序（加大间距），逐个高亮
- * 中：唯一字符按 ASCII 排列，空隙与两端用 ... 省略
- * 下：编码结果；高亮时箭头 字符→表→结果，完成后隐藏再下一个
- * 末：终端 hexdump → 强调 ASCII → 滚入下一屏
- * 第二屏：左侧国旗 +「256+」；右侧浏览器打开 Unicode 官网
+ * ASCII 编码演示（两屏）：
+ * 0) ASCII 码平面：逐字行列交汇高亮
+ * 1) 编码：字符串 → 唯一表 → hex 结果 → hexdump
  */
 export default makeScene2D(function* (view) {
   view.fill(BG);
@@ -123,6 +113,9 @@ export default makeScene2D(function* (view) {
   );
   const topColOf = chars.map(ch => charColIndex.get(ch)!);
 
+  const titleCoord = createRef<SceneTitle>();
+  const grid = createRef<AsciiCoordGrid>();
+  const coordChars = createRefArray<Txt>();
   const title = createRef<SceneTitle>();
   const topChars = createRefArray<Txt>();
   const tableFrame = createRef<Rect>();
@@ -132,28 +125,52 @@ export default makeScene2D(function* (view) {
   const resultArrows = createRefArray<Line>();
   const resultCodes = createRefArray<Txt>();
   const term = createRef<Terminal>();
-  const focusAscii = createRef<FocusWord>();
   const pages = createRef<Node>();
+  const screen0 = createRef<Node>();
   const screen1 = createRef<Node>();
-  const screen2 = createRef<Node>();
-  const title2 = createRef<SceneTitle>();
-  const flagImgs = createRefArray<Img>();
-  const flagBrace = createRef<Brace>();
-  const browser = createRef<BrowserWindow>();
 
-  const flagStackH =
-    FLAG_SRCS.length * FLAG_H + (FLAG_SRCS.length - 1) * FLAG_GAP;
-  const flagColX = -520;
-  const flagColY = 36;
+  const coordTopXs = chars.map(
+    (_, i) => -((n - 1) * COORD_TOP_STEP) / 2 + i * COORD_TOP_STEP,
+  );
 
-  // 多屏容器：第一屏内容 + 下方第二屏；整体上移即「向下滚动」
+  // 两屏容器：码平面 → 编码；整体上移即「向下滚动」
   view.add(
     <Node ref={pages}>
-      <Node ref={screen1} />
-      <Node ref={screen2} y={SCREEN_H} />
+      <Node ref={screen0} />
+      <Node ref={screen1} y={SCREEN_H} />
     </Node>,
   );
 
+  // ── 第 0 屏：ASCII 码平面 ──
+  screen0().add(<SceneTitle ref={titleCoord} text={'ASCII 码平面'} />);
+  for (let i = 0; i < n; i++) {
+    const ch = chars[i];
+    screen0().add(
+      <Txt
+        ref={coordChars}
+        text={ch === ' ' ? '␣' : ch}
+        fontSize={COORD_TOP_SIZE}
+        fontFamily={FONT}
+        fill={ch === ' ' ? MUTED : CHAR_COLOR}
+        x={coordTopXs[i]}
+        y={COORD_TOP_Y}
+        opacity={0}
+        scale={0.85}
+      />,
+    );
+  }
+  screen0().add(
+    <AsciiCoordGrid
+      ref={grid}
+      cellSize={56}
+      fontSize={24}
+      tickFontSize={20}
+      axisLabelSize={26}
+      y={40}
+    />,
+  );
+
+  // ── 第 1 屏：ASCII 编码（原内容） ──
   screen1().add(<SceneTitle ref={title} text={'ASCII 编码'} />);
 
   // ── 上：字符串保持原文顺序（等距横排） ──
@@ -316,68 +333,47 @@ export default makeScene2D(function* (view) {
     />,
   );
 
-  // ── 第二屏：国旗纵列 + 花括号 256+ ──
-  screen2().add(<SceneTitle ref={title2} text={'ASCII 超出极限'} />);
-  screen2().add(
-    <Layout
-      layout
-      direction={'column'}
-      gap={FLAG_GAP}
-      alignItems={'center'}
-      x={flagColX}
-      y={flagColY}
-    >
-      {FLAG_SRCS.map(src => (
-        <Img
-          ref={flagImgs}
-          src={src}
-          width={FLAG_W}
-          height={FLAG_H}
-          radius={6}
-          stroke={LINE}
-          lineWidth={2}
-          opacity={0}
-          scale={0.9}
-        />
-      ))}
-    </Layout>,
-  );
-  // 竖直花括号：相对原朝向再转 180°（共 270°），开口朝旗、尖端与「256+」在右侧
-  screen2().add(
-    <Brace
-      ref={flagBrace}
-      length={flagStackH}
-      depth={42}
-      side={'down'}
-      stroke={ASCII_COLOR}
-      lineWidth={3}
-      label={'256+个字符'}
-      labelSize={32}
-      labelGap={18}
-      rotation={270}
-      x={flagColX + FLAG_W / 2 + 28}
-      y={flagColY}
-    />,
-  );
+  // ════════ 第 0 屏：码平面 + 快速行列交汇 ════════
+  yield* titleCoord().show();
+  yield* waitFor(0.12);
+  yield* grid().show(0.5, 0.005);
+  yield* waitFor(0.15);
 
-  // 右侧：Unicode 官网浏览器（最小化放大打开）
-  screen2().add(
-    <BrowserWindow
-      ref={browser}
-      url={'https://home.unicode.org/'}
-      screenshot={unicodeSite}
-      width={900}
-      contentHeight={520}
-      x={380}
-      y={48}
-      opacity={0}
-      scale={0.18}
-    />,
+  // 输入串出现在网格上方
+  yield* all(
+    ...coordChars.map((t, i) =>
+      delay(
+        i * 0.03,
+        all(
+          t.opacity(1, 0.22, easeOutCubic),
+          t.scale(1, 0.26, easeOutBack),
+        ),
+      ),
+    ),
   );
+  yield* waitFor(0.12);
+  yield* all(...coordChars.map(t => t.fill(CHAR_DIM, 0.18, easeOutCubic)));
 
-  // 强调词叠在视口上，不随翻页滚动
-  view.add(<FocusWord ref={focusAscii} text={'ASCII'} fontSize={120} />);
+  // 依次高亮：行亮 + 列亮 + 交汇更亮（整体偏快）
+  for (let i = 0; i < n; i++) {
+    const baseFill = chars[i] === ' ' ? MUTED : CHAR_COLOR;
+    yield* all(
+      coordChars[i].fill(HIGHLIGHT, 0.1, easeOutCubic),
+      coordChars[i].scale(1.22, 0.12, easeOutBack),
+      grid().highlightCross(ascii[i], 0.12),
+    );
+    yield* waitFor(0.06);
+    yield* all(
+      coordChars[i].fill(baseFill, 0.1, easeOutCubic),
+      coordChars[i].scale(1, 0.1, easeOutCubic),
+    );
+  }
+  yield* grid().clearCrossHighlight(0.15);
+  yield* waitFor(0.25);
 
+  // ════════ 滚入第 1 屏：原 ASCII 编码 ════════
+  yield* pages().y(-SCREEN_H, 1.0, easeInOutCubic);
+  yield* waitFor(0.15);
   yield* title().show();
   yield* waitFor(0.2);
 
@@ -494,35 +490,5 @@ export default makeScene2D(function* (view) {
       '00000000  48 65 6c 6c 6f 2c 57 6f  72 6c 64 21              |Hello,World!|\n' +
       '0000000c',
   });
-  yield* waitFor(0.6);
-
-  // 5) 强调词「ASCII」
-  yield* focusAscii().play();
-  yield* waitFor(0.25);
-
-  // 6) 向下滚动进入下一屏
-  yield* pages().y(-SCREEN_H, 1.0, easeInOutCubic);
-  yield* waitFor(0.2);
-  yield* title2().show();
-  yield* waitFor(0.15);
-
-  // 7) 国旗逐面出现，花括号标出 256+
-  yield* all(
-    ...flagImgs.map((img, i) =>
-      delay(
-        i * 0.1,
-        all(
-          img.opacity(1, 0.35, easeOutCubic),
-          img.scale(1, 0.4, easeOutBack),
-        ),
-      ),
-    ),
-  );
-  yield* waitFor(0.25);
-  yield* flagBrace().show(0.55);
-  yield* waitFor(0.35);
-
-  // 8) 右侧浏览器从底部任务栏升起并放大打开
-  yield* browser().open(0.9, {fromY: 560, fromScale: 0.08});
-  yield* waitFor(1.2);
+  yield* waitFor(1.0);
 });
