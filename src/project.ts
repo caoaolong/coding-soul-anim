@@ -1,4 +1,4 @@
-import { makeProject } from "@motion-canvas/core";
+﻿import { makeProject } from "@motion-canvas/core";
 
 import cover from "./scenes/cover?scene";
 import outro from "./scenes/outro?scene";

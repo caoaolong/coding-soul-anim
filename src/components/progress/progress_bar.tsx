@@ -35,6 +35,8 @@ export interface ProgressMilestone {
   title: string;
   /** 卡片顶部图片（路径 / import 结果）；暂未提供时可省略 */
   image?: string;
+  /** 卡片年份行的展示文案（默认 String(year)），可用于“1.0 · 1991-10” */
+  label?: string;
 }
 
 export interface ProgressBarProps extends NodeProps {
@@ -53,6 +55,8 @@ export interface ProgressBarProps extends NodeProps {
   rightLabel?: string;
   /** 卡片图片宽度，默认 200（只定宽、高度按原图比例自适应，避免拉伸） */
   imageSize?: number;
+  /** 无图卡片的文本宽度，默认 300；有图时默认 imageSize + 120 */
+  cardWidth?: number;
 }
 
 /**
@@ -70,6 +74,7 @@ export class ProgressBar extends Node {
   private readonly endVal: number;
   private readonly milestones: ProgressMilestone[];
   private readonly trackY: number;
+  private readonly barWidthVal: number;
   /** 每个节点卡片在轴上方或下方（近距交错） */
   private readonly cardSides: Array<'up' | 'down'>;
 
@@ -83,6 +88,7 @@ export class ProgressBar extends Node {
       leftLabel,
       rightLabel,
       imageSize = IMG_SIZE,
+      cardWidth = 300,
       ...rest
     } = props;
 
@@ -92,6 +98,7 @@ export class ProgressBar extends Node {
     this.endVal = end;
     this.milestones = [...nodes].sort((a, b) => a.year - b.year);
     this.trackY = barY;
+    this.barWidthVal = barWidth;
     this.cardSides = this.planCardSides(this.milestones);
 
     const left = -barWidth / 2;
@@ -191,32 +198,13 @@ export class ProgressBar extends Node {
           opacity={0}
           scale={0.5}
         >
-          {/* 上图：只定宽、高度按原图比例自适应（Img 无 fit 属性，定宽高会拉伸） */}
+          {/* 上图：只定宽、高度按原图比例自适应（Img 无 fit 属性，定宽高会拉伸）；无图时省略图片区 */}
           {m.image ? (
             <Img src={m.image} width={imageSize} radius={8} />
-          ) : (
-            <Rect
-              width={imageSize}
-              height={imageSize}
-              radius={8}
-              fill={'#1a2430'}
-              stroke={TRACK}
-              lineWidth={1.5}
-              layout
-              alignItems={'center'}
-              justifyContent={'center'}
-            >
-              <Txt
-                text={'IMG'}
-                fontFamily={FONT}
-                fontSize={18}
-                fill={MUTED}
-              />
-            </Rect>
-          )}
+          ) : null}
           {/* 下文：年份 + 说明 */}
           <Txt
-            text={String(m.year)}
+            text={m.label ?? String(m.year)}
             fontFamily={FONT}
             fontSize={24}
             fontWeight={700}
@@ -229,7 +217,7 @@ export class ProgressBar extends Node {
             fontSize={26}
             fill={PAPER}
             textWrap={true}
-            width={imageSize + 120}
+            width={m.image ? imageSize + 120 : cardWidth}
             textAlign={'center'}
           />
         </Rect>,
@@ -262,6 +250,22 @@ export class ProgressBar extends Node {
   private ratio(year: number): number {
     const span = this.endVal - this.startVal;
     return Math.min(1, Math.max(0, (year - this.startVal) / span));
+  }
+
+  /** 节点数量 */
+  public nodeCount(): number {
+    return this.milestones.length;
+  }
+
+  /** 节点在轴上的相对比例 0~1 */
+  public nodeRatio(index: number): number {
+    return this.ratio(this.milestones[index].year);
+  }
+
+  /** 节点本地 x 坐标（ProgressBar 自身坐标系，未计 this.x 位移） */
+  public nodeX(index: number): number {
+    const left = -this.barWidthVal / 2;
+    return left + this.nodeRatio(index) * this.barWidthVal;
   }
 
   /** 底轨与刻度淡入 */
@@ -304,6 +308,49 @@ export class ProgressBar extends Node {
     }
 
     // 走到终点
+    if (prev < 1) {
+      yield* this.fill().end(1, duration * (1 - prev), easeInOutCubic);
+    }
+  }
+
+  /**
+   * 超宽时间轴跟随播放：进度条整体平移，使当前聚焦节点尽量保持在屏幕中央。
+   * 要求 barWidth 超出屏幕宽度（如 6000+ @1920），首节点播放前先居中。
+   */
+  public *playCentered(options?: {
+    duration?: number;
+    holdPerNode?: number;
+  }): ThreadGenerator {
+    const duration = options?.duration ?? 4.5;
+    const holdPerNode = options?.holdPerNode ?? 0.85;
+
+    yield* this.revealTrack(0.4);
+    // 先把首节点搬到屏幕中央（this.x 为整体位移，nodeX 为本地坐标）
+    if (this.milestones.length > 0) {
+      this.x(-this.nodeX(0));
+    }
+    yield* waitFor(0.15);
+
+    const ratios = this.milestones.map(m => this.ratio(m.year));
+    let prev = 0;
+
+    for (let i = 0; i < this.milestones.length; i++) {
+      const target = ratios[i];
+      const targetX = -this.nodeX(i);
+      const seg = Math.max(0.05, target - prev);
+      const segDur = Math.max(0.3, duration * seg);
+
+      // 进度填充与整体平移同步：焦点节点滑向屏幕中央
+      yield* all(
+        this.fill().end(target, segDur, easeInOutCubic),
+        this.x(targetX, segDur, easeInOutCubic),
+      );
+      yield* this.spawnNode(i);
+      yield* waitFor(holdPerNode);
+      prev = target;
+    }
+
+    // 走到终点（保持末节点居中，不再平移）
     if (prev < 1) {
       yield* this.fill().end(1, duration * (1 - prev), easeInOutCubic);
     }
