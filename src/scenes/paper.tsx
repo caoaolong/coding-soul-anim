@@ -3,13 +3,12 @@ import {createRef, waitFor} from '@motion-canvas/core';
 import {SceneTitle} from '../components/title/scene_title';
 import {PaperBoard} from '../components/paper/paper_board';
 
-import paperImg from '../assets/papers/IEEE_754.png';
+import paperImg from '../assets/papers/LanguageTrees&Zipping.png';
 
 const BG = '#0a0e14';
 
 /**
- * IEEE 754：标准文本中央入场 → 移到左侧 → 右侧三条要点依次显示
- * （第一条含浮点数通用公式）
+ * Language Trees and Zipping：论文中央立体入场 → 移到左侧 → 右侧要点依次显示
  */
 export default makeScene2D(function* (view) {
   view.fill(BG);
@@ -17,26 +16,22 @@ export default makeScene2D(function* (view) {
   const title = createRef<SceneTitle>();
   const board = createRef<PaperBoard>();
 
-  view.add(<SceneTitle ref={title} text={'IEEE 754 浮点标准'} />);
+  view.add(<SceneTitle ref={title} text={'Language Trees and Zipping'} />);
   view.add(
     <PaperBoard
       ref={board}
       image={paperImg}
-      caption={'IEEE · 1985 · Floating-Point Arithmetic'}
-      paperHeight={580}
-      paperX={-540}
-      listX={60}
-      rowStep={200}
+      caption={'Benedetto · Caglioti · Loreto · 2002'}
+      paperHeight={620}
+      paperX={-520}
+      listX={80}
+      rowStep={180}
       fontSize={28}
-      formulaSize={34}
+      depthLayers={3}
       points={[
-        {
-          text: '浮点数存储由 S、E、M 三部分组成',
-          formula:
-            '(-1)^{S}\\times(1.M)_{2}\\times 2^{E-\\mathrm{bias}}',
-        },
-        '确定了 32 位单精度和 64 位双精度两种基本浮点数格式',
-        '规定了特殊数值的编码规则',
+        '用交叉压缩距离衡量文本（语言）之间的相似度',
+        '相似度越高，压缩后的相对距离越近；反之越远',
+        '据此可将多种语言排布成关系图 / 语言树',
       ]}
     />,
   );
