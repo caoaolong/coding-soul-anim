@@ -59,7 +59,5 @@ import entropyEnding from "./scenes/entropy_ending?scene";
 import "./global.css";
 
 export default makeProject({
-  scenes: [
-    zipStructure
-  ],
+  scenes: [languageZipDemo],
 });

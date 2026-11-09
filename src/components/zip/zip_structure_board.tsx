@@ -435,7 +435,7 @@ export class ZipStructureBoard extends Node {
       this.fromLine().end(1, 0.55, easeInOutCubic),
     );
 
-    // C. 两张卡片叠在连线末端出生（同源），再左右分开
+    // C1. 先展示 LZ77（同源出生）
     this.lz77Card().position(new Vector2(0, cardY));
     this.huffCard().position(new Vector2(0, cardY));
     this.lz77Card().scale(0.72);
@@ -445,14 +445,20 @@ export class ZipStructureBoard extends Node {
 
     yield* all(
       this.lz77Card().opacity(1, 0.4, easeOutCubic),
-      this.huffCard().opacity(1, 0.4, easeOutCubic),
       this.lz77Card().scale(1, 0.55, easeInOutCubic),
-      this.huffCard().scale(1, 0.55, easeInOutCubic),
-      // 核心略收，把视觉重心让给两步
+      // 核心略收，把视觉重心让给第一步
       core.scale(1.06, 0.7, easeInOutCubic),
       core.opacity(0.92, 0.5, easeOutCubic),
       this.focusGlow().opacity(0.45, 0.55, easeInOutCubic),
     );
+    yield* waitFor(0.8);
+
+    // C2. 再展示哈夫曼编码
+    yield* all(
+      this.huffCard().opacity(1, 0.4, easeOutCubic),
+      this.huffCard().scale(1, 0.55, easeInOutCubic),
+    );
+    yield* waitFor(0.8);
 
     // D. 对开 + 中间箭头随间距拉长（全程 easeInOut，无回弹）
     const leftX = -210;
@@ -490,6 +496,21 @@ export class ZipStructureBoard extends Node {
     );
 
     yield* waitFor(1.0);
+
+    // E. 哈夫曼淡化，LZ77 高亮（衔接下场 lz77）
+    yield* all(
+      this.huffCard().opacity(0.25, 0.6, easeInOutCubic),
+      this.huffCard().scale(0.92, 0.6, easeInOutCubic),
+      this.huffCard().shadowBlur(0, 0.5, easeOutCubic),
+      this.lz77Card().opacity(1, 0.6, easeInOutCubic),
+      this.lz77Card().scale(1.12, 0.6, easeInOutCubic),
+      this.lz77Card().shadowColor('#3dd6c699', 0.5, easeOutCubic),
+      this.lz77Card().shadowBlur(38, 0.6, easeOutQuad),
+      this.between().opacity(0.2, 0.5, easeInOutCubic),
+      this.focusGlow().opacity(0.2, 0.5, easeInOutCubic),
+    );
+
+    yield* waitFor(0.6);
   }
 
   private *slideIn(
