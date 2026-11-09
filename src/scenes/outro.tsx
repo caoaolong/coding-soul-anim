@@ -30,6 +30,7 @@ export default makeScene2D(function* (view) {
   const accentLine = createRef<Line>();
   const nodes = createRefArray<Circle>();
   const edges = createRefArray<Line>();
+  const nodeDepth = [0.55, 0.7, 0.4, 0.85, 0.5, 0.95, 0.6, 0.75, 0.45, 0.8];
 
   view.add(
     <Grid
@@ -92,21 +93,24 @@ export default makeScene2D(function* (view) {
     );
   }
 
-  for (const [x, y] of nodePos) {
+  nodePos.forEach(([x, y], i) => {
+    const d = nodeDepth[i] ?? 0.7;
     view.add(
       <Circle
         ref={nodes}
         x={x}
         y={y}
-        size={10}
+        size={8 + d * 10}
         fill={bg}
         stroke={accent}
-        lineWidth={1.5}
+        lineWidth={1.2 + d}
         opacity={0}
         scale={0.6}
+        shadowColor={'#3dd6c640'}
+        shadowBlur={d > 0.7 ? 18 : 0}
       />,
     );
-  }
+  });
 
   view.add(
     <Txt
@@ -179,7 +183,7 @@ export default makeScene2D(function* (view) {
   // 点缀线
   yield* accentLine().end(1, 0.4, easeInOutCubic);
 
-  // 节点轻脉冲一轮后定格
+  // 节点轻脉冲 + 远近视差漂移后定格
   yield* all(
     ...nodes.map((n, i) =>
       delay(
@@ -187,7 +191,13 @@ export default makeScene2D(function* (view) {
         n.scale(1.25, 0.2, easeOutCubic).to(1, 0.28, easeInOutCubic),
       ),
     ),
+    ...nodes.map((n, i) => {
+      const d = nodeDepth[i] ?? 0.7;
+      const [x, y] = nodePos[i];
+      const drift = (1.15 - d) * 14;
+      return n.position([x - drift, y + drift * 0.35], 1.1, easeInOutCubic);
+    }),
   );
 
-  yield* waitFor(1.2);
+  yield* waitFor(1.0);
 });

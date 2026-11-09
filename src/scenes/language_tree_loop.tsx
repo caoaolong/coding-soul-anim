@@ -1,8 +1,6 @@
 import {
-  Circle,
   Img,
   Layout,
-  Line,
   Node,
   Rect,
   Txt,
@@ -17,7 +15,6 @@ import {
   easeInOutCubic,
   easeOutBack,
   easeOutCubic,
-  tween,
   waitFor,
 } from '@motion-canvas/core';
 import compressIcon from '../assets/icons/压缩.svg';
@@ -42,12 +39,12 @@ import flagRo from '../assets/flags/ro.svg';
 import flagRu from '../assets/flags/ru.svg';
 import flagSe from '../assets/flags/se.svg';
 import flagUs from '../assets/flags/us.svg';
+import {LanguageGraph3D} from '../components/language/language_graph_3d';
 import {SceneTitle} from '../components/title/scene_title';
 
 const BG = '#0a0e14';
 const CARD = '#121820';
 const LINE = '#2a3a4c';
-const PAPER = '#e8eef7';
 const ACCENT = '#3dd6c6';
 const MUTED = '#6a7a8c';
 const MONO = '"Cascadia Mono", "Consolas", "JetBrains Mono", monospace';
@@ -288,12 +285,7 @@ export default makeScene2D(function* (view) {
   const catFlags = createRefArray<Img>();
   const catLabels = createRefArray<Txt>();
 
-  const graphCamera = createRef<Node>();
-  const graphRoot = createRef<Node>();
-  const graphEdges = createRefArray<Line>();
-  const graphNodes = createRefArray<Node>();
-  const focusRing = createRef<Circle>();
-  const focusLabel = createRef<Txt>();
+  const graph3d = createRef<LanguageGraph3D>();
 
   const targets = pickDistinctTargets(CATEGORIES.length, CLASSIFY_ROUNDS);
   const {pos, raw, maxRaw, minRaw} = computeLayout(CROSS_MATRIX);
@@ -311,6 +303,15 @@ export default makeScene2D(function* (view) {
   }
   edges.sort((a, b) => b.sim - a.sim);
 
+  // 高相似度语簇：3D 相机推近聚焦
+  const FOCUS_CLUSTERS = [
+    {indices: [5, 6], title: 'Port. PT · Port. BR'},
+    {indices: [0, 12], title: 'English · English US'},
+    {indices: [8, 10, 17], title: 'Swedish · Danish · Norwegian'},
+    {indices: [15, 16], title: 'Russian · Polish'},
+    {indices: [3, 4, 18], title: 'Italian · Spanish · Romanian'},
+  ];
+
   view.add(
     <Node ref={pages}>
       <Node ref={screen0} />
@@ -321,9 +322,10 @@ export default makeScene2D(function* (view) {
   // ════════ 第一屏：ZIP 分类循环 ════════
   screen0().add(<SceneTitle ref={title0} text={'压缩 · 语言分类'} />);
 
-  // 文档 → 压缩包：自上而下，无箭头
-  const DOC_Y = -160;
-  const ZIP_Y = 20;
+  // 文档 → 压缩包：自上而下，无箭头（整体上移，给底部字幕留空）
+  const DOC_Y = -220;
+  const ZIP_Y = -40;
+  const CAT_Y = 180;
   screen0().add(
     <Img
       ref={docImg}
@@ -378,7 +380,7 @@ export default makeScene2D(function* (view) {
         stroke={LINE}
         lineWidth={2}
         x={x}
-        y={270}
+        y={CAT_Y}
         opacity={0}
         scale={0.9}
       >
@@ -404,93 +406,24 @@ export default makeScene2D(function* (view) {
     );
   });
 
-  // ════════ 第二屏：相似度图 ════════
+  // ════════ 第二屏：3D 相似度图 ════════
   screen1().add(
     <SceneTitle ref={title1} text={'Language Trees and Zipping'} />,
   );
-
-  // 高相似度语簇：逐个移镜聚焦
-  const FOCUS_CLUSTERS: {indices: number[]; title: string}[] = [
-    {indices: [5, 6], title: 'Port. PT · Port. BR'},
-    {indices: [0, 12], title: 'English · English US'},
-    {indices: [8, 10, 17], title: 'Swedish · Danish · Norwegian'},
-    {indices: [15, 16], title: 'Russian · Polish'},
-    {indices: [3, 4, 18], title: 'Italian · Spanish · Romanian'},
-  ];
-
   screen1().add(
-    <Node ref={graphCamera} y={20}>
-      <Node ref={graphRoot} />
-      <Circle
-        ref={focusRing}
-        width={160}
-        height={160}
-        stroke={ACCENT}
-        lineWidth={3.5}
-        fill={'#3dd6c618'}
-        opacity={0}
-        scale={0.85}
-      />
-    </Node>,
-  );
-  screen1().add(
-    <Txt
-      ref={focusLabel}
-      text={''}
-      fontFamily={MONO}
-      fontSize={26}
-      fontWeight={700}
-      fill={ACCENT}
-      y={440}
-      opacity={0}
+    <LanguageGraph3D
+      ref={graph3d}
+      langs={LANGS.map(l => ({
+        label: l.label,
+        flag: l.flag,
+        color: l.color,
+      }))}
+      layout={pos}
+      edges={edges.map(e => ({i: e.i, j: e.j, sim: e.sim}))}
+      clusters={FOCUS_CLUSTERS}
+      y={-55}
     />,
   );
-
-  for (const e of edges) {
-    const a = pos[e.i];
-    const b = pos[e.j];
-    graphRoot().add(
-      <Line
-        ref={graphEdges}
-        points={[
-          [a.x, a.y],
-          [b.x, b.y],
-        ]}
-        stroke={ACCENT}
-        lineWidth={0.8 + e.sim * 5}
-        opacity={0}
-        lineCap={'round'}
-      />,
-    );
-  }
-
-  LANGS.forEach((lang, i) => {
-    graphRoot().add(
-      <Node
-        ref={graphNodes}
-        x={pos[i].x}
-        y={pos[i].y}
-        opacity={0}
-        scale={0.7}
-      >
-        <Circle
-          width={58}
-          height={58}
-          fill={CARD}
-          stroke={lang.color}
-          lineWidth={2.5}
-        />
-        <Img src={lang.flag} width={34} height={22} radius={3} />
-        <Txt
-          text={lang.label}
-          fontFamily={MONO}
-          fontSize={13}
-          fill={PAPER}
-          y={42}
-        />
-      </Node>,
-    );
-  });
 
   // ── 动画 ──
   yield* title0().show();
@@ -520,7 +453,7 @@ export default makeScene2D(function* (view) {
   for (let round = 0; round < CLASSIFY_ROUNDS; round++) {
     const target = targets[round];
     const catX = catStartX + target * catGap;
-    const catY = 270;
+    const catY = CAT_Y;
 
     // 重置文档（上→下落入主压缩包）
     docImg().position(new Vector2(0, DOC_Y));
@@ -577,165 +510,10 @@ export default makeScene2D(function* (view) {
 
   yield* waitFor(0.4);
 
-  // ════════ 上滚进入论文结果图 ════════
+  // ════════ 上滚进入 3D 论文结果图 ════════
   yield* pages().y(-SCREEN_H, 1.0, easeInOutCubic);
   yield* waitFor(0.15);
   yield* title1().show();
-  yield* waitFor(0.2);
-
-  // 先弹出全部国旗节点
-  yield* all(
-    ...graphNodes.map((node, i) =>
-      delay(
-        i * 0.05,
-        all(
-          node.opacity(1, 0.4, easeOutCubic),
-          node.scale(1, 0.45, easeOutBack),
-        ),
-      ),
-    ),
-  );
-  yield* waitFor(0.25);
-
-  // 再陆续显示节点间连线（相似→更亮更粗，不相似→更淡）
-  yield* all(
-    ...graphEdges.map((edge, i) =>
-      delay(
-        i * 0.018,
-        edge.opacity(0.06 + Math.pow(edges[i].sim, 1.4) * 0.78, 0.4, easeOutCubic),
-      ),
-    ),
-  );
-
-  // 图谱轻微漂浮：相对静止位偏移（t=0 时偏移为 0，无突变）
-  const nLang = LANGS.length;
-  const applyFloat = (value: number) => {
-    const t = value * Math.PI * 2;
-    for (let i = 0; i < nLang; i++) {
-      const phase = (i / nLang) * Math.PI * 2;
-      const ox = (Math.sin(t + phase) - Math.sin(phase)) * 7;
-      const oy = (Math.cos(t + phase * 0.85) - Math.cos(phase * 0.85)) * 5;
-      graphNodes[i].position(new Vector2(pos[i].x + ox, pos[i].y + oy));
-    }
-    for (let ei = 0; ei < edges.length; ei++) {
-      const e = edges[ei];
-      const a = graphNodes[e.i].position();
-      const b = graphNodes[e.j].position();
-      graphEdges[ei].points([
-        [a.x, a.y],
-        [b.x, b.y],
-      ]);
-    }
-  };
-
-  yield* tween(2.4, applyFloat);
-
-  // 复位到静止位，准备移镜聚焦
-  for (let i = 0; i < nLang; i++) {
-    graphNodes[i].position(new Vector2(pos[i].x, pos[i].y));
-  }
-  for (let ei = 0; ei < edges.length; ei++) {
-    const e = edges[ei];
-    graphEdges[ei].points([
-      [pos[e.i].x, pos[e.i].y],
-      [pos[e.j].x, pos[e.j].y],
-    ]);
-  }
-  yield* waitFor(0.2);
-
-  // 记录各边基础透明度，聚焦时加亮簇内连线
-  const edgeBaseOpacity = edges.map(
-    e => 0.06 + Math.pow(e.sim, 1.4) * 0.78,
-  );
-
-  for (const cluster of FOCUS_CLUSTERS) {
-    const set = new Set(cluster.indices);
-    let cx = 0;
-    let cy = 0;
-    for (const i of cluster.indices) {
-      cx += pos[i].x;
-      cy += pos[i].y;
-    }
-    cx /= cluster.indices.length;
-    cy /= cluster.indices.length;
-
-    let maxR = 0;
-    for (const i of cluster.indices) {
-      maxR = Math.max(maxR, Math.hypot(pos[i].x - cx, pos[i].y - cy));
-    }
-    const pad = 70;
-    const ringSize = Math.max((maxR + pad) * 2, 150);
-    const zoom = Math.min(2.35, Math.max(1.55, 320 / (maxR + pad)));
-
-    focusLabel().text(cluster.title);
-
-    // 先收起上一圈，再移镜聚焦
-    yield* all(
-      focusRing().opacity(0, 0.22, easeOutCubic),
-      focusRing().scale(0.85, 0.22, easeOutCubic),
-      focusLabel().opacity(0, 0.2, easeOutCubic),
-    );
-
-    focusRing().position(new Vector2(cx, cy));
-    focusRing().size(ringSize);
-    focusRing().scale(0.85);
-
-    yield* all(
-      graphCamera().position(new Vector2(-cx * zoom, 20 - cy * zoom), 0.9, easeInOutCubic),
-      graphCamera().scale(zoom, 0.9, easeInOutCubic),
-      ...graphNodes.map((node, i) =>
-        all(
-          node.opacity(set.has(i) ? 1 : 0.18, 0.45, easeOutCubic),
-          node.scale(set.has(i) ? 1.12 : 0.92, 0.45, easeOutCubic),
-        ),
-      ),
-      ...graphEdges.map((edge, ei) => {
-        const e = edges[ei];
-        const inside = set.has(e.i) && set.has(e.j);
-        const half = set.has(e.i) || set.has(e.j);
-        const op = inside
-          ? Math.min(1, edgeBaseOpacity[ei] + 0.45)
-          : half
-            ? edgeBaseOpacity[ei] * 0.55
-            : edgeBaseOpacity[ei] * 0.12;
-        return edge.opacity(op, 0.45, easeOutCubic);
-      }),
-    );
-
-    yield* waitFor(0.12);
-
-    // 聚焦到位后再显示圆圈与标题
-    yield* all(
-      focusRing().opacity(1, 0.4, easeOutCubic),
-      focusRing().scale(1, 0.5, easeOutBack),
-      focusLabel().opacity(1, 0.35, easeOutCubic),
-    );
-
-    yield* waitFor(0.85);
-
-    // 圈选轻脉冲
-    yield* focusRing().scale(1.06, 0.28, easeInOutCubic);
-    yield* focusRing().scale(1, 0.28, easeInOutCubic);
-    yield* waitFor(0.3);
-  }
-
-  // 拉回全图总览
-  yield* all(
-    graphCamera().position(new Vector2(0, 20), 1.0, easeInOutCubic),
-    graphCamera().scale(1, 1.0, easeInOutCubic),
-    focusRing().opacity(0, 0.35, easeOutCubic),
-    focusRing().scale(0.85, 0.35, easeOutCubic),
-    focusLabel().opacity(0, 0.3, easeOutCubic),
-    ...graphNodes.map(node =>
-      all(
-        node.opacity(1, 0.45, easeOutCubic),
-        node.scale(1, 0.45, easeOutCubic),
-      ),
-    ),
-    ...graphEdges.map((edge, ei) =>
-      edge.opacity(edgeBaseOpacity[ei], 0.45, easeOutCubic),
-    ),
-  );
-
-  yield* waitFor(1.2);
+  yield* waitFor(0.15);
+  yield* graph3d().play();
 });

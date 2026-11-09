@@ -22,7 +22,6 @@ import {
 } from '@motion-canvas/core';
 import iconHeads from '../../assets/硬币正面.svg';
 import iconTails from '../../assets/硬币反面.svg';
-import {FocusWord} from '../emphasis/focus_word';
 import {FormulaDerive} from '../formula/formula_derive';
 import {FONT} from '../../theme/fonts';
 import {Camera3D, build3DBarFaces, project3D} from './three_proj';
@@ -47,12 +46,15 @@ export interface EntropyCoinBoardProps extends NodeProps {}
  */
 export class EntropyCoinBoard extends Node {
   private readonly formulaHeader = createRef<Rect>();
+  private readonly formulaConcept = createRef<Txt>();
+  private readonly formulaLatex = createRef<Latex>();
   private readonly divider = createRef<Line>();
 
   // 3D 硬币旋转节点
   private readonly coinNodes = createRefArray<Node>();
   private readonly coinImgs = createRefArray<Img>();
   private readonly coinShadows = createRefArray<Circle>();
+  private readonly coinTitles = createRefArray<Txt>();
   private readonly leftSamples = createRefArray<Rect>();
   private readonly rightSamples = createRefArray<Rect>();
 
@@ -65,57 +67,65 @@ export class EntropyCoinBoard extends Node {
 
   private readonly leftDerive = createRef<FormulaDerive>();
   private readonly rightDerive = createRef<FormulaDerive>();
-  private readonly essenceTag = createRef<Rect>();
-  private readonly focusWord = createRef<FocusWord>();
 
   private camYaw = -0.52;
   private readonly camPitch = 0.42;
   private readonly barHeights = [0, 0, 0, 0, 0, 0];
   // 6 根 3D 柱定义：左台 [p1=0.5, p2=0.5, H=1.0]，右台 [p1=0.99, p2=0.01, H=0.081]
   private readonly barDefs = [
-    {stage: 0, cx: -115, cz: 0, targetH: 85, label: '正 50%', cFront: '#289e92', cSide: '#1c736a', cTop: '#3dd6c6'},
-    {stage: 0, cx: 0, cz: 0, targetH: 85, label: '反 50%', cFront: '#4e73cc', cSide: '#365296', cTop: '#7aa2ff'},
-    {stage: 0, cx: 125, cz: 0, targetH: 170, label: 'H = 1 bit', cFront: '#cc8c3b', cSide: '#996626', cTop: '#ffb454'},
-    {stage: 1, cx: -115, cz: 0, targetH: 168, label: '正 99%', cFront: '#289e92', cSide: '#1c736a', cTop: '#3dd6c6'},
-    {stage: 1, cx: 0, cz: 0, targetH: 8, label: '反 1%', cFront: '#4e73cc', cSide: '#365296', cTop: '#7aa2ff'},
-    {stage: 1, cx: 125, cz: 0, targetH: 18, label: 'H ≈ 0.081', cFront: '#cc8c3b', cSide: '#996626', cTop: '#ffb454'},
+    {stage: 0, cx: -115, cz: 0, targetH: 72, label: '正 50%', cFront: '#289e92', cSide: '#1c736a', cTop: '#3dd6c6'},
+    {stage: 0, cx: 0, cz: 0, targetH: 72, label: '反 50%', cFront: '#4e73cc', cSide: '#365296', cTop: '#7aa2ff'},
+    {stage: 0, cx: 125, cz: 0, targetH: 140, label: 'H = 1 bit', cFront: '#cc8c3b', cSide: '#996626', cTop: '#ffb454'},
+    {stage: 1, cx: -115, cz: 0, targetH: 138, label: '正 99%', cFront: '#289e92', cSide: '#1c736a', cTop: '#3dd6c6'},
+    {stage: 1, cx: 0, cz: 0, targetH: 7, label: '反 1%', cFront: '#4e73cc', cSide: '#365296', cTop: '#7aa2ff'},
+    {stage: 1, cx: 125, cz: 0, targetH: 15, label: 'H ≈ 0.081', cFront: '#cc8c3b', cSide: '#996626', cTop: '#ffb454'},
   ];
 
   private readonly stageCenters = [
-    {x: -440, y: 80},
-    {x: 440, y: 80},
+    {x: -440, y: 115},
+    {x: 440, y: 115},
   ];
 
   public constructor(props: EntropyCoinBoardProps = {}) {
     super({...props});
 
-    // 顶部精简公式栏
+    // 顶部公式栏：定义与公式横向排列（先定义，后公式）
     this.add(
       <Rect
         ref={this.formulaHeader}
-        width={1360}
-        height={108}
-        y={-325}
+        width={1560}
+        height={130}
+        y={-360}
         fill={CARD}
         stroke={ACCENT}
         lineWidth={2.5}
         radius={16}
         opacity={0}
         scale={0.94}
+        layout
+        direction={'row'}
+        alignItems={'center'}
+        justifyContent={'center'}
+        gap={40}
+        padding={[16, 48]}
       >
         <Txt
-          text={'信息熵（加权平均信息量）'}
+          ref={this.formulaConcept}
+          text={'加权平均信息量'}
           fontFamily={FONT}
-          fontSize={28}
+          fontSize={30}
           fontWeight={700}
           fill={ACCENT}
-          x={-350}
+          opacity={0}
+          scale={0.92}
         />
         <Latex
+          ref={this.formulaLatex}
           tex={['H(X) = -\\sum_{i=1}^{n} p_{i}\\log_{2} p_{i}']}
-          fontSize={46}
+          fontSize={36}
           fill={PAPER}
-          x={240}
+          opacity={0}
+          scale={0.92}
         />
       </Rect>,
     );
@@ -125,8 +135,8 @@ export class EntropyCoinBoard extends Node {
       <Line
         ref={this.divider}
         points={[
-          [0, -230],
-          [0, 340],
+          [0, -200],
+          [0, 390],
         ]}
         stroke={DIVIDER}
         lineWidth={2}
@@ -157,13 +167,15 @@ export class EntropyCoinBoard extends Node {
     coinConfigs.forEach(cfg => {
       this.add(
         <Txt
+          ref={this.coinTitles}
           text={cfg.title}
           fontFamily={FONT}
           fontSize={28}
           fontWeight={700}
           fill={cfg.color}
           x={cfg.cx}
-          y={-225}
+          y={-195}
+          opacity={0}
         />,
       );
 
@@ -172,7 +184,7 @@ export class EntropyCoinBoard extends Node {
         <Circle
           ref={this.coinShadows}
           x={cfg.cx - 210}
-          y={-95}
+          y={-65}
           width={76}
           height={22}
           fill={'rgba(0,0,0,0.45)'}
@@ -182,7 +194,7 @@ export class EntropyCoinBoard extends Node {
 
       // 3D 翻转硬币本体
       this.add(
-        <Node ref={this.coinNodes} x={cfg.cx - 210} y={-140} opacity={0}>
+        <Node ref={this.coinNodes} x={cfg.cx - 210} y={-110} opacity={0}>
           <Img ref={this.coinImgs} src={iconHeads} width={86} height={86} />
         </Node>,
       );
@@ -196,7 +208,7 @@ export class EntropyCoinBoard extends Node {
             width={52}
             height={52}
             x={cfg.cx - 95 + idx * 62}
-            y={-140}
+            y={-110}
             radius={26}
             fill={DEEP}
             stroke={isHead ? ACCENT : BLUE}
@@ -305,10 +317,10 @@ export class EntropyCoinBoard extends Node {
           'H(X) = -0.5\\log_{2} 0.5 - 0.5\\log_{2} 0.5',
           '= 1\\ \\text{bit}',
         ]}
-        fontSize={34}
-        rowGap={22}
+        fontSize={30}
+        rowGap={18}
         x={-440}
-        y={235}
+        y={330}
       />,
     );
 
@@ -319,38 +331,13 @@ export class EntropyCoinBoard extends Node {
           'H(X) = -0.99\\log_{2} 0.99 - 0.01\\log_{2} 0.01',
           '\\approx 0.081\\ \\text{bit}',
         ]}
-        fontSize={34}
-        rowGap={22}
+        fontSize={30}
+        rowGap={18}
         x={440}
-        y={235}
+        y={330}
       />,
     );
 
-    // 底部精简核心定义
-    this.add(
-      <Rect
-        ref={this.essenceTag}
-        width={1080}
-        height={66}
-        y={410}
-        fill={CARD}
-        stroke={ACCENT}
-        lineWidth={2}
-        radius={33}
-        opacity={0}
-        scale={0.92}
-      >
-        <Txt
-          text={'信息熵 = 随机变量信息量的期望值（衡量整体不确定性）'}
-          fontFamily={FONT}
-          fontSize={28}
-          fontWeight={700}
-          fill={ACCENT}
-        />
-      </Rect>,
-    );
-
-    this.add(<FocusWord ref={this.focusWord} text={'信息熵'} />);
     this.sync3DBars();
   }
 
@@ -403,7 +390,7 @@ export class EntropyCoinBoard extends Node {
     const node = this.coinNodes[index];
     const img = this.coinImgs[index];
     const shadow = this.coinShadows[index];
-    const baseY = -140;
+    const baseY = -110;
 
     yield* tween(duration, v => {
       const arc = Math.sin(v * Math.PI);
@@ -421,18 +408,20 @@ export class EntropyCoinBoard extends Node {
   }
 
   public *play(): ThreadGenerator {
-    // 1) 中线与两枚 3D 硬币入场
+    // 1) 中线
     yield* all(
       this.divider().opacity(1, 0.3, easeOutCubic),
       this.divider().end(1, 0.5, easeOutCubic),
-      ...this.coinNodes.map(c => c.opacity(1, 0.35, easeOutCubic)),
-      ...this.coinShadows.map(s => s.opacity(1, 0.35, easeOutCubic)),
     );
 
-    // 2) 两枚硬币同时做 3D 翻转抛掷，并依次弹出 6 次抽样结果
+    // 2) 先演示第一枚：均匀硬币
+    yield* all(
+      this.coinTitles[0].opacity(1, 0.35, easeOutCubic),
+      this.coinNodes[0].opacity(1, 0.35, easeOutCubic),
+      this.coinShadows[0].opacity(1, 0.35, easeOutCubic),
+    );
     yield* all(
       this.flipCoin3D(0, 3, 0.9),
-      this.flipCoin3D(1, 3, 0.9),
       ...this.leftSamples.map((chip, i) =>
         delay(
           0.1 + i * 0.11,
@@ -442,6 +431,17 @@ export class EntropyCoinBoard extends Node {
           ),
         ),
       ),
+    );
+    yield* waitFor(0.3);
+
+    // 3) 再演示第二枚：偏置硬币
+    yield* all(
+      this.coinTitles[1].opacity(1, 0.35, easeOutCubic),
+      this.coinNodes[1].opacity(1, 0.35, easeOutCubic),
+      this.coinShadows[1].opacity(1, 0.35, easeOutCubic),
+    );
+    yield* all(
+      this.flipCoin3D(1, 3, 0.9),
       ...this.rightSamples.map((chip, i) =>
         delay(
           0.1 + i * 0.11,
@@ -454,10 +454,7 @@ export class EntropyCoinBoard extends Node {
     );
     yield* waitFor(0.25);
 
-    // 3) 强调词「信息熵」
-    yield* this.focusWord().play(0.7);
-
-    // 4) 公式栏与 3D 舞台升起
+    // 3) 公式栏：先出核心概念，再出公式；同时升起 3D 舞台
     yield* all(
       this.formulaHeader().opacity(1, 0.4, easeOutCubic),
       this.formulaHeader().scale(1, 0.45, easeOutBack),
@@ -467,6 +464,16 @@ export class EntropyCoinBoard extends Node {
       ...this.barTops.map(t => t.opacity(1, 0.3)),
       ...this.barValueLabels.map(l => l.opacity(1, 0.35)),
     );
+    yield* all(
+      this.formulaConcept().opacity(1, 0.4, easeOutCubic),
+      this.formulaConcept().scale(1, 0.45, easeOutBack),
+    );
+    yield* waitFor(0.35);
+    yield* all(
+      this.formulaLatex().opacity(1, 0.45, easeOutCubic),
+      this.formulaLatex().scale(1, 0.5, easeOutBack),
+    );
+    yield* waitFor(0.25);
 
     // 5) 3D 柱体拔地而起 + 视角缓慢环绕 + 左右推导式同步书写
     yield* all(
@@ -480,13 +487,6 @@ export class EntropyCoinBoard extends Node {
       }),
       this.leftDerive().run(0.35, 0.38),
       delay(0.35, this.rightDerive().run(0.35, 0.38)),
-    );
-    yield* waitFor(0.25);
-
-    // 6) 底部一句话总结
-    yield* all(
-      this.essenceTag().opacity(1, 0.4, easeOutCubic),
-      this.essenceTag().scale(1, 0.45, easeOutBack),
     );
     yield* waitFor(1.1);
   }

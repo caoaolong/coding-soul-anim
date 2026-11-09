@@ -27,7 +27,7 @@ export default makeScene2D(function* (view) {
       listX={80}
       rowStep={180}
       fontSize={28}
-      depthLayers={3}
+      depthLayers={4}
       points={[
         '用交叉压缩距离衡量文本（语言）之间的相似度',
         '相似度越高，压缩后的相对距离越近；反之越远',

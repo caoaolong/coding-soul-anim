@@ -13,13 +13,14 @@ import {
   all,
   createRef,
   createRefArray,
+  delay,
   easeInOutCubic,
   easeOutBack,
   easeOutCubic,
   tween,
   waitFor,
 } from '@motion-canvas/core';
-import logoBLG from '../../assets/LPL/BLG.png';
+import logoTES from '../../assets/LPL/TES.png';
 import logoTT from '../../assets/LPL/TT.png';
 import {FocusWord} from '../emphasis/focus_word';
 import {FunctionGraph, GraphPoint} from '../graph/function_graph';
@@ -51,7 +52,7 @@ export class LplInfoBoard extends Node {
 
   // 第一屏
   private readonly matchCard = createRef<Rect>();
-  private readonly blgBar = createRef<Rect>();
+  private readonly tesBar = createRef<Rect>();
   private readonly oppBar = createRef<Rect>();
   private readonly outcomeCards = createRefArray<Rect>();
   private readonly infoMeters = createRefArray<Rect>();
@@ -59,7 +60,9 @@ export class LplInfoBoard extends Node {
   private readonly focusWord = createRef<FocusWord>();
 
   // 第二屏
-  private readonly formulaCard = createRef<Rect>();
+  private readonly formulaCard = createRef<Node>();
+  private readonly formulaLatex = createRef<Latex>();
+  private readonly formulaInsight = createRef<Txt>();
   private readonly infoGraph = createRef<FunctionGraph>();
   private readonly scanDot = createRef<Circle>();
   private readonly scanLineX = createRef<Line>();
@@ -70,7 +73,6 @@ export class LplInfoBoard extends Node {
   private readonly barCols = createRefArray<Node>();
   private readonly barFills = createRefArray<Rect>();
   private readonly barLabels = createRefArray<Txt>();
-  private readonly bottomTag = createRef<Rect>();
 
   private readonly samples = [
     {label: '必然', p: 1.0, bits: 0.0, text: '0 bit', color: MUTED},
@@ -119,10 +121,10 @@ export class LplInfoBoard extends Node {
           y={-68}
         />
 
-        {/* 左：BLG */}
-        <Img src={logoBLG} width={92} height={92} x={-540} y={10} />
+        {/* 左：TES */}
+        <Img src={logoTES} width={92} height={92} x={-540} y={10} />
         <Txt
-          text={'BLG'}
+          text={'TES'}
           fontFamily={FONT}
           fontSize={36}
           fontWeight={700}
@@ -152,7 +154,7 @@ export class LplInfoBoard extends Node {
           clip
         >
           <Rect
-            ref={this.blgBar}
+            ref={this.tesBar}
             width={0}
             height={32}
             x={-280}
@@ -177,10 +179,10 @@ export class LplInfoBoard extends Node {
           y={-30}
         />
 
-        {/* 右：弱队对手 */}
+        {/* 右：TT */}
         <Img src={logoTT} width={92} height={92} x={540} y={10} />
         <Txt
-          text={'对手'}
+          text={'TT'}
           fontFamily={FONT}
           fontSize={36}
           fontWeight={700}
@@ -204,7 +206,7 @@ export class LplInfoBoard extends Node {
     const outcomes = [
       {
         x: -350,
-        title: '结果一：BLG 正常获胜',
+        title: '结果一：TES 正常获胜',
         prob: 'P = 90%',
         tag: '预料之中 · 信息量少',
         meterW: 52,
@@ -213,7 +215,7 @@ export class LplInfoBoard extends Node {
       },
       {
         x: 350,
-        title: '结果二：BLG 爆冷输球',
+        title: '结果二：TES 爆冷拉跨',
         prob: 'P = 10%',
         tag: '大出意料 · 信息量极大！',
         meterW: 360,
@@ -336,70 +338,30 @@ export class LplInfoBoard extends Node {
   }
 
   private buildScreen2() {
-    // 顶部：精简公式卡片
+    // 顶部：公式 + 关系文案（无边框；最后替换为定义句）
     this.screen2().add(
-      <Rect
-        ref={this.formulaCard}
-        width={1560}
-        height={130}
-        y={-300}
-        fill={CARD}
-        stroke={ACCENT}
-        lineWidth={2.5}
-        radius={18}
-        opacity={0}
-        scale={0.94}
-      >
+      <Node ref={this.formulaCard} y={-300} opacity={0} scale={0.92}>
         <Latex
+          ref={this.formulaLatex}
           tex={['I(x) = -\\log_{2} P(x)']}
           fontSize={54}
           fill={PAPER}
-          x={-440}
-        />
-        <Line
-          points={[
-            [-110, -42],
-            [-110, 42],
-          ]}
-          stroke={LINE}
-          lineWidth={2}
+          x={0}
+          opacity={0}
+          scale={0.9}
         />
         <Txt
-          text={'P(x)：发生概率'}
+          ref={this.formulaInsight}
+          text={'概率越低  ⇒  信息量越大'}
           fontFamily={FONT}
-          fontSize={26}
+          fontSize={30}
           fontWeight={700}
-          fill={GOLD}
-          x={70}
-          y={-22}
+          fill={BLUE}
+          x={300}
+          opacity={0}
+          scale={0.9}
         />
-        <Txt
-          text={'I(x)：信息量 (bit)'}
-          fontFamily={FONT}
-          fontSize={26}
-          fontWeight={700}
-          fill={ACCENT}
-          x={70}
-          y={22}
-        />
-        <Rect
-          width={360}
-          height={64}
-          x={520}
-          radius={12}
-          fill={DEEP}
-          stroke={BLUE}
-          lineWidth={2}
-        >
-          <Txt
-            text={'概率越低  ⇒  信息量越大'}
-            fontFamily={FONT}
-            fontSize={26}
-            fontWeight={700}
-            fill={BLUE}
-          />
-        </Rect>
-      </Rect>,
+      </Node>,
     );
 
     // 左下：5 根动态生长的信息量能量柱（替代冗长文字表格）
@@ -574,29 +536,6 @@ export class LplInfoBoard extends Node {
       </Rect>,
     );
 
-    // 底部一句话核心标签
-    this.screen2().add(
-      <Rect
-        ref={this.bottomTag}
-        width={960}
-        height={66}
-        y={415}
-        fill={CARD}
-        stroke={ACCENT}
-        lineWidth={2}
-        radius={33}
-        opacity={0}
-        scale={0.92}
-      >
-        <Txt
-          text={'信息量 = 事件发生后消除的不确定性'}
-          fontFamily={FONT}
-          fontSize={28}
-          fontWeight={700}
-          fill={ACCENT}
-        />
-      </Rect>,
-    );
   }
 
   /** 将 (p, I) 转换到 screen2 坐标 */
@@ -637,7 +576,7 @@ export class LplInfoBoard extends Node {
       this.matchCard().scale(1, 0.45, easeOutBack),
     );
     yield* all(
-      this.blgBar().width(560 * 0.9, 0.65, easeInOutCubic),
+      this.tesBar().width(560 * 0.9, 0.65, easeInOutCubic),
       this.oppBar().width(560 * 0.1, 0.65, easeInOutCubic),
     );
     yield* waitFor(0.2);
@@ -674,17 +613,39 @@ export class LplInfoBoard extends Node {
     // 强调「信息量」
     yield* this.focusWord().play(0.75);
 
-    // ── 第二屏：公式 + 动态曲线扫描与柱状能量联动 ──
+    // ── 第二屏：公式 → 解释 → 举例 + 函数图像 ──
     yield* this.pages().y(-SCREEN_H, 0.8, easeInOutCubic);
-    yield* waitFor(0.12);
+    yield* waitFor(0.15);
 
+    // 1) 先出公式卡片与公式本身（居中）
     yield* all(
       this.formulaCard().opacity(1, 0.4, easeOutCubic),
-      this.formulaCard().scale(1, 0.45, easeOutBack),
-      this.infoGraph().showAxes(0.45),
-      ...this.barCols.map(c => c.opacity(1, 0.4, easeOutCubic)),
+      this.formulaCard().scale(1, 0.5, easeOutBack),
     );
-    yield* this.infoGraph().drawSeries('curve', 0.8);
+    yield* all(
+      this.formulaLatex().opacity(1, 0.4, easeOutCubic),
+      this.formulaLatex().scale(1, 0.5, easeOutBack),
+    );
+    yield* waitFor(0.45);
+
+    // 2) 公式左移，再显示概率与信息量的关系（无边框）
+    yield* this.formulaLatex().x(-280, 0.55, easeInOutCubic);
+    yield* waitFor(0.1);
+    yield* all(
+      this.formulaInsight().opacity(1, 0.4, easeOutCubic),
+      this.formulaInsight().scale(1, 0.45, easeOutBack),
+    );
+    yield* waitFor(0.45);
+
+    // 3) 再出举例能量柱 + 函数坐标轴与曲线
+    yield* all(
+      this.infoGraph().showAxes(0.55),
+      ...this.barCols.map((c, i) =>
+        delay(i * 0.06, c.opacity(1, 0.4, easeOutCubic)),
+      ),
+    );
+    yield* this.infoGraph().drawSeries('curve', 0.85);
+    yield* waitFor(0.15);
 
     // 启动扫描探针：从 P=1.0 连续滑向 P=0.01，逐个点亮左侧信息量柱
     this.updateScanner(1.0);
@@ -715,9 +676,14 @@ export class LplInfoBoard extends Node {
       yield* waitFor(0.15);
     }
 
+    // 最后：关系句替换为信息量定义
+    yield* this.formulaInsight().opacity(0, 0.3, easeOutCubic);
+    this.formulaInsight().text('信息量 = 事件发生后消除的不确定性');
+    this.formulaInsight().fill(ACCENT);
+    this.formulaInsight().fontSize(28);
     yield* all(
-      this.bottomTag().opacity(1, 0.4, easeOutCubic),
-      this.bottomTag().scale(1, 0.45, easeOutBack),
+      this.formulaInsight().opacity(1, 0.4, easeOutCubic),
+      this.formulaInsight().scale(1.04, 0.35, easeOutBack).to(1, 0.2),
     );
     yield* waitFor(1.1);
   }

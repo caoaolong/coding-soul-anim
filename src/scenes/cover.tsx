@@ -10,9 +10,9 @@ import {
 } from '@motion-canvas/core';
 
 /** 每集只改这一处副标；可用 \\n 换行 */
-const EPISODE_TITLE = '什么是信息熵\n和交叉熵？';
+const EPISODE_TITLE = '压缩的尽头\n是什么？';
 
-/** 系列通用封面：抽象节点网络 + 系列主标题 */
+/** 系列通用封面：抽象节点网络 + 系列主标题（轻量 3D 视差） */
 export default makeScene2D(function* (view) {
   const bg = '#0a0e14';
   const paper = '#e8eef7';
@@ -30,6 +30,7 @@ export default makeScene2D(function* (view) {
   const accentLine = createRef<Line>();
   const nodes = createRefArray<Circle>();
   const edges = createRefArray<Line>();
+  const nodeDepth = [0.55, 0.7, 0.4, 0.85, 0.5, 0.95, 0.6, 0.75, 0.45, 0.8];
 
   const episodeLines = EPISODE_TITLE.replace(/\r\n/g, '\n')
     .replace(/^\n+|\n+$/g, '')
@@ -97,21 +98,24 @@ export default makeScene2D(function* (view) {
     );
   }
 
-  for (const [x, y] of nodePos) {
+  nodePos.forEach(([x, y], i) => {
+    const d = nodeDepth[i] ?? 0.7;
     view.add(
       <Circle
         ref={nodes}
         x={x}
         y={y}
-        size={10}
+        size={8 + d * 10}
         fill={bg}
         stroke={accent}
-        lineWidth={1.5}
+        lineWidth={1.2 + d}
         opacity={0}
         scale={0.6}
+        shadowColor={'#3dd6c640'}
+        shadowBlur={d > 0.7 ? 18 : 0}
       />,
     );
-  }
+  });
 
   // 系列名 + 本集标题纵向排布，换行时不会互相遮盖
   view.add(
@@ -202,7 +206,7 @@ export default makeScene2D(function* (view) {
   ]);
   yield* accentLine().end(1, 0.4, easeInOutCubic);
 
-  // 节点轻脉冲一轮后定格
+  // 节点轻脉冲 + 远近视差漂移后定格
   yield* all(
     ...nodes.map((n, i) =>
       delay(
@@ -210,7 +214,13 @@ export default makeScene2D(function* (view) {
         n.scale(1.25, 0.2, easeOutCubic).to(1, 0.28, easeInOutCubic),
       ),
     ),
+    ...nodes.map((n, i) => {
+      const d = nodeDepth[i] ?? 0.7;
+      const [x, y] = nodePos[i];
+      const drift = (1.15 - d) * 14;
+      return n.position([x + drift, y - drift * 0.4], 1.1, easeInOutCubic);
+    }),
   );
 
-  yield* waitFor(1.2);
+  yield* waitFor(1.0);
 });

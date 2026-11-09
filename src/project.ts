@@ -1,4 +1,4 @@
-﻿import { makeProject } from "@motion-canvas/core";
+import { makeProject } from "@motion-canvas/core";
 
 import cover from "./scenes/cover?scene";
 import outro from "./scenes/outro?scene";
@@ -60,13 +60,10 @@ import "./global.css";
 export default makeProject({
   scenes: [
     cover,
-    lplInfo,
-    entropyCoin,
-    entropyApplication,
-    crossEntropyIntro,
-    entropyRelationship,
-    crossEntropyLoss,
-    entropyEnding,
+    paper,
+    languageTreeLoop,
+    languageZipDemo,
+    lz77,
     outro,
   ],
 });

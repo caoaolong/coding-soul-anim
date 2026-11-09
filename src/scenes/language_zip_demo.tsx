@@ -23,6 +23,7 @@ import flagIt from '../assets/flags/it.svg';
 import flagNl from '../assets/flags/nl.svg';
 import flagPt from '../assets/flags/pt.svg';
 import flagSe from '../assets/flags/se.svg';
+import {CrossMatrix3D} from '../components/language/cross_matrix_3d';
 import {SceneTitle} from '../components/title/scene_title';
 
 const BG = '#0a0e14';
@@ -272,6 +273,7 @@ export default makeScene2D(function* (view) {
   const matrixTxts = createRefArray<Txt>();
   const matrixHeaderRow = createRef<Layout>();
   const matrixBodyRows = createRefArray<Layout>();
+  const matrix3d = createRef<CrossMatrix3D>();
 
   const {min: crossMin, max: crossMax} = matrixExtent(CROSS_MATRIX);
   const rows = Math.ceil(LANG_DOCS.length / COLS);
@@ -536,6 +538,16 @@ export default makeScene2D(function* (view) {
         ))}
       </Rect>
     </Layout>,
+  );
+
+  view.add(
+    <CrossMatrix3D
+      ref={matrix3d}
+      matrix={CROSS_MATRIX}
+      flags={LANG_DOCS.map(d => d.flag)}
+      opacity={0}
+      y={10}
+    />,
   );
 
   view.add(
@@ -910,62 +922,23 @@ export default makeScene2D(function* (view) {
     ),
   );
 
-  yield* waitFor(0.8);
+  yield* waitFor(0.45);
 
-  // 7) 左侧国旗+压缩长度淡出，交叉压缩矩阵移至屏幕中央并略放大
+  // 7) 左侧淡出，2D 矩阵移到中央（保持 scale=1，与 3D 正交态同构对齐）
   yield* all(
-    listPanel().opacity(0, 0.55, easeOutCubic),
-    listPanel().x(LIST_X - 40, 0.55, easeInOutCubic),
-    matrixRoot().x(0, 0.7, easeInOutCubic),
-    matrixRoot().y(10, 0.7, easeInOutCubic),
-    matrixRoot().scale(1.12, 0.7, easeInOutCubic),
+    listPanel().opacity(0, 0.5, easeOutCubic),
+    listPanel().x(LIST_X - 40, 0.5, easeInOutCubic),
+    matrixRoot().x(0, 0.65, easeInOutCubic),
+    matrixRoot().y(10, 0.65, easeInOutCubic),
+    matrixRoot().scale(1, 0.65, easeInOutCubic),
   );
-
   yield* waitFor(0.35);
 
-  // 8) 高亮对角线（自压缩）→ 等待 1 秒 → 恢复热力原色
-  const diagHighlight = '#ffe08a';
+  // 8) 正交克隆对齐 2D 表后叠化，再角点插值运镜到斜视 3D（避免几何突变）
+  matrix3d().opacity(1);
+  // play 开头会以与 2D 同构的正交态淡入；此处快速叠掉 2D
   yield* all(
-    ...Array.from({length: n}, (_, i) => {
-      const idx = i * n + i;
-      return delay(
-        i * 0.06,
-        all(
-          matrixCells[idx].fill(diagHighlight, 0.35, easeOutCubic),
-          matrixCells[idx].stroke(ACCENT, 0.35, easeOutCubic),
-          matrixCells[idx].lineWidth(2.5, 0.35, easeOutCubic),
-          matrixCells[idx].scale(1.08, 0.35, easeOutBack),
-          matrixTxts[idx].fill(BG, 0.35, easeOutCubic),
-          matrixTxts[idx].scale(1.12, 0.35, easeOutBack),
-        ),
-      );
-    }),
+    matrixRoot().opacity(0, 0.4, easeOutCubic),
+    matrix3d().play(),
   );
-
-  yield* waitFor(1.0);
-
-  yield* all(
-    ...Array.from({length: n}, (_, i) => {
-      const idx = i * n + i;
-      const value = CROSS_MATRIX[i][i];
-      const t =
-        crossMax > crossMin
-          ? (value - crossMin) / (crossMax - crossMin)
-          : 0.5;
-      const textFill = t < 0.35 ? BG : PAPER;
-      return delay(
-        i * 0.04,
-        all(
-          matrixCells[idx].fill(targetFills[idx], 0.35, easeOutCubic),
-          matrixCells[idx].stroke(LINE, 0.35, easeOutCubic),
-          matrixCells[idx].lineWidth(1, 0.35, easeOutCubic),
-          matrixCells[idx].scale(1, 0.35, easeOutCubic),
-          matrixTxts[idx].fill(textFill, 0.35, easeOutCubic),
-          matrixTxts[idx].scale(1, 0.35, easeOutCubic),
-        ),
-      );
-    }),
-  );
-
-  yield* waitFor(1.0);
 });
