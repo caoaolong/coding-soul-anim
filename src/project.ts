@@ -47,9 +47,26 @@ import csvChartDemo from "./scenes/csv_chart_demo?scene";
 import lz77 from "./scenes/lz77?scene";
 import bitstreamDemo from "./scenes/bitstream_demo?scene";
 import contentVsForm from "./scenes/content_vs_form?scene";
+import lplInfo from "./scenes/lpl_info?scene";
+import entropyCoin from "./scenes/entropy_coin?scene";
+import entropyApplication from "./scenes/entropy_application?scene";
+import crossEntropyIntro from "./scenes/cross_entropy_intro?scene";
+import entropyRelationship from "./scenes/entropy_relationship?scene";
+import crossEntropyLoss from "./scenes/cross_entropy_loss?scene";
+import entropyEnding from "./scenes/entropy_ending?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [paper],
+  scenes: [
+    cover,
+    lplInfo,
+    entropyCoin,
+    entropyApplication,
+    crossEntropyIntro,
+    entropyRelationship,
+    crossEntropyLoss,
+    entropyEnding,
+    outro,
+  ],
 });
