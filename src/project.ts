@@ -1,4 +1,4 @@
-import { makeProject } from "@motion-canvas/core";
+﻿import { makeProject } from "@motion-canvas/core";
 
 import cover from "./scenes/cover?scene";
 import outro from "./scenes/outro?scene";
@@ -44,6 +44,7 @@ import encodingTree from "./scenes/encoding_tree?scene";
 import unicodeTree from "./scenes/unicode_tree?scene";
 import terminalDemo from "./scenes/terminal_demo?scene";
 import csvChartDemo from "./scenes/csv_chart_demo?scene";
+import zipStructure from "./scenes/zip_structure?scene";
 import lz77 from "./scenes/lz77?scene";
 import bitstreamDemo from "./scenes/bitstream_demo?scene";
 import contentVsForm from "./scenes/content_vs_form?scene";
@@ -59,11 +60,6 @@ import "./global.css";
 
 export default makeProject({
   scenes: [
-    cover,
-    paper,
-    languageTreeLoop,
-    languageZipDemo,
-    lz77,
-    outro,
+    zipStructure
   ],
 });
