@@ -39,6 +39,7 @@ import endianDemo from "./scenes/endian_demo?scene";
 import imageStackDemo from "./scenes/image_stack_demo?scene";
 import languageZipDemo from "./scenes/language_zip_demo?scene";
 import languageTreeLoop from "./scenes/language_tree_loop?scene";
+import authorTreeLoop from "./scenes/author_tree_loop?scene";
 import encodingDocsDemo from "./scenes/encoding_docs_demo?scene";
 import encodingTree from "./scenes/encoding_tree?scene";
 import unicodeTree from "./scenes/unicode_tree?scene";
@@ -61,5 +62,5 @@ import compressionIntelligence from "./scenes/compression_intelligence?scene";
 import "./global.css";
 
 export default makeProject({
-  scenes: [lz77Huffman],
+  scenes: [languageZipDemo],
 });

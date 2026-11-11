@@ -11,7 +11,6 @@ import {
   waitFor,
 } from '@motion-canvas/core';
 import {FONT} from '../../theme/fonts';
-import {SceneTitle} from '../title/scene_title';
 import {
   TOKEN_COLOR_LITERAL,
   TOKEN_COLOR_LONG,
@@ -224,7 +223,7 @@ function buildEncodedBlocks(tokens: Lz77Token[]): EncodedTokenBlock[] {
 export interface Lz77HuffmanBoardProps extends NodeProps {}
 
 /**
- * LZ77 编码结果 → DEFLATE 双树哈夫曼编码演示板（精简无重叠版）
+ * DEFLATE 双树哈夫曼编码演示板（精简无重叠版）
  */
 export class Lz77HuffmanBoard extends Node {
   private readonly tokens: Lz77Token[];
@@ -284,7 +283,6 @@ export class Lz77HuffmanBoard extends Node {
   }
 
   private buildTopRow() {
-    // 与 lz77.tsx 第二屏完全一致的坐标与尺寸
     this.add(
       <Lz77TokenTags
         ref={this.tags}
@@ -295,7 +293,6 @@ export class Lz77HuffmanBoard extends Node {
       />,
     );
     this.tags().build(this.tokens);
-    this.tags().showInstant();
   }
 
   private buildMiddlePanels() {
@@ -651,7 +648,8 @@ export class Lz77HuffmanBoard extends Node {
 
   private buildBottomStage() {
     // ── 阶段三上半：11 个 Token 对应的哈夫曼比特块（无顶部冗余小字） ──
-    const streamY = 238;
+    // 略上移，给下方对比条与字幕留出垂直间距
+    const streamY = 210;
     const unitPx = 32; // 1 bit = 32px，37 bit 总宽 = 1184px
     const totalBits = this.encodedBlocks.reduce((s, b) => s + b.bitCount, 0);
     const packedTotalW = totalBits * unitPx;
@@ -703,13 +701,13 @@ export class Lz77HuffmanBoard extends Node {
       <Rect
         ref={this.compareCard}
         width={1680}
-        height={132}
+        height={118}
         x={0}
-        y={390}
+        y={345}
         radius={16}
-        fill={CARD}
-        stroke={LINE}
-        lineWidth={2}
+        fill={'#00000000'}
+        stroke={'#00000000'}
+        lineWidth={0}
         opacity={0}
         scale={0.96}
       >
@@ -870,81 +868,83 @@ export class Lz77HuffmanBoard extends Node {
     );
   }
 
-  public *play(sceneTitle?: SceneTitle): ThreadGenerator {
-    // ═══ 0. 承接 lz77 第二屏，切换标题并展开双面板 ═══
-    yield* waitFor(0.25);
-    if (sceneTitle) {
-      yield* sceneTitle.setText('哈夫曼编码', 0.4);
-    }
+  public *play(): ThreadGenerator {
+    // 整体节奏倍率（>1 更慢）；口播跟不上时只调这一处
+    const T = 1.4;
+
+    // ═══ 0. 独立开场：Token Tags + 双面板 ═══
+    yield* waitFor(0.15 * T);
+    yield* this.tags().show(0.45 * T, 0.05 * T);
+    yield* waitFor(0.2 * T);
     yield* all(
-      this.leftPanel().opacity(1, 0.4, easeOutCubic),
-      this.leftPanel().scale(1, 0.45, easeOutCubic),
-      this.rightPanel().opacity(1, 0.4, easeOutCubic),
-      this.rightPanel().scale(1, 0.45, easeOutCubic),
+      this.leftPanel().opacity(1, 0.4 * T, easeOutCubic),
+      this.leftPanel().scale(1, 0.45 * T, easeOutCubic),
+      this.rightPanel().opacity(1, 0.4 * T, easeOutCubic),
+      this.rightPanel().scale(1, 0.45 * T, easeOutCubic),
     );
-    yield* waitFor(0.2);
+    yield* waitFor(0.2 * T);
 
     // ═══ 1. 阶段一：双流频次统计 ═══
     // 1a) 高频字面量 'a' (×3)
     yield* all(
-      this.tags().highlightIndices([0, 3, 5], 0.3),
-      this.litFreqCols[0].opacity(1, 0.32, easeOutCubic),
-      this.litFreqCols[0].scale(1, 0.38, easeOutBack),
-      this.litFreqBars[0].height(140, 0.45, easeOutCubic),
+      this.tags().highlightIndices([0, 3, 5], 0.3 * T),
+      this.litFreqCols[0].opacity(1, 0.32 * T, easeOutCubic),
+      this.litFreqCols[0].scale(1, 0.38 * T, easeOutBack),
+      this.litFreqBars[0].height(140, 0.45 * T, easeOutCubic),
     );
-    yield* waitFor(0.35);
+    yield* waitFor(0.35 * T);
 
     // 1b) 其余 5 个单次字面量
     yield* all(
-      this.tags().highlightIndices([1, 2, 4, 6, 8], 0.3),
+      this.tags().highlightIndices([1, 2, 4, 6, 8], 0.3 * T),
       ...[1, 2, 3, 4, 5].map((colIdx, k) =>
         delay(
-          k * 0.05,
+          k * 0.05 * T,
           all(
-            this.litFreqCols[colIdx].opacity(1, 0.3, easeOutCubic),
-            this.litFreqCols[colIdx].scale(1, 0.35, easeOutBack),
-            this.litFreqBars[colIdx].height(48, 0.4, easeOutCubic),
+            this.litFreqCols[colIdx].opacity(1, 0.3 * T, easeOutCubic),
+            this.litFreqCols[colIdx].scale(1, 0.35 * T, easeOutBack),
+            this.litFreqBars[colIdx].height(48, 0.4 * T, easeOutCubic),
           ),
         ),
       ),
     );
-    yield* waitFor(0.3);
+    yield* waitFor(0.3 * T);
 
     // 1c) 3 个匹配长度与 2 个偏移距离
     yield* all(
-      this.tags().highlightIndices([7, 9, 10], 0.3),
+      this.tags().highlightIndices([7, 9, 10], 0.3 * T),
       ...[6, 7, 8].map((colIdx, k) =>
         delay(
-          k * 0.06,
+          k * 0.06 * T,
           all(
-            this.litFreqCols[colIdx].opacity(1, 0.3, easeOutCubic),
-            this.litFreqCols[colIdx].scale(1, 0.35, easeOutBack),
-            this.litFreqBars[colIdx].height(48, 0.4, easeOutCubic),
+            this.litFreqCols[colIdx].opacity(1, 0.3 * T, easeOutCubic),
+            this.litFreqCols[colIdx].scale(1, 0.35 * T, easeOutBack),
+            this.litFreqBars[colIdx].height(48, 0.4 * T, easeOutCubic),
           ),
         ),
       ),
-      this.distFreqCols[0].opacity(1, 0.32, easeOutCubic),
-      this.distFreqCols[0].scale(1, 0.38, easeOutBack),
-      this.distFreqBars[0].height(110, 0.45, easeOutCubic),
+      this.distFreqCols[0].opacity(1, 0.32 * T, easeOutCubic),
+      this.distFreqCols[0].scale(1, 0.38 * T, easeOutBack),
+      this.distFreqBars[0].height(110, 0.45 * T, easeOutCubic),
       delay(
-        0.1,
+        0.1 * T,
         all(
-          this.distFreqCols[1].opacity(1, 0.32, easeOutCubic),
-          this.distFreqCols[1].scale(1, 0.38, easeOutBack),
-          this.distFreqBars[1].height(55, 0.45, easeOutCubic),
+          this.distFreqCols[1].opacity(1, 0.32 * T, easeOutCubic),
+          this.distFreqCols[1].scale(1, 0.38 * T, easeOutBack),
+          this.distFreqBars[1].height(55, 0.45 * T, easeOutCubic),
         ),
       ),
     );
 
-    yield* this.tags().clearHighlight(0.3);
-    yield* waitFor(0.8);
+    yield* this.tags().clearHighlight(0.3 * T);
+    yield* waitFor(0.8 * T);
 
     // ═══ 2. 阶段二：过渡为双哈夫曼树 ═══
     yield* all(
-      this.leftFreqLayer().opacity(0, 0.35, easeOutCubic),
-      this.rightFreqLayer().opacity(0, 0.35, easeOutCubic),
-      this.leftPanelTitle().text('字面量 / 长度树', 0.3),
-      this.rightPanelTitle().text('距离树', 0.3),
+      this.leftFreqLayer().opacity(0, 0.35 * T, easeOutCubic),
+      this.rightFreqLayer().opacity(0, 0.35 * T, easeOutCubic),
+      this.leftPanelTitle().text('字面量 / 长度树', 0.3 * T),
+      this.rightPanelTitle().text('距离树', 0.3 * T),
     );
     this.leftTreeLayer().opacity(1);
     this.rightTreeLayer().opacity(1);
@@ -953,24 +953,24 @@ export class Lz77HuffmanBoard extends Node {
     yield* all(
       ...this.leftLeafBoxes.map((box, i) =>
         delay(
-          i * 0.035,
+          i * 0.035 * T,
           all(
-            box.opacity(1, 0.3, easeOutCubic),
-            box.scale(1, 0.35, easeOutBack),
+            box.opacity(1, 0.3 * T, easeOutCubic),
+            box.scale(1, 0.35 * T, easeOutBack),
           ),
         ),
       ),
       ...this.rightLeafBoxes.map((box, i) =>
         delay(
-          i * 0.06,
+          i * 0.06 * T,
           all(
-            box.opacity(1, 0.3, easeOutCubic),
-            box.scale(1, 0.35, easeOutBack),
+            box.opacity(1, 0.3 * T, easeOutCubic),
+            box.scale(1, 0.35 * T, easeOutBack),
           ),
         ),
       ),
     );
-    yield* waitFor(0.25);
+    yield* waitFor(0.25 * T);
 
     // 2b) 自底向上逐层合并建树（level 1 → level 4）
     for (let lv = 1; lv <= 4; lv++) {
@@ -979,8 +979,8 @@ export class Lz77HuffmanBoard extends Node {
         if (spec.level === lv) {
           internalAnims.push(
             all(
-              this.leftInternalCircles[idx].opacity(1, 0.3, easeOutCubic),
-              this.leftInternalCircles[idx].scale(1, 0.35, easeOutBack),
+              this.leftInternalCircles[idx].opacity(1, 0.3 * T, easeOutCubic),
+              this.leftInternalCircles[idx].scale(1, 0.35 * T, easeOutBack),
             ),
           );
         }
@@ -989,86 +989,97 @@ export class Lz77HuffmanBoard extends Node {
       const edgeAnims: ThreadGenerator[] = [];
       LEFT_EDGE_SPECS.forEach((spec, idx) => {
         if (spec.level === lv) {
-          edgeAnims.push(this.leftEdgeLines[idx].end(1, 0.38, easeInOutCubic));
+          edgeAnims.push(
+            this.leftEdgeLines[idx].end(1, 0.38 * T, easeInOutCubic),
+          );
         }
       });
 
       if (lv === 1) {
         internalAnims.push(
           all(
-            this.rightRootCircle().opacity(1, 0.3, easeOutCubic),
-            this.rightRootCircle().scale(1, 0.35, easeOutBack),
+            this.rightRootCircle().opacity(1, 0.3 * T, easeOutCubic),
+            this.rightRootCircle().scale(1, 0.35 * T, easeOutBack),
           ),
         );
         this.rightEdgeLines.forEach(line => {
-          edgeAnims.push(line.end(1, 0.38, easeInOutCubic));
+          edgeAnims.push(line.end(1, 0.38 * T, easeInOutCubic));
         });
       }
 
       yield* all(...internalAnims, ...edgeAnims);
-      yield* waitFor(0.12);
+      yield* waitFor(0.12 * T);
     }
 
     // 2c) 叶子哈夫曼码弹出
     yield* all(
       ...this.leftLeafCodeBoxes.map((c, i) =>
         delay(
-          i * 0.03,
-          all(c.opacity(1, 0.3, easeOutCubic), c.scale(1, 0.35, easeOutBack)),
+          i * 0.03 * T,
+          all(
+            c.opacity(1, 0.3 * T, easeOutCubic),
+            c.scale(1, 0.35 * T, easeOutBack),
+          ),
         ),
       ),
       ...this.rightLeafCodeBoxes.map(c =>
-        all(c.opacity(1, 0.3, easeOutCubic), c.scale(1, 0.35, easeOutBack)),
+        all(
+          c.opacity(1, 0.3 * T, easeOutCubic),
+          c.scale(1, 0.35 * T, easeOutBack),
+        ),
       ),
     );
-    yield* waitFor(0.75);
+    yield* waitFor(0.75 * T);
 
     // ═══ 3. 阶段三：逐个 Token 查树输出比特块 + 挤压合拢 ═══
     for (let i = 0; i < this.encodedBlocks.length; i++) {
       const blk = this.encodedBlocks[i];
       yield* all(
-        this.tags().highlightSingle(i, 0.16),
-        this.pulseTreeLeaves(blk.litLeafId, blk.distLeafId, 0.16),
-        this.bitBlocks[i].opacity(1, 0.2, easeOutCubic),
-        this.bitBlocks[i].scale(1, 0.24, easeOutBack),
+        this.tags().highlightSingle(i, 0.16 * T),
+        this.pulseTreeLeaves(blk.litLeafId, blk.distLeafId, 0.16 * T),
+        this.bitBlocks[i].opacity(1, 0.2 * T, easeOutCubic),
+        this.bitBlocks[i].scale(1, 0.24 * T, easeOutBack),
       );
-      yield* waitFor(0.08);
+      yield* waitFor(0.08 * T);
     }
 
     yield* all(
-      this.tags().clearHighlight(0.28),
-      this.resetTreeLeaves(0.28),
+      this.tags().clearHighlight(0.28 * T),
+      this.resetTreeLeaves(0.28 * T),
     );
-    yield* waitFor(0.25);
+    yield* waitFor(0.25 * T);
 
     // 11 个比特块紧密挤压合拢为连续 37 bit 流
     yield* all(
       ...this.bitBlocks.map((b, i) =>
-        b.x(this.packedBlockXs[i], 0.65, easeInOutCubic),
+        b.x(this.packedBlockXs[i], 0.65 * T, easeInOutCubic),
       ),
     );
-    yield* waitFor(0.3);
+    yield* waitFor(0.3 * T);
 
     // ═══ 4. 展示压缩率对比（184 bit → 37 bit） ═══
     const barMaxW = 900;
     const huffBarW = Math.round((37 / 184) * barMaxW);
 
     yield* all(
-      this.compareCard().opacity(1, 0.4, easeOutCubic),
-      this.compareCard().scale(1, 0.45, easeOutBack),
+      this.compareCard().opacity(1, 0.4 * T, easeOutCubic),
+      this.compareCard().scale(1, 0.45 * T, easeOutBack),
     );
     yield* all(
-      this.rawBarFill().width(barMaxW, 0.65, easeInOutCubic),
-      delay(0.15, this.huffBarFill().width(huffBarW, 0.65, easeInOutCubic)),
+      this.rawBarFill().width(barMaxW, 0.65 * T, easeInOutCubic),
       delay(
-        0.35,
+        0.15 * T,
+        this.huffBarFill().width(huffBarW, 0.65 * T, easeInOutCubic),
+      ),
+      delay(
+        0.35 * T,
         all(
-          this.savingBadge().opacity(1, 0.35, easeOutCubic),
-          this.savingBadge().scale(1, 0.42, easeOutBack),
+          this.savingBadge().opacity(1, 0.35 * T, easeOutCubic),
+          this.savingBadge().scale(1, 0.42 * T, easeOutBack),
         ),
       ),
     );
 
-    yield* waitFor(1.5);
+    yield* waitFor(1.5 * T);
   }
 }

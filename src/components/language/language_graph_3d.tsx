@@ -22,7 +22,10 @@ const MONO = '"Cascadia Mono", "Consolas", "JetBrains Mono", monospace';
 
 export type LangGraphNode = {
   label: string;
-  flag: string;
+  /** 国旗资源；作者图等场景可省略，改显示 initial */
+  flag?: string;
+  /** 无国旗时圆内缩写（默认取 label 前 2 字符） */
+  initial?: string;
   color: string;
 };
 
@@ -151,6 +154,7 @@ export class LanguageGraph3D extends Node {
     }
 
     langs.forEach((lang, i) => {
+      const mark = (lang.initial ?? lang.label.slice(0, 2)).toUpperCase();
       this.add(
         <Circle
           ref={this.nodeShadows}
@@ -170,7 +174,17 @@ export class LanguageGraph3D extends Node {
             stroke={lang.color}
             lineWidth={2.5}
           />
-          <Img src={lang.flag} width={34} height={22} radius={3} />
+          {lang.flag ? (
+            <Img src={lang.flag} width={34} height={22} radius={3} />
+          ) : (
+            <Txt
+              text={mark}
+              fontFamily={MONO}
+              fontSize={16}
+              fontWeight={700}
+              fill={lang.color}
+            />
+          )}
           <Txt
             text={lang.label}
             fontFamily={MONO}
