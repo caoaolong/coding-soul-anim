@@ -46,6 +46,7 @@ import terminalDemo from "./scenes/terminal_demo?scene";
 import csvChartDemo from "./scenes/csv_chart_demo?scene";
 import zipStructure from "./scenes/zip_structure?scene";
 import lz77 from "./scenes/lz77?scene";
+import lz77Huffman from "./scenes/lz77_huffman?scene";
 import bitstreamDemo from "./scenes/bitstream_demo?scene";
 import contentVsForm from "./scenes/content_vs_form?scene";
 import lplInfo from "./scenes/lpl_info?scene";
@@ -55,9 +56,10 @@ import crossEntropyIntro from "./scenes/cross_entropy_intro?scene";
 import entropyRelationship from "./scenes/entropy_relationship?scene";
 import crossEntropyLoss from "./scenes/cross_entropy_loss?scene";
 import entropyEnding from "./scenes/entropy_ending?scene";
+import compressionIntelligence from "./scenes/compression_intelligence?scene";
 
 import "./global.css";
 
 export default makeProject({
-  scenes: [languageZipDemo],
+  scenes: [lz77Huffman],
 });

@@ -1,6 +1,7 @@
 import {Layout, Node, NodeProps, Rect, Txt} from '@motion-canvas/2d';
 import {
   ThreadGenerator,
+  Vector2,
   all,
   createRef,
   createRefArray,
@@ -92,6 +93,51 @@ export class Lz77TokenTags extends Node {
     );
     if (anims.length > 0) yield* all(...anims);
     yield* waitFor(0.1);
+  }
+
+  /** 直接显示为完成态（用于跨场景无缝衔接 lz77 第二屏） */
+  public showInstant() {
+    this.opacity(1);
+    for (const tag of this.tags) {
+      tag.opacity(1);
+      tag.scale(1);
+    }
+  }
+
+  /** 高亮指定下标的 tag，其余压暗 */
+  public *highlightIndices(
+    indices: number[],
+    duration = 0.25,
+  ): ThreadGenerator {
+    const active = new Set(indices);
+    const anims = this.tags.map((tag, i) =>
+      all(
+        tag.opacity(active.has(i) ? 1 : 0.28, duration, easeOutCubic),
+        tag.scale(active.has(i) ? 1.1 : 0.96, duration, easeOutCubic),
+      ),
+    );
+    if (anims.length > 0) yield* all(...anims);
+  }
+
+  /** 高亮单个 tag */
+  public *highlightSingle(index: number, duration = 0.22): ThreadGenerator {
+    yield* this.highlightIndices([index], duration);
+  }
+
+  /** 恢复全部 tag 常态 */
+  public *clearHighlight(duration = 0.25): ThreadGenerator {
+    const anims = this.tags.map(tag =>
+      all(
+        tag.opacity(1, duration, easeOutCubic),
+        tag.scale(1, duration, easeOutCubic),
+      ),
+    );
+    if (anims.length > 0) yield* all(...anims);
+  }
+
+  /** 获取指定 tag 的世界坐标 */
+  public getTagAbsolutePosition(index: number): Vector2 {
+    return this.tags[index].absolutePosition();
   }
 
   private makeTagRect(

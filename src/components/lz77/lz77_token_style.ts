@@ -87,3 +87,54 @@ export function resolveRefExpansions(tokens: Lz77Token[]): string[] {
 export function formatExpansionLabel(text: string): string {
   return [...text].map(formatDisplayChar).join('');
 }
+
+/**
+ * 纯函数计算给定文本的 LZ77 二元组序列（算法与 Lz77Board 完全一致）。
+ */
+export function encodeLz77Tokens(
+  text: string,
+  windowSize = 12,
+  lookAheadSize = 8,
+): Lz77Token[] {
+  const chars = [...text];
+  const tokens: Lz77Token[] = [];
+  let cursor = 0;
+
+  while (cursor < chars.length) {
+    const searchFrom = Math.max(0, cursor - windowSize);
+    let bestLen = 0;
+    let bestOffset = 0;
+    const maxLen = Math.min(lookAheadSize, chars.length - cursor);
+
+    for (let i = searchFrom; i < cursor; i++) {
+      let len = 0;
+      const limit = Math.min(maxLen, chars.length - i);
+      while (len < limit && chars[i + len] === chars[cursor + len]) {
+        len++;
+      }
+      if (
+        len > bestLen ||
+        (len === bestLen && len > 0 && i > cursor - bestOffset)
+      ) {
+        bestLen = len;
+        bestOffset = cursor - i;
+      }
+    }
+
+    if (bestLen >= MIN_MATCH_LENGTH) {
+      const chunk = chars.slice(cursor, cursor + bestLen).join('');
+      tokens.push({
+        kind: 'ref',
+        length: bestLen,
+        offset: bestOffset,
+        text: chunk,
+      });
+      cursor += bestLen;
+    } else {
+      tokens.push({kind: 'literal', char: chars[cursor]});
+      cursor += 1;
+    }
+  }
+
+  return tokens;
+}
